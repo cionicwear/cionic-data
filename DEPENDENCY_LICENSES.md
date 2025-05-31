@@ -16,7 +16,7 @@ Below is a grouping by license type (or derived license type) of the 3rd party s
 - [ipympl](https://github.com/matplotlib/ipympl/blob/main/LICENSE)
 
 ## MIT
--[black](https://github.com/psf/black/blob/main/LICENSE)
+- [black](https://github.com/psf/black/blob/main/LICENSE)
 
 ## PSF
 - [matplotlib](https://matplotlib.org/users/license.html)
