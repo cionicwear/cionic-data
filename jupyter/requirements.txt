@@ -1,0 +1,11 @@
+ipython==8.14.0
+ipywidgets==8.0.7
+matplotlib==3.7.1
+jupyterlab==4.0.2
+numpy==1.23.5
+pandas==2.0.3
+requests==2.31.0
+papermill==2.4.0
+black==23.3.0
+ipympl==0.9.3
+scipy==1.11.1

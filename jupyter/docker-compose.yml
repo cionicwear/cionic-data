@@ -1,0 +1,14 @@
+version: "3.1"
+services:
+  jupyter:
+    build: .
+    ports: ['8888:8888']
+    environment:
+    - JUPYTER_ENABLE_LAB=yes
+    - PYTHONPATH=/home/jovyan/
+    volumes:
+      - ../recordings:/home/jovyan/recordings
+      - ../cionic:/home/jovyan/cionic
+      - ../token.json:/home/jovyan/token.json
+      - ./analysis:/home/jovyan/analysis
+    command: sh -c "pip install -r /home/jovyan/requirements.txt && PYDEVD_DISABLE_FILE_VALIDATION=1 start-notebook.sh"
