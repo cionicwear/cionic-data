@@ -23,3 +23,7 @@ You will first need to download an authorization token from the web portal.
 3. Execute the notebook
 4. Select options for org / study / notebook
 5. Hit run
+
+## Troubleshooting
+- When version dependencies change, rebuild the contain with `docker compose up --build`
+- If a notebook is misbehaving (e.g, when downloading an `npz`, a `FileNotFoundError` may appear on rare occassions), shut down the notebook's kernel and retry
