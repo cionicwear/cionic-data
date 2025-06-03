@@ -70,7 +70,7 @@ def get_cionic(urlpath, microservice='c', cachepath=None, ver=apiver, **kwargs):
         cachepath = None
 
     url = f'https://{server}/{microservice}/v{ver}/{urlpath}'
-    print('fetching ' + url, file=sys.stderr)
+    print(f'fetching {url} {kwargs}', file=sys.stderr)
     r = requests.get(url, headers={'x-cionic-user':authtoken}, params=kwargs)
 
     if r.status_code != 200:
@@ -83,35 +83,97 @@ def get_cionic(urlpath, microservice='c', cachepath=None, ver=apiver, **kwargs):
 
     return r.json()
 
-def post_cionic(urlpath, microservice='c', cachepath=None, json=None, ver=apiver, **kwargs):
+def post_cionic(urlpath, microservice='c', cachepath=None, json=None, ver=apiver, ret_status=False, **kwargs):
     url = f'https://{server}/{microservice}/v{ver}/{urlpath}'
-    print('posting ' + url, file=sys.stderr)
-    
+    print(f'posting {url} {kwargs} {json}', file=sys.stderr)
+
     if json:
         r = requests.post(url, headers={'x-cionic-user':authtoken}, json=json)
     else:
         r = requests.post(url, headers={'x-cionic-user':authtoken}, params=kwargs)
 
-    if r.status_code not in [200,201]:
+    if ret_status:
+        return r.status_code
+
+    if r.status_code not in [200]:
         print(r, file=sys.stderr)
         return None
-    
+
     return r.json()
 
-def put_cionic(urlpath, microservice='c', cachepath=None, json=None, ver=apiver, **kwargs):
+def put_cionic(urlpath, microservice='c', cachepath=None, json=None, ver=apiver, ret_status=False, **kwargs):
     url = f'https://{server}/{microservice}/v{ver}/{urlpath}'
     print('putting ' + url, file=sys.stderr)
-    
+
     if json:
         r = requests.put(url, headers={'x-cionic-user':authtoken}, json=json)
     else:
         r = requests.put(url, headers={'x-cionic-user':authtoken}, params=kwargs)
 
-    if r.status_code not in [200,201,202]:
+    if ret_status:
+        return r.status_code
+
+    if r.status_code not in [200]:
         print(r, file=sys.stderr)
         return None
-    
+
     return r.json()
+
+def delete_cionic(urlpath, microservice='c', ver=apiver, ret_status=False):
+    url = f'https://{server}/{microservice}/v{ver}/{urlpath}'
+    print(f'deleting {url}', file=sys.stderr)
+
+    r = requests.delete(url, headers={'x-cionic-user':authtoken})
+
+    if ret_status:
+        return r.status_code
+
+    if r.status_code not in [200]:
+        print(r, file=sys.stderr)
+        return None
+
+    return r.json()
+
+def get_user(email):
+    'Return user dictionary for email'
+    return get_cionic('accounts', microservice='a', email=email)
+
+def create_user(orgid, email):
+    'Create a new user with passed email address'
+    json = {'user_email':email, 'user_name':email}
+    return post_cionic(f'{orgid}/accounts', microservice='a', json=json)
+
+ORG_ROLES = {
+    'analyst'   : 1,
+    'collector' : 2,
+    'admin'     : 3
+}
+
+ROLE_ADD_RESPONSE = {
+    202 : 'Success',
+    409 : 'Already Granted',
+}
+
+ROLE_REM_RESPONSE = {
+    202 : 'Success',
+    404 : 'Not Granted',
+}
+
+def add_roles(orgid, xid, roles):
+    for role in roles:
+        if rid := ORG_ROLES.get(role):
+            status = post_cionic(f'{orgid}/accounts/{xid}/roles', microservice='a', json={'role':rid}, ret_status=True)
+            print(f'Role {role} added <{ROLE_ADD_RESPONSE.get(status, status)}>')
+        else:
+            print(f'Role {role} unknown')
+
+def remove_roles(orgid, xid, roles):
+    for role in roles:
+        if rid := ORG_ROLES.get(role):
+            status = delete_cionic(f'{orgid}/accounts/{xid}/roles/{rid}', microservice='a', ret_status=True)
+            print(f'Role {role} removed <{ROLE_REM_RESPONSE.get(status, status)}>')
+        else:
+            print(f'Role {role} unknown')
 
 def to_jsonl(objs):
     'Return jsonl of list of dicts.'

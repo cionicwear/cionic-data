@@ -11,7 +11,7 @@ sys.path.append('.')
 import cionic
 
 __usage__ = '''
-python ./scripts/download.py [orgid] [studyid] [-n <collection numbers to download>] [-c <streams to csv>] [-o <output directory>] [-t <filepath to tokenfile>] [-l <limit>] [-f] 
+./scripts/download.py [orgid] [studyid] [-n <collection numbers to download>] [-c <streams to csv>] [-o <output directory>] [-t <filepath to tokenfile>] [-l <limit>] [-f]
 
 Common usage examples:
 ./scripts/download.py -h                            (print help)
