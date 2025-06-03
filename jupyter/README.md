@@ -23,3 +23,30 @@ You will first need to download an authorization token from the web portal.
 3. Execute the notebook
 4. Select options for org / study / notebook
 5. Hit run
+
+## Private volumes
+A common pattern of use is to have notebooks/code that you do not intend to share publicly.
+
+You can leverage [docker compose -f](https://docs.docker.com/reference/cli/docker/compose/#use--f-to-specify-the-name-and-path-of-one-or-more-compose-files)
+to specify additional volumes.
+
+For example:
+
+* create a directory called `cool-analysis` at the same directory level as `cionic-data`
+* create a docker-compose file `private-volumes.yml` with the following volume specification
+
+```
+version: "3.1"
+services:
+  jupyter:
+    volumes:
+      - ../../cool-analysis:/home/jovyan/cool-analysis
+```
+
+* start your docker container specifying the primary and additional config files
+
+```
+docker-compose -f docker-compose.yml -f private-volumes.yml up
+```
+
+private-*.yml is added to `.gitignore` to avoid accidental cehckin
