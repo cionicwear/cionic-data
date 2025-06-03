@@ -42,7 +42,7 @@ Install packages:
 The download script enables fetch and segmentation of npz files to the local directory.
 
 ```
-python ./scripts/download.py [orgid] [studyid] [-n <collection numbers to download>] [-c <streams to csv>] [-o <output directory>] [-t <filepath to tokenfile>] [-l <limit>] [-f] 
+./scripts/download.py [orgid] [studyid] [-n <collection numbers to download>] [-c <streams to csv>] [-o <output directory>] [-t <filepath to tokenfile>] [-l <limit>] [-f] 
 
 Common usage examples:
 ./scripts/download.py -h                            (print help)
@@ -76,3 +76,21 @@ and the segmented npz `<orgid>_<studyid>_<collnum>_seg.npz`
 If all files from the collection are desired (including videos and notes) specify the `-f` option
 
 For csv export specify a list of stream names to convert.  For example `-c fquat emg` will create CSV files for all quaternion and emg streams
+
+## auth.py
+
+```
+usage: 
+./scripts/auth.py [email] [org] [-a <admin collector analyst>] [-r <admin collector analyst>]
+REQUIRES ORG ADMIN ROLE
+
+positional arguments:
+  email             email to grant permission
+  org               organization shortname
+
+optional arguments:
+  -h, --help        show this help message and exit
+  -a ADD [ADD ...]  add role flags: -a analyst collector admin
+  -r REM [REM ...]  remove role flags: -d analyst collector admin
+  -t TOKEN          path to auth credentials json file
+```
