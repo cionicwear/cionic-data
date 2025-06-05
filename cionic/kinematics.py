@@ -5,10 +5,8 @@ import logging
 import math
 import operator
 import struct
-import time
 from collections import defaultdict
 
-import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import matplotlib.ticker as pltk
 import numpy as np
@@ -404,7 +402,8 @@ class Kinematics:
     def export_split(
         self, split_name, group, position, stream, component, target_length
     ):
-        """output emg splits into csv format where each row is an individual stream of target_length points
+        """output emg splits into csv format where each row is an individual stream
+        of target_length points
         <stream> <start> <duration> <0>...<target_length>
         """
         splits = []
@@ -932,7 +931,7 @@ class Kinematics:
         if presentation.get('legend') != 'off':
             axs.legend(
                 legend, frameon=False, loc=presentation.get('legend', 1)
-            )  #'best'))
+            )
         if presentation.get('title') != 'off':
             axs.set_title(title)
         axs.spines['top'].set_visible(False)
@@ -965,9 +964,9 @@ class Kinematics:
             plt.style.use(presentation['style'])
 
         # make lists
-        if type(streams) != list:
+        if isinstance(streams, list):
             streams = [streams]
-        if type(positions) != list:
+        if isinstance(positions, list):
             positions = [positions]
 
         # config is for advanced usage specifying different maps for different sides
@@ -1079,19 +1078,19 @@ class Kinematics:
                         axs, ind, position, xaxis, yaxis, presentation
                     )
 
-                    ######## PLOT NORMATIVE DATA #########
+                    # PLOT NORMATIVE DATA
                     # EMG (Lencioni et al. dataset)
                     if norm_emg_data is not None:
 
                         # match Cionic muscle labeling with normative EMG data labeling
-                        ### lower leg (shank)
+                        # lower leg (shank)
                         if 'gl' in position:
                             muscle = 'GL'
                         elif 'gm' in position:
                             muscle = 'GM'
                         elif 'ta' in position:
                             muscle = 'TA'
-                        ### upper leg (thigh)
+                        # upper leg (thigh)
                         elif 'rf' in position:
                             muscle = 'RF'
                         elif 'vm' in position:
@@ -1102,12 +1101,12 @@ class Kinematics:
                             muscle = 'BF'
 
                         else:
-                            continue  # if positions are not present, don't plot normative EMG
+                            continue  # if positions not present, don't plot norm EMG
 
                         if norm_emg_data['avg'].get(muscle) is None:
                             continue
 
-                        # specify data (all data must be in decimals, not percentage values)
+                        # specify data (all data must be in decimals, not percentages)
                         x_percent_norm = np.divide(norm_emg_data['gcycle_percent'], 100)
                         emg_norm_avg = np.divide(norm_emg_data['avg'][muscle], 100)
                         emg_norm_std = np.divide(norm_emg_data['std'][muscle], 100)
@@ -1321,7 +1320,8 @@ class Kinematics:
     def load_calibration(self, group, position, stream, calibration):
         # TODO : see if we can avoid eval
         if calibration != "" and stream == "fquat":
-            # fquat calibration is 5 floats representing upright orientation difference quaternion and xoffset
+            # fquat calibration is 5 floats representing upright orientation
+            # difference quaternion and xoffset
             self.calibrations[group][position][stream] = struct.unpack(
                 "<5f", eval(calibration)
             )
@@ -1371,12 +1371,16 @@ class Kinematics:
         return data, calibration
 
     def get_synthetic_interpolated_array(self, arr_a, arr_b):
-        """Returns an interpolated sythetic array given two arrays. Used specifically in the context of time arrays."""
+        """Returns an interpolated sythetic array given two arrays.
+        Used specifically in the context of time arrays.
+        """
         sampling_rate = np.mean([np.median(np.diff(arr_a)), np.median(np.diff(arr_b))])
         min_timestamp = max(arr_a.min(), arr_b.min())
         max_timestamp = min(arr_a.max(), arr_b.max())
         elapsed_s_interp = np.arange(min_timestamp, max_timestamp, sampling_rate)
-        # Remove edge case arrays created with values exceeding min_timestamp, max_timestamp. Not sure why this happens, but this line seems to fix the issue.
+        # Remove edge case arrays created with values exceeding
+        # min_timestamp, max_timestamp. Not sure why this happens,
+        # but this line seems to fix the issue.
         elapsed_s_interp = elapsed_s_interp[
             (elapsed_s_interp <= max_timestamp) & (elapsed_s_interp >= min_timestamp)
         ]
@@ -1400,7 +1404,9 @@ class Kinematics:
         return arr
 
     def calculate_joint_angle(self, group, position_a, position_b, stream):
-        """Calculates a joint angle in Eulers between position_a and positions_b give in quats"""
+        """Calculates a joint angle in Eulers between position_a and positions_b
+        given in quats.
+        """
         # determine streams from config
         data_a, calibration_a = self.get_data_array_and_calibration(
             group, position_a, stream
@@ -1417,11 +1423,13 @@ class Kinematics:
 
         if n_a != data_a.shape[0]:
             print(
-                f"{position_a} {stream}: {n_a - data_a.shape[0]} nonincreasing samples removed (of {data_a.shape[0]} total samples)."
+                f"{position_a} {stream}: {n_a - data_a.shape[0]} nonincreasing "
+                f"samples removed (of {data_a.shape[0]} total samples)."
             )
         if n_b != data_b.shape[0]:
             print(
-                f"{position_b} {stream}: {n_b - data_b.shape[0]} nonincreasing samples removed (of {data_b.shape[0]} total samples)."
+                f"{position_b} {stream}: {n_b - data_b.shape[0]} nonincreasing "
+                f"samples removed (of {data_b.shape[0]} total samples)."
             )
 
         # Get rotations for each stream.
@@ -1483,7 +1491,9 @@ class Kinematics:
                 return
 
     def calculate_joint_angles(self, group, angles, stream='fquat', neutral_offsets={}):
-        """Calculates joint angles based on quat streams of positions and assigns Eulers to self.groups."""
+        """Calculates joint angles based on quat streams of positions
+        and assigns Eulers to self.groups.
+        """
 
         # add an upright vector to the group
         # match in length to the first rotation stream
@@ -1531,7 +1541,9 @@ class Kinematics:
                 self.groups[group][angle]['angle']['degrees'] += offset
 
     def calculate_limb_angles(self, group, positions, stream='fquat'):
-        """Calculates limb angles based on quat streams of positions and assigns Eulers to self.groups."""
+        """Calculates limb angles based on quat streams of positions
+        and assigns Eulers to self.groups.
+        """
         print('\nComputing limb angles...')
         for position in positions:
 
@@ -1594,14 +1606,15 @@ class Kinematics:
             emg = self.groups[group][position][stream]
             try:
                 regs = self.regs[group][position][stream]
-            except:
+            except Exception:
                 regs = None
             emg_params['sampling_rate'] = tools.regs_sampling_rate(regs)
 
             fields = self.emg_fields(group, position, stream)
             if stream in self.channels[group][position]:
                 channel_map = self.channels[group][position][stream]
-                # Address init.f misspecification where more channels are streaming than channel names provided.
+                # Address init.f misspecification where more channels are streaming
+                # than channel names provided.
                 if len(fields) > len(channel_map):
                     channel_map = fields
             else:
@@ -1698,7 +1711,7 @@ class Kinematics:
             emg = self.groups[group][position][stream]
             try:
                 regs = self.regs[group][position][stream]
-            except Exception as e:
+            except Exception:
                 regs = None
 
             fields = self.emg_fields(group, position, stream)
@@ -1973,7 +1986,7 @@ class Kinematics:
             if swing['to_ts'] > stance['to_ts']:
                 continue
 
-            # possible that the new swing is not cconsecutive with the last becase of skips
+            # possible that new swing is not cconsecutive with the last becase of skips
             if (swing['hs_in'] - stance['hs_in']) != 1:
                 continue
 
@@ -2002,7 +2015,8 @@ class Kinematics:
 
     def gait_triangles(self, cycles, thigh_len, shank_len):
         for cycle in cycles:
-            # first solve for the distance from the hip to the foot for the three points in the gait cycle
+            # first solve for the distance from the hip to the foot
+            # for the three points in the gait cycle
             stance_hs_tri = costri(
                 shank_len, thigh_len, math.radians(180 - cycle['stance_hs_ka'])
             )
@@ -2017,28 +2031,26 @@ class Kinematics:
             swing_hs_len = swing_hs_tri['c']
             # print("lengths", stance_hs_len, to_len, swing_hs_len)
 
-            # calculate the travel of the shank during the stance phase = stance_hs to toe_off
+            # calculate travel of shank during the stance phase = stance_hs to toe_off
             # and the resultant angle between the hip-to-foot vectors
             # and the translation of the hip during stance
             stance_shank_angle = math.radians(cycle['stance_hs_sx'] - cycle['to_sx'])
             stance_trans_angle = stance_shank_angle - to_tri['B'] + stance_hs_tri['B']
             stance_trans_tri = costri(stance_hs_len, to_len, stance_trans_angle)
             stance_trans_len = stance_trans_tri['c']
-            # print("stance", math.degrees(stance_shank_angle), math.degrees(stance_trans_angle), stance_trans_len)
 
             # the hip will continue to translate during swing - assume constant speed
             swing_hip_trans = (
                 stance_trans_len * cycle['cycle_swing'] / cycle['cycle_stance']
             )
 
-            # calculate the travel of the thigh during the swing phase = toe_off to swing_hs
+            # calculate travel of thigh during the swing phase = toe_off to swing_hs
             # and the resultant travel of the foot-to-hip vectors
             # and the translation of the foot during swing
             swing_thigh_angle = math.radians(cycle['swing_hs_tx'] - cycle['to_tx'])
             swing_trans_angle = swing_thigh_angle - swing_hs_tri['A'] + to_tri['A']
             swing_trans_tri = costri(swing_hs_len, to_len, swing_trans_angle)
             swing_trans_len = swing_trans_tri['c']
-            # print("swing", math.degrees(swing_thigh_angle), math.degrees(swing_trans_angle), swing_trans_len)
 
             cycle.update(
                 {
@@ -2063,21 +2075,33 @@ class Kinematics:
 
     def stride_len_predict(self, sdf, field):
         """
-        fields = [ 'stance_trans_len', 'swing_hip_trans', 'cycle_swing', 'cycle_stance' ]
-        coeffs = [ 0.21436976, 2.71453041, -186.91077322, 12.11707543 ]
+        fields = ['stance_trans_len', 'swing_hip_trans', 'cycle_swing', 'cycle_stance']
+        coeffs = [0.21436976, 2.71453041, -186.91077322, 12.11707543]
         intercept = 88.93377637
 
         fields = ['stance_trans_len','swing_trans_len', 'cycle_swing', 'cycle_stance']
-        coeffs = [ 1.00014027, 0.69975196, 7.70833072, -55.45432932]
+        coeffs = [1.00014027, 0.69975196, 7.70833072, -55.45432932]
         intercept = 59.31022309
 
         # pass 1
-        fields = [ 'stance_trans_len', 'swing_hip_trans' ,'swing_trans_len', 'cycle_swing', 'cycle_stance' ]
-        coeffs = [ 3.49741966e-02, 2.29679101e+00, 6.83320911e-01, -1.67316135e+02, 1.52764733e+01]
+        fields = [
+            'stance_trans_len',
+            'swing_hip_trans',
+            'swing_trans_len',
+            'cycle_swing',
+            'cycle_stance'
+        ]
+        coeffs = [
+            3.49741966e-02,
+            2.29679101e+00,
+            6.83320911e-01,
+            -1.67316135e+02,
+            1.52764733e+01
+        ]
         intercept = 61.51849456
         """
 
-        # pass 2 -- 004 Slow 1 and Slow 2 eliminated (note that the coefficients above excluded slow speeds
+        # pass 2 -- 004 Slow 1 and Slow 2 eliminated (coeffs above excluded slow speeds)
         fields = [
             'stance_trans_len',
             'swing_hip_trans',

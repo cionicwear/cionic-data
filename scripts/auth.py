@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
 
 import argparse
-import json
-import pathlib
 import sys
-
-import pandas as pd
 
 sys.path.append('.')
 import cionic
 
 __usage__ = '''
-./scripts/auth.py [email] [org] [-a <admin collector analyst>] [-r <admin collector analyst>]
+./scripts/auth.py [email] [org]
+    [-a <admin collector analyst>]
+    [-r <admin collector analyst>]
 REQUIRES ORG ADMIN ROLE
 '''
 
@@ -46,7 +44,7 @@ def main():
         if args.org:
             print(f"Invalid org name [{args.org}]:")
         else:
-            print(f"Available orgs:")
+            print("Available orgs:")
         for org in org_names:
             print(f"  {org}")
         return

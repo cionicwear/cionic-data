@@ -5,7 +5,6 @@ Helper functions to interpret trigger data
 import enum
 import json
 import warnings
-from dataclasses import dataclass
 
 import matplotlib.pyplot as plt
 import numpy
@@ -21,7 +20,8 @@ def get_enum_member_by_value(enum_type, value):
 
 
 #
-# TODO: these constant values should come from the shared constants https://github.com/cionicwear/cde/issues/419
+# TODO: these constant values should come from the shared constants
+# https://github.com/cionicwear/cde/issues/419
 #
 class TriggerKind(enum.IntEnum):
     TRIGGER_NONE = 0
@@ -89,7 +89,7 @@ class FESSetting(enum.IntEnum):
 
 def mask_count(mask):
     """
-    Determine how much to bit shift (right) a value to match the first set bit of the mask
+    Determine how much to bit shift (right) a value to match first set bit of the mask
     :param mask: bitmask value
     :return: number of bits to shift
     """
@@ -443,7 +443,7 @@ def get_fesmeta(npz, side=None):
         val
         elapsed_s
     """
-    if side == None:
+    if side is None:
         # assumes sleeve on one leg only
         (fesmeta_file,) = [f for f in npz.files if 'fesmeta' in f]
     else:
@@ -489,7 +489,6 @@ def get_fes_trigger_metadata(npz, side):
     if protocol_fes is None:
         return None
 
-    algo_names = []
     for protocol_fes_zone in protocol_fes:
         if side == protocol_fes_zone["zone"]:
             triggers = protocol_fes_zone["triggers"]
@@ -617,7 +616,9 @@ def merge_trigger_timestamps_to_plot_stream(
     off_ramp: float,
     interp_hz: int = 100,
 ):
-    """Depricated. This used the protocol to look up ramps. The new version uses fes_form in the action_stream."""
+    """Depricated. This used the protocol to look up ramps.
+    The new version uses fes_form in the action_stream.
+    """
     synthetic_plot_stream_x, synthetic_plot_stream_y = [], []
 
     for contract_timestamp in contract_timestamps:
@@ -652,9 +653,12 @@ def merge_trigger_timestamps_to_plot_stream(
 
 
 def get_synthetic_trigger_streams(npz, side):
-    """Depricated. This used the protocol to look up ramps. The new version uses fes_form in the action_stream."""
+    """Depricated. This used the protocol to look up ramps.
+    The new version uses fes_form in the action_stream.
+    """
     warnings.warn(
-        "get_synthetic_trigger_streams_depr() is depricated. Use get_synthetic_stim_profiles() instead."
+        "get_synthetic_trigger_streams_depr() is depricated. "
+        "Use get_synthetic_stim_profiles() instead."
     )
     trigger_metadata_list = get_fes_trigger_metadata(npz, side)
     synthetic_trigger_stream_dict = {}

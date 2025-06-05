@@ -32,7 +32,7 @@ def flatten(json, prefix=None):
         for k, v in json.items():
             fn = flat_name(prefix, k)
             flat = flatten(v, fn)
-            if type(flat) == type({}):
+            if isinstance(flat, dict):
                 result.update(flat)
             else:
                 result[fn] = flat
@@ -229,9 +229,10 @@ def get_study_metadata(sxid, orgid, tokenpath=None, **kwargs):
     )
     if study_json is None:
         #
-        # If a study has too much data, the metadata request times out and responds with a 502:
+        # If study has too much data, metadata request times out and responds with 502:
         # https://github.com/cionicwear/cionic-collection/issues/251
-        # As a workaround, we can stitch it together by getting the metadata for each protocol in the study
+        # As a workaround, we can stitch it together by getting the metadata
+        #  for each protocol in the study
         #
         print('Fetching study timed out. Fetching by protocol instead')
         protos = get_cionic(f'{orgid}/protocols', microservice='c', sxid=sxid)
@@ -400,12 +401,14 @@ def list_files(directory, include=None, exclude=None):
 def auth(tokenpath=None, domain=None):
     """
     Parse a token.json file to get the Cionic credentials for future API requests.
-    If tokenpath is not specified, use the CIONIC_ACCESS_TOKEN from the environment to retrieve the Cionic credentials.
+    If tokenpath is not specified, use the CIONIC_ACCESS_TOKEN from the environment
+    to retrieve the Cionic credentials.
 
     TODO: Get rid of the server and authtoken globals
 
     :param tokenpath: path to token.json (include filename)
-    :param domain: if not using tokenpath, specify cionic domain (defaults to CIONIC_OAUTH_SERVER from the environment)
+    :param domain: if not using tokenpath, specify cionic domain
+        (defaults to CIONIC_OAUTH_SERVER from the environment)
     :return: list of the user's org shortnames
     """
     global server, authtoken
@@ -414,10 +417,9 @@ def auth(tokenpath=None, domain=None):
         domain = os.environ.get('CIONIC_OAUTH_SERVER')
         if (access_token is None) or (domain is None):
             print(
-                '''
-CIONIC AUTH ERROR: No tokenpath specified and no CIONIC_ACCESS_TOKEN or CIONIC_OAUTH_SERVER in the environment.
-Please logout/login.
-'''
+                'CIONIC AUTH ERROR: No tokenpath specified and no CIONIC_ACCESS_TOKEN'
+                'or CIONIC_OAUTH_SERVER in the environment.\n'
+                'Please logout/login.'
             )
 
         #

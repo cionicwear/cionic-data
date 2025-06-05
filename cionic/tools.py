@@ -112,7 +112,6 @@ def fir_filter(data, params):
     subsample = params.get('subsample', 1)
     sampling_freq = params['sampling_rate'] / subsample
 
-    nyquist_f = sampling_freq / 2.0
     fir_coeff = signal.firwin(taps_n, cutoff=cutoff, pass_zero=False, fs=sampling_freq)
     if 'outdir' in params:
         print('writing fir')
@@ -165,7 +164,8 @@ def rms_data_win(data, window_size, window_num):
 
 
 def smooth_data(data, window_size=301):
-    # Single variable moving average used in the hub for the processed EMG stream as of 09.12.2019
+    # Single variable moving average used in the hub for the processed
+    # EMG stream as of 09.12.2019
     out = []
     smooth = 0
     for x in data:
@@ -243,12 +243,14 @@ def process_raw_emg_stream(
 
 def convert_uV(raw_data, v_ref, channel_gain):
     """
-    Convert data from bit counts to uV
+    Convert data from bit counts to uV.
+    Return type is pandas Series (RMS and FFT data are numpy arrays).
+    Should probably pick one format and convert all others to it.
     """
     data_uV = (
         1e6 * raw_data * v_ref / (channel_gain * (2**23 - 1))
     )  # units: microvolts (uV)
-    return data_uV  # these are pandas Series (RMS and FFT data are numpy arrays). Should probably pick one format and convert all others to it.
+    return data_uV
 
 
 def find_closest_val(array, target_val):
@@ -398,7 +400,7 @@ def component_plot(
     shades=[],
 ):
 
-    if type(streams) != type([]):
+    if isinstance(streams, list):
         streams = [streams]
 
     offset = 0
@@ -485,19 +487,18 @@ def configurable_plot(
         fig.show()
     else:
 
-        if type(streams) != type([]):
+        if isinstance(streams, list):
             streams = [streams]
 
         num_plots = len(streams)
         nrows = int(np.ceil(num_plots / ncols))
 
         gs = gridspec.GridSpec(nrows, ncols)
-        scale = max(ncols, nrows)
         fig = plt.figure(figsize=(width, height))
 
         for idx, stream in enumerate(streams):
             legend = leg_contents[idx]
-            if (idx > 0) and sharex == True:
+            if (idx > 0) and sharex:
                 axs = fig.add_subplot(gs[idx], sharex=axs)
             else:
                 axs = fig.add_subplot(gs[idx])
@@ -701,12 +702,15 @@ def orientations_for_single_stream(arr, calibration=None):
 
 
 def get_interpolated_array_from_two_arrays(arr_1, arr_2):
-    """Returns an interpolated sythetic array given two arrays. Used specifically in the context of time arrays."""
+    """Returns an interpolated sythetic array given two arrays.
+    Used specifically in the context of time arrays.
+    """
     sampling_rate = np.mean([np.median(np.diff(arr_1)), np.median(np.diff(arr_2))])
     min_timestamp = max(arr_1.min(), arr_2.min())
     max_timestamp = min(arr_1.max(), arr_2.max())
     elapsed_s_interp = np.arange(min_timestamp, max_timestamp, sampling_rate)
-    # Remove edge case arrays created with values exceeding min_timestamp, max_timestamp. Not sure why this happens, but this line seems to fix the issue.
+    # Remove edge case arrays with values exceeding min_timestamp, max_timestamp.
+    # Not sure why this happens, but this line seems to fix the issue.
     elapsed_s_interp = elapsed_s_interp[
         (elapsed_s_interp <= max_timestamp) & (elapsed_s_interp >= min_timestamp)
     ]
@@ -728,11 +732,13 @@ def stream_quat2euler_joint(quat_stream_1, quat_stream_2):
 
     if n_1 != quat_stream_1.shape[0]:
         print(
-            f"quat_stream_1 {n_1 - quat_stream_1.shape[0]} nonincreasing samples removed (of {quat_stream_1.shape[0]} total samples)."
+            f"quat_stream_1 {n_1 - quat_stream_1.shape[0]} nonincreasing samples "
+            f"removed (of {quat_stream_1.shape[0]} total samples)."
         )
     if n_2 != quat_stream_2.shape[0]:
         print(
-            f"quat_stream_2 {n_2 - quat_stream_2.shape[0]} nonincreasing samples removed (of {quat_stream_2.shape[0]} total samples)."
+            f"quat_stream_2 {n_2 - quat_stream_2.shape[0]} nonincreasing samples "
+            f"removed (of {quat_stream_2.shape[0]} total samples)."
         )
 
     # TODO incorporate calibration features.
@@ -786,7 +792,7 @@ def stream_data(npz, streams, degrees=True):
         stream_name = seg['stream']
         try:
             stream = npz[seg['path']]
-        except:
+        except Exception:
             continue
         times = segment_times(seg, times)
 
@@ -865,7 +871,8 @@ def get_stream_data_joints(npz, streams):
                     if dtype != 'elapsed_s':
                         joint_stream[dtype] = factors[dtype] * joint_stream[dtype]
                         joint_component_list.append(
-                            f'{side[0]}_{joint}_joint fquat2euler {dtype} {side[0]}_{joint}'
+                            f'{side[0]}_{joint}_joint fquat2euler '
+                            f'{dtype} {side[0]}_{joint}'
                         )
                 joint_dict[joint_stream_name] = joint_stream
     return joint_dict, joint_component_list
@@ -902,11 +909,13 @@ def regs_convert_uV(data, regs, channel, gain=None, position='first'):
         regval = regs_get(regs, "CONFIG3", position)
         vref = 4.0 if ((regval >> 5) & 0b1) else 2.4
         print(
-            f"\nConvert {ads_id} ch [{channel}] to uV with register values vref [{vref}V] and gain [{gain}]"
+            f"\nConvert {ads_id} ch [{channel}] to uV with register values vref "
+            f"[{vref}V] and gain [{gain}]"
         )
     except Exception as e:
         logging.error(
-            f"\nCould not convert {ads_id} ch [{channel}] from registers assuming vref [4.0] and gain [12]"
+            f"\nCould not convert {ads_id} ch [{channel}] from registers assuming "
+            f"vref [4.0] and gain [12]"
         )
         logging.error(e)
         gain = 12
@@ -922,29 +931,34 @@ def get_current(loff_regval):
     Data sheet (pg 70 LOFF): https://www.ti.com/lit/ds/symlink/ads1296.pdf
     """
     # --- Checks ---
-    # Fifth Bit: Check we are not using pullup/pulldown resistors mode (use current source mode only, more accurate)
+    # Fifth Bit: Check we are not using pullup/pulldown resistors mode
+    # (use current source mode only, more accurate)
     if (loff_regval >> 4) & 0b1:
         print(
-            f'WARNING: Impedance measurement was made with pullup/pulldown resistor mode. This is less accurate. (regval: {loff_regval})'
+            f'WARNING: Impedance measurement was made with pullup/pulldown resistor '
+            f'mode. This is less accurate. (regval: {loff_regval})'
         )
 
     # First/Second Bits: Check that they are valid
     if (loff_regval & 0b11) == 2:
         print(
-            f'WARNING: Not valid values for the lead-off frequency (first two bits). (regval: {loff_regval})'
+            f'WARNING: Not valid values for the lead-off frequency (first two bits). '
+            f'(regval: {loff_regval})'
         )
 
     # 6th/7th/8th Bits: Check that max LOFF current accuracy levels are set
     if ((loff_regval >> 5) & 0b111) > 0:
         print(
-            f'WARNING: The LOFF Comparator Threshold value (6th-8th bits) is not set to max possible accuracy. (regval: {loff_regval}) '
+            f'WARNING: The LOFF Comparator Threshold value (6th-8th bits) is not set '
+            f'to max possible accuracy. (regval: {loff_regval}) '
         )
 
     # --- Get Current ---
     # Second bit: DC or AC
     if loff_regval == 0:
         print(
-            f'WARNING: current is off. Cannot calculate impedance. (regval: {loff_regval})'
+            f'WARNING: current is off. Cannot calculate impedance. '
+            f'(regval: {loff_regval})'
         )
         raise ValueError
     elif [(loff_regval >> 1) & 0b1]:  # DC LOFF Current
@@ -953,7 +967,8 @@ def get_current(loff_regval):
             (loff_regval >> 2) & 0b11
         ]
         print(
-            f'Current from registers is: {current}nA DC, will be using 2x that in imp calculations: {current*2}nA AC. (regval: {loff_regval})'
+            f'Current from registers is: {current}nA DC, will be using 2x that in imp '
+            f'calculations: {current*2}nA AC. (regval: {loff_regval})'
         )
         current = (
             2.0 * current
@@ -991,7 +1006,7 @@ def regs_gain_all(regs):
         Input
             regs: dataframe of register values
         Output
-            all_gains: dictionary of gain for each of the 8 channels (defined by CHSETMAP)
+            all_gains: dict of gain for each of the 8 channels (defined by CHSETMAP)
                 e.g. {'c1': 12, 'c2':12, 'c3':0, ..., 'c8':0}
     """
     all_gains = {}
@@ -1016,7 +1031,7 @@ def regs_gain(regs, channel, position='first'):
             gain = 0  # channel off
         else:
             gain = {0: 6, 1: 1, 2: 2, 3: 3, 4: 4, 5: 8, 6: 12}[bitval]
-    except:
+    except Exception:
         logging.error("could not convert from registers assuming gain [12]")
         gain = 12.0
     gain = float(gain)
@@ -1035,7 +1050,7 @@ def regs_vref(regs, position='first'):
     try:
         regval = regs_get(regs, "CONFIG3", position)
         vref = 4.0 if ((regval >> 5) & 0b1) else 2.4
-    except:
+    except Exception:
         logging.error("could not convert from registers assuming vref [4.0]")
         vref = 4.0
     vref = float(vref)
@@ -1454,14 +1469,15 @@ def calc_impedance(
     """
     Calculate impedance (MOhms) from raw bitcount values (EMG stream of NPZ)
 
-    Impedance is calculated by (1) taking raw ADC bitcount values, (2) converting them to uV,
-    (3) windowing the data so that 1 waveform period (squarewave) is in the window, (4) taking
-    the peak-to-peak value of each window (uV), and (5) converting those values to MOhms by dividing
-    by the current (R = V/I).
+    Impedance is calculated by (1) taking raw ADC bitcount values, (2) converting them
+    to uV,(3) windowing the data so that 1 waveform period (squarewave) is in the
+    window, (4) taking the peak-to-peak value of each window (uV), and (5) converting
+    those values to MOhms by dividing by the current (R = V/I).
 
     Outputs
         + data_MOhms - final result (array of impedance values in MOhms)
-        + data_uV, data_33Hz, data_ptp - intermediate values in calculating impedance. Can be useful for auditing pipeline.
+        + data_uV, data_33Hz, data_ptp - intermediate values in calculating impedance.
+            Can be useful for auditing pipeline.
 
     """
     # Convert to uV
@@ -1489,7 +1505,8 @@ def stream_splits_to_matrix(
     stream_data, splits, ch_field, n_interp, paired_splits=False
 ):
     """
-    Converts a stream with timestamp splits to a matrix, where each row is an interpolated split.
+    Converts a stream with timestamp splits to a matrix,
+    where each row is an interpolated split.
 
     Args:
         stream_data: <array> data with columns "elapsed_s" and ch_field (possibly more)

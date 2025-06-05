@@ -67,7 +67,7 @@ class JSONL2NPY:
 
     def npformat(self, k, obj):
         """
-        sets the (type, length, and default value) for the object **obj** for column **k**
+        sets the (type, length, and default value) for the object obj for column k
 
         currently only supports column types of string, float, int
 
@@ -77,7 +77,7 @@ class JSONL2NPY:
         """
         prev = self.formats.get(k, {'t': str, 'l': 1, 'd': ''})
         if prev['t'] == str and obj is not None:
-            if type(obj) == str:
+            if isinstance(obj, str):
                 prev['l'] = max(prev['l'], len(obj))
                 prev['d'] = ''
             else:

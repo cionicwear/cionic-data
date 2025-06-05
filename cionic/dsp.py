@@ -74,7 +74,8 @@ def calculate_cdf(fft_data, freq):
     """
     Calculate normalized CDF of Welch Density FFT
         data = numpy array or pandas series
-        NOTE: len(cdf) = len(data) - 1  Make sure to account for this in plotting plot(freq[1::], cdf)
+        NOTE: len(cdf) = len(data) - 1  Make sure to account for this in plotting
+        plot(freq[1::], cdf)
     """
     norm_data = normalize_fft(fft_data, freq)
     cdf = integrate.cumtrapz(norm_data, freq)
@@ -82,12 +83,14 @@ def calculate_cdf(fft_data, freq):
 
 
 def median_freq(rawEMGPowerSpectrum, frequencies):
-    """From 'pysiology' module (can't import module directly because matplotlib.pyplot has compatiblity issues with pyqtgraph)
+    """From 'pysiology' module (can't import module directly because matplotlib.pyplot
+    has compatiblity issues with pyqtgraph)
     https://pypi.org/project/pysiology/
 
     Obtain the Median Frequency of the PSD (FFT Signal).
 
-    MDF is a frequency at which the spectrum is divided into two regions with equal amplitude, in other words, MDF is half of TTP feature
+    MDF is a frequency at which the spectrum is divided into two regions with equal
+    amplitude, in other words, MDF is half of TTP feature
 
     * Input:
         * raw EMG Power Spectrum
@@ -110,12 +113,14 @@ def median_freq(rawEMGPowerSpectrum, frequencies):
 
 
 def mean_freq(rawEMGPowerSpectrum, frequencies):
-    """From pysiology module (can't import module directly because matplotlib.pyplot has compatiblity issues with pyqtgraph)
+    """From pysiology module (can't import module directly because matplotlib.pyplot
+    has compatiblity issues with pyqtgraph)
     https://pypi.org/project/pysiology/
 
     Calculate mean frequency of the FFT Signal
     Obtain the mean frequency of the EMG signal, evaluated as the sum of
-    product of the EMG power spectrum and the frequency divided by total sum of the spectrum intensity::
+    product of the EMG power spectrum and the frequency divided by total sum of the
+    spectrum intensity::
 
         MNF = sum(fPj) / sum(Pj) for j = 1 -> M
         M = length of the frequency bin
@@ -221,20 +226,21 @@ def calc_rms_chunks(data, time, nPts):
     return rms_chunks_result, time_chunks_result
 
 
-def divide_chunks(l, n):
+def divide_chunks(arr, n):
     """
     Divides an array of length l into chunks of length n
     """
     # looping till length l
-    for i in range(0, len(l), n):
-        yield l[i : i + n]
+    for i in range(0, len(arr), n):
+        yield arr[i : i + n]
 
 
 def moving_avg_rms(data, window_size=301):
     """
     Moving avg RMS
         https://stackoverflow.com/questions/8245687/numpy-root-mean-squared-rms-smoothing-of-a-signal
-        NOTE: len(rms) = len(data) - (window_size - 1)  Make sure to account for this in plotting plot(time[window_size-1::], rms)
+        NOTE: len(rms) = len(data) - (window_size - 1)  Make sure to account for this
+        in plotting plot(time[window_size-1::], rms)
     """
     data2 = np.power(data, 2)
     window = np.ones(window_size) / float(window_size)
@@ -286,21 +292,27 @@ def find_heights_algo1(time, data, peaks, troughs):
         Outputs:
             + heights:  1D array of the height of each square wave
                         (units: same unit of input data)
-            + avg_time: 1D time vector corresponding heights. The middle btw each peak and trough occurance.
+            + avg_time: 1D time vector corresponding heights.
+                        The middle btw each peak and trough occurance.
                         (units: same unit as input time)
-            + avg_amps: 1D array of mean data at each avg_time. The mean value of each square wave.
+            + avg_amps: 1D array of mean data at each avg_time.
+                        The mean value of each square wave.
                         (units: same unit of input data)
 
         Limitation of this algo:
-            It does not handle unevenness of square waves well in impedance measurements where there is baseline drift
+            It does not handle unevenness of square waves well in impedance measurements
+            where there is baseline drift
             (either due to movement or the inherent RC constant).
-            The height of neighboring square waves might be drastically different due to uneven timing in these datasets.
+            The height of neighboring square waves might be drastically different due to
+            uneven timing in these datasets.
             Heights will generally be larger than with find_heights_algo2.
 
     """
+    # if trough comes first: remove 1st index so peak is first
+    # (NOTE: not sure this matters so prob delete in future)
     if (
         peaks[0] > troughs[0]
-    ):  # if trough comes first: remove 1st index so peak is first (NOTE: not sure this matters so prob delete in future)
+    ):
         troughs = troughs[1:]
     pairs = list(zip(peaks, troughs))
     print('ALGO 1 types', type(peaks), type(troughs))
@@ -359,19 +371,23 @@ def find_heights_algo2(time, data, peaks, troughs):
         Outputs:
             + heights:  1D array of the height of each square wave
                         (units: same unit of input data)
-            + avg_time: 1D time vector corresponding heights. The middle btw each peak and trough occurance.
+            + avg_time: 1D time vector corresponding heights.
+            The middle btw each peak and trough occurance.
                         (units: same unit as input time)
-            + avg_amps: 1D array of mean data at each avg_time. The mean value of each square wave.
+            + avg_amps: 1D array of mean data at each avg_time.
+            The mean value of each square wave.
                         (units: same unit of input data)
 
         Limitation of this algo:
-            It is more unreliable (does not always find the exact peak/trough) than find_peaks_algo1 but more
-            correct to calculate height of each edge of the square wave.
-            It calculates height of each edge of square wave so there is more data about the square wave to
-            average together. Heights will generally be smaller than those found with find_heights_algo1.
+            It is more unreliable (does not always find the exact peak/trough) than
+            find_peaks_algo1 but more correct to calculate height of each edge of
+            the square wave. It calculates height of each edge of square wave so there
+            is more data about the square wave to average together. Heights will
+            generally be smaller than those found with find_heights_algo1.
 
 
-        NOTE: In future, combine the two find_heights_algo[n] functions b/c they are the same other than initial processing.
+        NOTE: In future, combine the two find_heights_algo[n] functions b/c they are
+        the same other than initial processing.
     """
     pairs = list(zip(peaks, troughs))
     heights = []
@@ -421,7 +437,6 @@ def processRawData(time_raw_us, data_bits, v_ref, channel_gain):
     print('---DSP: PROCESSRAWDATA---')
 
     # Calculate Time array (starts at 0)
-    # time_sec = np.arange(0, len(data_bits)*(1/self.sampling_freq ), 1/self.sampling_freq) # units: seconds (s)
     time_sec = (time_raw_us - time_raw_us[0]) / 1000000.0
 
     # Convert data from bits to voltage
@@ -430,15 +445,17 @@ def processRawData(time_raw_us, data_bits, v_ref, channel_gain):
     )  # units: microvolts (uV)
 
     # Return time (sec) and data (uV)
+    # these are pandas Series (RMS and FFT data are numpy arrays).
+    # Should probably pick one format and convert all others to it.
     return (
         time_sec,
         data_uV,
-    )  # these are pandas Series (RMS and FFT data are numpy arrays). Should probably pick one format and convert all others to it.
+    )
 
 
 def setGain(which_channel, gainlevel, isRLD):
     """
-    Calculate channel gain by accounting for gainlevel (i.e. gain set in the INIT.f file)
+    Calculate channel gain by accounting for gainlevel (i.e. gain set in the INIT.f)
     and channel properties (i.e. built-in gain)
     Adjusts when it's an RLD channel
     which_channel: 'c1', 'c2_nomux', 'c2_mux5x', 'c2_mux1x', 'c4', 'c5'
@@ -499,12 +516,12 @@ def check_for_missing(dataframe, sampling_freq, readhex=1):
     print('---DSP: CHECK_FOR_MISSING---')
 
     # Check if the dataframe has any missing samples
+    #  NOTE: THIS CHECKING OF EMPTY DATAFRAME SHOULD BE COMBINED WITH PLOTPREP()
     if (not isinstance(dataframe, pd.DataFrame)) and dataframe == []:
         print(
             'Dataframe is empty'
-        )  # **** NOTE: THIS CHECKING OF EMPTY DATAFRAME SHOULD BE COMBINED WITH PLOTPREP() AND PLOTS SHOULD CLEAR IF EMPTY
+        )
     else:
-        nRows = len(dataframe)
         # Pull out time
         time = dataframe.time / 1000000.0  # units: seconds (s)
 
@@ -517,14 +534,15 @@ def check_for_missing(dataframe, sampling_freq, readhex=1):
                 | (calc_diffs_btw_timestamps > time_intervals + 1)
             )
         )  # & (calc_diffs_btw_timestamps != 3))[0]
-        # *********** NOTE: Maybe don't need the +/-1ms from the expected time interval (?)
+        #  NOTE: Maybe don't need the +/-1ms from the expected time interval (?)
         where_timestamps_notExpected = where_timestamps_notExpected[0]
         number_of_millisec_skipped = {}
         for var in where_timestamps_notExpected:
             number_of_millisec_skipped[
                 str(str(time[var] - time[0]) + 'ms, ' + 'Row #' + str(var))
             ] = (str(calc_diffs_btw_timestamps[var]) + 'ms skipped')
-        # ******* NOTE: If there is NaN in the time_intervals then that needs to be reported. There is a "165221.0, NaN, 190710.0" that doesn't get picked up by current code.
+        # NOTE: If there is NaN in the time_intervals then that needs to be reported.
+        # There is a "165221.0, NaN, 190710.0" that doesn't get picked up by code.
         # print('calc_diffs_btw_timestamps',calc_diffs_btw_timestamps[0:50])
 
         if np.array(where_timestamps_notExpected).size > 0:

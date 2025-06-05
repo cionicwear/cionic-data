@@ -11,7 +11,13 @@ sys.path.append('.')
 import cionic
 
 __usage__ = '''
-./scripts/download.py [orgid] [studyid] [-n <collection numbers to download>] [-c <streams to csv>] [-o <output directory>] [-t <filepath to tokenfile>] [-l <limit>] [-f]
+./scripts/download.py [orgid] [studyid]
+    [-n <collection numbers to download>]
+    [-c <streams to csv>]
+    [-o <output directory>]
+    [-t <filepath to tokenfile>]
+    [-l <limit>]
+    [-f]
 
 Common usage examples:
 ./scripts/download.py -h                            (print help)
@@ -148,7 +154,7 @@ def main():
     # select orgid
     tokenpath = args.token
     orgs = cionic.auth(tokenpath=tokenpath)
-    if args.orgid == None:
+    if args.orgid is None:
         for i, o in enumerate(orgs):
             print(f"{i} : {o['shortname']}")
         choice = int(input("Choose an org\n"))
@@ -162,7 +168,7 @@ def main():
 
     # select or match study_id
     sxid = None
-    if args.studyid == None:
+    if args.studyid is None:
         for i, s in enumerate(studies):
             print(f"{i} : {s['shortname']}")
         choice = int(input("Choose a study\n"))
@@ -185,19 +191,22 @@ def main():
     # match study or print the protocols in the selected study
     if args.protoid is None:
         print(
-            f"Fetching [{args.limit}] collections for org [{args.orgid}] study [{args.studyid}] all protocols"
+            f"Fetching [{args.limit}] collections for org [{args.orgid}] "
+            f"study [{args.studyid}] all protocols"
         )
         for p in protocols:
             print(f"  {p['shortname']}")
         collections = cionic.get_cionic(f"{args.orgid}/collections?sxid={sxid}")
     elif pxid := named_protos.get(args.protoid):
         print(
-            f"Fetching [{args.limit}] collections for org [{args.orgid}] study [{args.studyid}] proto [{args.protoid}]"
+            f"Fetching [{args.limit}] collections for org [{args.orgid}] "
+            f"study [{args.studyid}] proto [{args.protoid}]"
         )
         collections = cionic.get_cionic(f"{args.orgid}/collections?protoxid={pxid}")
     else:
         print(
-            f"Protocol [{args.protoid}] not found for org [{args.orgid}] study [{args.studyid}]"
+            f"Protocol [{args.protoid}] not found for org [{args.orgid}] "
+            f"study [{args.studyid}]"
         )
         return
 

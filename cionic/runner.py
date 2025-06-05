@@ -48,7 +48,7 @@ def run_collections(
             )
             parameters['npzpath'] = f"{name}.npz"
             parameters['files_url'] = f"{orgid}/collections/{collection['xid']}/files"
-            parameters['files_dir'] = f"files/"
+            parameters['files_dir'] = "files/"
             parameters['collection_num'] = collection['num']
             parameters['title'] = collection['title']
 
