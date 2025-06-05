@@ -929,9 +929,7 @@ class Kinematics:
                 ty = ty + tys  # advance y-position of next step label
 
         if presentation.get('legend') != 'off':
-            axs.legend(
-                legend, frameon=False, loc=presentation.get('legend', 1)
-            )
+            axs.legend(legend, frameon=False, loc=presentation.get('legend', 1))
         if presentation.get('title') != 'off':
             axs.set_title(title)
         axs.spines['top'].set_visible(False)

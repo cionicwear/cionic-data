@@ -310,9 +310,7 @@ def find_heights_algo1(time, data, peaks, troughs):
     """
     # if trough comes first: remove 1st index so peak is first
     # (NOTE: not sure this matters so prob delete in future)
-    if (
-        peaks[0] > troughs[0]
-    ):
+    if peaks[0] > troughs[0]:
         troughs = troughs[1:]
     pairs = list(zip(peaks, troughs))
     print('ALGO 1 types', type(peaks), type(troughs))
@@ -518,9 +516,7 @@ def check_for_missing(dataframe, sampling_freq, readhex=1):
     # Check if the dataframe has any missing samples
     #  NOTE: THIS CHECKING OF EMPTY DATAFRAME SHOULD BE COMBINED WITH PLOTPREP()
     if (not isinstance(dataframe, pd.DataFrame)) and dataframe == []:
-        print(
-            'Dataframe is empty'
-        )
+        print('Dataframe is empty')
     else:
         # Pull out time
         time = dataframe.time / 1000000.0  # units: seconds (s)

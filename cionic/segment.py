@@ -15,7 +15,7 @@ META_STEMS = ['PATCHES', 'devices', 'segments']
 
 
 def parse_metatables(inputs):
-    ''' Parse metadata tables from inputs pathnames. Return combined metatables mapping.
+    '''Parse metadata tables from inputs pathnames. Return combined metatables mapping.
     Each row includes source_stem for which input it came from.
     '''
     metatables = collections.defaultdict(list)  # [fnstem] -> metadata table
