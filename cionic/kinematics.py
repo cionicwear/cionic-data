@@ -962,9 +962,9 @@ class Kinematics:
             plt.style.use(presentation['style'])
 
         # make lists
-        if isinstance(streams, list):
+        if not isinstance(streams, list):
             streams = [streams]
-        if isinstance(positions, list):
+        if not isinstance(positions, list):
             positions = [positions]
 
         # config is for advanced usage specifying different maps for different sides

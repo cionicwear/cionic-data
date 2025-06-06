@@ -400,7 +400,7 @@ def component_plot(
     shades=[],
 ):
 
-    if isinstance(streams, list):
+    if not isinstance(streams, list):
         streams = [streams]
 
     offset = 0
@@ -487,7 +487,7 @@ def configurable_plot(
         fig.show()
     else:
 
-        if isinstance(streams, list):
+        if not isinstance(streams, list):
             streams = [streams]
 
         num_plots = len(streams)
