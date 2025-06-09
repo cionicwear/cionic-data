@@ -1,17 +1,18 @@
 """
 Module for making calls to CIONIC REST APIs.
 """
-import cionic
+
 import http.client
 import io
 import json
-import numpy as np
 import os
 import pathlib
-import requests
 import sys
 import zipfile
 
+import cionic
+import numpy as np
+import requests
 
 apiver = '0.22'
 server = None
@@ -28,16 +29,16 @@ def flat_name(prefix, suffix):
 def flatten(json, prefix=None):
     if isinstance(json, dict):
         result = {}
-        for k,v in json.items():
+        for k, v in json.items():
             fn = flat_name(prefix, k)
             flat = flatten(v, fn)
-            if type(flat) == type({}):
+            if isinstance(flat, dict):
                 result.update(flat)
             else:
                 result[fn] = flat
         return result
     elif isinstance(json, list):
-        return [ flatten(v, prefix) for i,v in enumerate(json) ]
+        return [flatten(v, prefix) for i, v in enumerate(json)]
     else:
         return json
 
@@ -71,7 +72,7 @@ def get_cionic(urlpath, microservice='c', cachepath=None, ver=apiver, **kwargs):
 
     url = f'https://{server}/{microservice}/v{ver}/{urlpath}'
     print(f'fetching {url} {kwargs}', file=sys.stderr)
-    r = requests.get(url, headers={'x-cionic-user':authtoken}, params=kwargs)
+    r = requests.get(url, headers={'x-cionic-user': authtoken}, params=kwargs)
 
     if r.status_code != 200:
         print(r, file=sys.stderr)
@@ -83,14 +84,23 @@ def get_cionic(urlpath, microservice='c', cachepath=None, ver=apiver, **kwargs):
 
     return r.json()
 
-def post_cionic(urlpath, microservice='c', cachepath=None, json=None, ver=apiver, ret_status=False, **kwargs):
+
+def post_cionic(
+    urlpath,
+    microservice='c',
+    cachepath=None,
+    json=None,
+    ver=apiver,
+    ret_status=False,
+    **kwargs,
+):
     url = f'https://{server}/{microservice}/v{ver}/{urlpath}'
     print(f'posting {url} {kwargs} {json}', file=sys.stderr)
 
     if json:
-        r = requests.post(url, headers={'x-cionic-user':authtoken}, json=json)
+        r = requests.post(url, headers={'x-cionic-user': authtoken}, json=json)
     else:
-        r = requests.post(url, headers={'x-cionic-user':authtoken}, params=kwargs)
+        r = requests.post(url, headers={'x-cionic-user': authtoken}, params=kwargs)
 
     if ret_status:
         return r.status_code
@@ -101,14 +111,23 @@ def post_cionic(urlpath, microservice='c', cachepath=None, json=None, ver=apiver
 
     return r.json()
 
-def put_cionic(urlpath, microservice='c', cachepath=None, json=None, ver=apiver, ret_status=False, **kwargs):
+
+def put_cionic(
+    urlpath,
+    microservice='c',
+    cachepath=None,
+    json=None,
+    ver=apiver,
+    ret_status=False,
+    **kwargs,
+):
     url = f'https://{server}/{microservice}/v{ver}/{urlpath}'
     print('putting ' + url, file=sys.stderr)
 
     if json:
-        r = requests.put(url, headers={'x-cionic-user':authtoken}, json=json)
+        r = requests.put(url, headers={'x-cionic-user': authtoken}, json=json)
     else:
-        r = requests.put(url, headers={'x-cionic-user':authtoken}, params=kwargs)
+        r = requests.put(url, headers={'x-cionic-user': authtoken}, params=kwargs)
 
     if ret_status:
         return r.status_code
@@ -118,12 +137,13 @@ def put_cionic(urlpath, microservice='c', cachepath=None, json=None, ver=apiver,
         return None
 
     return r.json()
+
 
 def delete_cionic(urlpath, microservice='c', ver=apiver, ret_status=False):
     url = f'https://{server}/{microservice}/v{ver}/{urlpath}'
     print(f'deleting {url}', file=sys.stderr)
 
-    r = requests.delete(url, headers={'x-cionic-user':authtoken})
+    r = requests.delete(url, headers={'x-cionic-user': authtoken})
 
     if ret_status:
         return r.status_code
@@ -134,46 +154,55 @@ def delete_cionic(urlpath, microservice='c', ver=apiver, ret_status=False):
 
     return r.json()
 
+
 def get_user(email):
     'Return user dictionary for email'
     return get_cionic('accounts', microservice='a', email=email)
 
+
 def create_user(orgid, email):
     'Create a new user with passed email address'
-    json = {'user_email':email, 'user_name':email}
+    json = {'user_email': email, 'user_name': email}
     return post_cionic(f'{orgid}/accounts', microservice='a', json=json)
 
-ORG_ROLES = {
-    'analyst'   : 1,
-    'collector' : 2,
-    'admin'     : 3
-}
+
+ORG_ROLES = {'analyst': 1, 'collector': 2, 'admin': 3}
 
 ROLE_ADD_RESPONSE = {
-    202 : 'Success',
-    409 : 'Already Granted',
+    202: 'Success',
+    409: 'Already Granted',
 }
 
 ROLE_REM_RESPONSE = {
-    202 : 'Success',
-    404 : 'Not Granted',
+    202: 'Success',
+    404: 'Not Granted',
 }
+
 
 def add_roles(orgid, xid, roles):
     for role in roles:
         if rid := ORG_ROLES.get(role):
-            status = post_cionic(f'{orgid}/accounts/{xid}/roles', microservice='a', json={'role':rid}, ret_status=True)
+            status = post_cionic(
+                f'{orgid}/accounts/{xid}/roles',
+                microservice='a',
+                json={'role': rid},
+                ret_status=True,
+            )
             print(f'Role {role} added <{ROLE_ADD_RESPONSE.get(status, status)}>')
         else:
             print(f'Role {role} unknown')
 
+
 def remove_roles(orgid, xid, roles):
     for role in roles:
         if rid := ORG_ROLES.get(role):
-            status = delete_cionic(f'{orgid}/accounts/{xid}/roles/{rid}', microservice='a', ret_status=True)
+            status = delete_cionic(
+                f'{orgid}/accounts/{xid}/roles/{rid}', microservice='a', ret_status=True
+            )
             print(f'Role {role} removed <{ROLE_REM_RESPONSE.get(status, status)}>')
         else:
             print(f'Role {role} unknown')
+
 
 def to_jsonl(objs):
     'Return jsonl of list of dicts.'
@@ -182,7 +211,7 @@ def to_jsonl(objs):
 
 def local_npz(num, npzdir, suffix=''):
     npzname = f"{num}{suffix}.npz"
-    return (pathlib.Path(npzdir)/npzname)
+    return pathlib.Path(npzdir) / npzname
 
 
 def get_study_metadata(sxid, orgid, tokenpath=None, **kwargs):
@@ -195,18 +224,27 @@ def get_study_metadata(sxid, orgid, tokenpath=None, **kwargs):
     """
     if tokenpath is not None:
         auth(tokenpath)
-    study_json = get_cionic(f'{orgid}/collections', microservice='w', sxid=sxid, **kwargs)
+    study_json = get_cionic(
+        f'{orgid}/collections', microservice='w', sxid=sxid, **kwargs
+    )
     if study_json is None:
         #
-        # If a study has too much data, the metadata request times out and responds with a 502:
+        # If study has too much data, metadata request times out and responds with 502:
         # https://github.com/cionicwear/cionic-collection/issues/251
-        # As a workaround, we can stitch it together by getting the metadata for each protocol in the study
+        # As a workaround, we can stitch it together by getting the metadata
+        #  for each protocol in the study
         #
         print('Fetching study timed out. Fetching by protocol instead')
         protos = get_cionic(f'{orgid}/protocols', microservice='c', sxid=sxid)
         colls = []
         for proto in protos:
-            pcolls = get_cionic(f'{orgid}/collections', microservice='w', sxid=sxid, pxid=proto['xid'], **kwargs)
+            pcolls = get_cionic(
+                f'{orgid}/collections',
+                microservice='w',
+                sxid=sxid,
+                pxid=proto['xid'],
+                **kwargs,
+            )
             for pcoll in pcolls:
                 colls.append(pcoll)
         study_json = colls
@@ -214,7 +252,9 @@ def get_study_metadata(sxid, orgid, tokenpath=None, **kwargs):
     return flatten(study_json)
 
 
-def download_collections(colls, npzdir, tokenpath=None, segfile=None, segsuffix=None, segroot=None):
+def download_collections(
+    colls, npzdir, tokenpath=None, segfile=None, segsuffix=None, segroot=None
+):
     '''Download .npz files to npzdir for the given list of collections.
     Return list of segment metadata dicts.
 
@@ -226,7 +266,7 @@ def download_collections(colls, npzdir, tokenpath=None, segfile=None, segsuffix=
     if tokenpath is not None:
         auth(tokenpath)
 
-    keys=[
+    keys = [
         'config',
         'collector_name',
         'participant_name',
@@ -241,12 +281,12 @@ def download_collections(colls, npzdir, tokenpath=None, segfile=None, segsuffix=
         'study_title',
         'time_created',
         'xid',
-        'num'
+        'num',
     ]
 
     servermeta = {}
     for c in colls:
-        servermeta[c['num']] = { k:v for k,v in c.items() if k in keys }
+        servermeta[c['num']] = {k: v for k, v in c.items() if k in keys}
         download_file(local_npz(c['num'], npzdir), c['npz'])
 
     segs = []
@@ -256,7 +296,9 @@ def download_collections(colls, npzdir, tokenpath=None, segfile=None, segsuffix=
         if segroot is not None:
             segpath = f"{npzdir}/{num}_{segroot}.jsonl"
             segfile = open(segpath)
-        npz = cionic.load_segmented(local_npz(num, npzdir), segfile=segfile, segsuffix=segsuffix)
+        npz = cionic.load_segmented(
+            local_npz(num, npzdir), segfile=segfile, segsuffix=segsuffix
+        )
         for line in npz['segments.jsonl'].split(b'\n'):
             if line:
                 segmeta = json.loads(line)
@@ -284,13 +326,16 @@ def package_npz(segments, npzdir, npzpath, segsuffix=''):
             try:
                 collpath = local_npz(seg['num'], npzdir, suffix=segsuffix)
                 with zipfile.ZipFile(collpath) as zf:
-                    with zf.open(seg['path']+'.npy') as fp:
+                    with zf.open(seg['path'] + '.npy') as fp:
                         seg['origpath'] = seg['path']
-                        seg['path'] = ('{num}'+segsuffix+'_{path}').format(**seg)
-                        outnpz.writestr(seg['path']+'.npy', fp.read())
+                        seg['path'] = ('{num}' + segsuffix + '_{path}').format(**seg)
+                        outnpz.writestr(seg['path'] + '.npy', fp.read())
                     if seg['num'] not in gwlabels_written:
                         with zf.open('gwlabels.jsonl') as fp:
-                            outnpz.writestr(('{num}'+segsuffix+'_gwlabels.jsonl').format(**seg), fp.read())
+                            outnpz.writestr(
+                                ('{num}' + segsuffix + '_gwlabels.jsonl').format(**seg),
+                                fp.read(),
+                            )
                         gwlabels_written.add(seg['num'])
                 segment_jsonl.append(json.dumps(seg))
             except Exception as e:
@@ -316,13 +361,14 @@ def download_file(destpath, url, headers={}):
 
     r = requests.get(url, stream=True, headers=headers)
     with destpath.open(mode='wb') as fp:
-        for chunk in r.iter_content(chunk_size=512*1024):
+        for chunk in r.iter_content(chunk_size=512 * 1024):
             fp.write(chunk)
 
 
 def download_npz(destpath, urlpath):
     npz = get_cionic(urlpath)
     download_file(destpath, npz['streams.npz'])
+
 
 def download_files(urlpath, directory, include=None, exclude=None, ver=apiver):
     results = []
@@ -336,8 +382,9 @@ def download_files(urlpath, directory, include=None, exclude=None, ver=apiver):
         absolute = data['url']
         destpath = f"{directory}{filename}"
         results.append(filename)
-        download_file(destpath, absolute, headers={'x-cionic-user':authtoken})
+        download_file(destpath, absolute, headers={'x-cionic-user': authtoken})
     return results
+
 
 def list_files(directory, include=None, exclude=None):
     results = []
@@ -350,15 +397,18 @@ def list_files(directory, include=None, exclude=None):
         results.append(filename)
     return results
 
+
 def auth(tokenpath=None, domain=None):
     """
     Parse a token.json file to get the Cionic credentials for future API requests.
-    If tokenpath is not specified, use the CIONIC_ACCESS_TOKEN from the environment to retrieve the Cionic credentials.
+    If tokenpath is not specified, use the CIONIC_ACCESS_TOKEN from the environment
+    to retrieve the Cionic credentials.
 
     TODO: Get rid of the server and authtoken globals
 
     :param tokenpath: path to token.json (include filename)
-    :param domain: if not using tokenpath, specify cionic domain (defaults to CIONIC_OAUTH_SERVER from the environment)
+    :param domain: if not using tokenpath, specify cionic domain
+        (defaults to CIONIC_OAUTH_SERVER from the environment)
     :return: list of the user's org shortnames
     """
     global server, authtoken
@@ -366,19 +416,25 @@ def auth(tokenpath=None, domain=None):
         access_token = os.environ.get('CIONIC_ACCESS_TOKEN')
         domain = os.environ.get('CIONIC_OAUTH_SERVER')
         if (access_token is None) or (domain is None):
-            print('''
-CIONIC AUTH ERROR: No tokenpath specified and no CIONIC_ACCESS_TOKEN or CIONIC_OAUTH_SERVER in the environment.
-Please logout/login.
-''')
+            print(
+                'CIONIC AUTH ERROR: No tokenpath specified and no CIONIC_ACCESS_TOKEN'
+                'or CIONIC_OAUTH_SERVER in the environment.\n'
+                'Please logout/login.'
+            )
 
         #
         # GET the user's Cionic credentials from the OAuth API
         #
-        ouser_resp = requests.get(f'https://{domain}/oauth/user', headers={'Authorization': f'Bearer {access_token}'})
+        ouser_resp = requests.get(
+            f'https://{domain}/oauth/user',
+            headers={'Authorization': f'Bearer {access_token}'},
+        )
         if ouser_resp.status_code != http.client.OK:
-            print('''
+            print(
+                '''
 CIONIC AUTH ERROR: OAuth token failed. Please logout/login.
-            ''')
+            '''
+            )
 
         ouser = ouser_resp.json()
         authtoken = ouser['atok']
