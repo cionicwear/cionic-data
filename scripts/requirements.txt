@@ -1,6 +1,10 @@
-numpy==1.23.4
-requests==2.32.3
-pandas==1.5.1
-scipy==1.9.3
+black==25.1.0
+flake8==7.2.0
+isort==6.0.1
 matplotlib==3.7.1
-
+nbqa==1.9.1
+numpy==1.23.4
+pandas==1.5.1
+pre_commit==4.2.0
+requests==2.32.3
+scipy==1.9.3
