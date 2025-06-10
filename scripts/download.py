@@ -20,13 +20,24 @@ __usage__ = '''
     [-f]
 
 Common usage examples:
-./scripts/download.py -h                            (print help)
-./scripts/download.py                               (interactive org and study - default limit = 20)
-./scripts/download.py -f -l 5                       (interactive org and study - download last 5 collections including collection files)
-./scripts/download.py -c emg fquat                  (interactive org and study - create csv files for emg and fquat streams)
-./scripts/download.py cionic sample -p quad-assist  (download from cionic org, sample study and quad-assist protocol)
-./scripts/download.py cionic sample -n 253 254      (download collections 253 & 254 from cionic org, sample study)
 
+Print help
+./scripts/download.py -h
+
+Interactive org and study - default limit = 20
+./scripts/download.py
+
+Interactive org and study - download last 5 collections including collection files
+./scripts/download.py -f -l 5
+
+Interactive org and study - create csv files for emg and fquat streams
+./scripts/download.py -c emg fquat
+
+Download from cionic org, sample study and quad-assist protocol
+./scripts/download.py cionic sample -p quad-assist
+
+Download collections 253 & 254 from cionic org, sample study
+./scripts/download.py cionic sample -n 253 254
 '''
 
 

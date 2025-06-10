@@ -136,7 +136,7 @@ def square(data):
 
 
 def moving_avg_rms(data, window_size=301, mode='valid'):  # Calculate RMS
-    # Moving avg RMS: https://stackoverflow.com/questions/8245687/numpy-root-mean-squared-rms-smoothing-of-a-signal
+    # Moving avg RMS
     data2 = np.power(data, 2)
     window = np.ones(window_size) / float(window_size)
     return np.sqrt(np.convolve(data2, window, mode))
