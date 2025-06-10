@@ -5,14 +5,15 @@ import struct
 import sys
 from bisect import bisect_left
 
-import cionic.bno080frps as b_frps
-import cionic.kinematics_setup as kc
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib import gridspec
 from scipy import signal
 from scipy.spatial.transform import Rotation, Slerp
+
+import cionic.bno080frps as b_frps
+import cionic.kinematics_setup as kc
 
 sys.path.append(os.path.dirname(__file__))
 import cionic.dsp as dsp

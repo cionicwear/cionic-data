@@ -9,6 +9,7 @@ import pathlib
 import zipfile
 
 import numpy as np
+
 from cionic import from_jsonl, to_jsonl, to_nparray
 
 META_STEMS = ['PATCHES', 'devices', 'segments']
