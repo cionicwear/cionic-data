@@ -3,7 +3,6 @@
 import argparse
 import sys
 
-sys.path.append('.')
 import cionic
 
 __usage__ = '''

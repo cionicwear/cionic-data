@@ -7,11 +7,12 @@ import sys
 
 import pandas as pd
 
-sys.path.append('.')
 import cionic
 
 __usage__ = '''
-./scripts/download.py [orgid] [studyid]
+./scripts/download.py
+    [orgid]
+    [studyid]
     [-n <collection numbers to download>]
     [-c <streams to csv>]
     [-o <output directory>]
