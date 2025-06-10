@@ -13,7 +13,7 @@ You will first need to download an authorization token from the web portal.
 
 ## Setup
 
-The scripts depend on the following python packages:
+The scripts depend on the following third party python packages:
 
 ```
 numpy==1.23.4
@@ -36,6 +36,11 @@ Activate the virtual environment:
 Install packages:
 
 `pip3 install -r scripts/requirements.txt`
+
+Creates a local package from source code:
+
+`python3 -m pip install --upgrade pip`
+`pip install -e .`
 
 ## download.py
 
