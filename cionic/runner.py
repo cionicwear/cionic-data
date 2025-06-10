@@ -3,10 +3,11 @@ import pathlib
 import shutil
 import subprocess
 
-import cionic
 import dateutil.parser
 import papermill as pm
 from IPython.display import HTML, Markdown, display
+
+import cionic
 
 
 def run_collections(

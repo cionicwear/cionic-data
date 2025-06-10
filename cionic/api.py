@@ -10,9 +10,10 @@ import pathlib
 import sys
 import zipfile
 
-import cionic
 import numpy as np
 import requests
+
+import cionic
 
 apiver = '0.22'
 server = None
