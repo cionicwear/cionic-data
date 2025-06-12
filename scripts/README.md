@@ -42,6 +42,10 @@ Creates a local package from source code:
 `python3 -m pip install --upgrade pip`
 `pip install -e .`
 
+Set up pre-commit hooks:
+
+`pre-commit install`
+
 ## download.py
 
 The download script enables fetch and segmentation of npz files to the local directory.
@@ -99,3 +103,9 @@ optional arguments:
   -r REM [REM ...]  remove role flags: -d analyst collector admin
   -t TOKEN          path to auth credentials json file
 ```
+
+## Committing changes with pre-commit hooks
+
+Pushing changes requires passing formatting and linting standards integrated into pre-commit hooks. These will automatically run when you try to commit, and the commit will be blocked if any tests fail. It is convenient to check if changes will pass prior to committing with:
+
+`pre-commit run --all-files`

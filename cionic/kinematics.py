@@ -12,12 +12,13 @@ import matplotlib.ticker as pltk
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
-import tools
 from matplotlib.backends.backend_pdf import PdfPages
 from scipy.signal import find_peaks
 from scipy.spatial.distance import cdist
 from scipy.spatial.transform import Rotation, Slerp
 from scipy.stats import ttest_ind
+
+from cionic import tools
 
 
 def GaitCycleAxis():

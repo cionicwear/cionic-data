@@ -13,10 +13,8 @@ from scipy import signal
 from scipy.spatial.transform import Rotation, Slerp
 
 import cionic.bno080frps as b_frps
-import cionic.kinematics_setup as kc
-
-sys.path.append(os.path.dirname(__file__))
 import cionic.dsp as dsp
+import cionic.kinematics_setup as kc
 
 HP_PARAMS = {"filter_order": 5, "cutoff_freq": 50, "sampling_rate": 2000}
 RMS_PARAMS = {"window_size": 301}

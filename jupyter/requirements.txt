@@ -2,6 +2,7 @@ ipython==8.14.0
 ipywidgets==8.0.7
 matplotlib==3.7.1
 jupyterlab==4.4.3
+nbqa==1.9.1
 numpy==1.23.5
 pandas==2.0.3
 requests==2.32.3
