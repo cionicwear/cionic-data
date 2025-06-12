@@ -25,7 +25,7 @@ class JSONL2NPY:
         measures the formats and sets the default type
         for each column in the ndarray
         """
-        for row, line in enumerate(f):
+        for _, line in enumerate(f):
             data = json.loads(line)
             [self.npformat(k, v) for k, v in data.items()]
 

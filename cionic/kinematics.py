@@ -297,7 +297,7 @@ class Kinematics:
     def calculate_segment_splits(self, group, label, name, streams):
         splits = []
 
-        for index, seg in streams.iterrows():
+        for _, seg in streams.iterrows():
             if seg['label'] == label:
                 splits.append((seg['start_s'], seg['end_s'], 1.0))
 
@@ -344,7 +344,7 @@ class Kinematics:
                     s = 0
                     (ts, height) = splits[s]
 
-                    for i, t in enumerate(elapsed):
+                    for _, t in enumerate(elapsed):
                         if t == ts:
                             if s in skips:
                                 splits_stream.append((t, -1.0))
@@ -425,7 +425,7 @@ class Kinematics:
             return splits
 
         for i, strike in enumerate(split['splits']):
-            (ts, height) = strike
+            (ts, _) = strike
 
             if i == len(split['splits']) - 1:
                 break
@@ -439,7 +439,7 @@ class Kinematics:
                 a += 1
 
             if i not in split['skips'] and len(arr) > 0:
-                (time_interp, step_interp) = self.interpolate_split(arr, target_length)
+                (_, step_interp) = self.interpolate_split(arr, target_length)
                 splits.append(np.insert(step_interp, 0, [ts, duration]))
 
         return splits
@@ -467,10 +467,10 @@ class Kinematics:
         for i, strike in enumerate(split['splits']):
             if len(strike) == 3:
                 # strike with start and end
-                (start, end, height) = strike
+                (start, end, _) = strike
             else:
                 # strike with only end
-                (end, height) = strike
+                (end, _) = strike
 
             sub = vals[(vals["elapsed_s"] >= start) & (vals["elapsed_s"] < end)]
             start = end
@@ -900,7 +900,16 @@ class Kinematics:
         if 'label' in yaxis:
             axs.set_ylabel(yaxis['label'])
 
-    def plot_ind_on_axis(self, axs, ind, title, xaxis={}, yaxis={}, presentation={}):
+    def plot_ind_on_axis(
+        self, axs, ind, title, xaxis=None, yaxis=None, presentation=None
+    ):
+        if xaxis is None:
+            xaxis = {}
+        if yaxis is None:
+            yaxis = {}
+        if presentation is None:
+            presentation = {}
+
         # plot individual step data (kinematics or EMG)
         legend = []
 
@@ -924,7 +933,7 @@ class Kinematics:
         yax = axs.get_ylim()
         ty = yax[0]
         tys = (yax[1] - yax[0]) / label_count
-        for step, (time_interp, step_interp) in enumerate(ind):
+        for step in range(len(ind)):
             if step % step_skip == 0:
                 axs.text(1.02, ty, f'{step}', c=step_c[step], fontsize=8)
                 ty = ty + tys  # advance y-position of next step label
@@ -951,13 +960,23 @@ class Kinematics:
         height=plot_height,
         plot_ind=True,
         sheight=None,
-        xaxis={},
-        yaxis={},
-        markers={},
-        presentation={},
+        xaxis=None,
+        yaxis=None,
+        markers=None,
+        presentation=None,
         config=None,
-        hlines=[0],
+        hlines=None,
     ):
+        if xaxis is None:
+            xaxis = {}
+        if yaxis is None:
+            yaxis = {}
+        if markers is None:
+            markers = {}
+        if presentation is None:
+            presentation = {}
+        if hlines is None:
+            hlines = [0]
 
         if presentation.get('style'):
             plt.style.use(presentation['style'])
@@ -1476,7 +1495,7 @@ class Kinematics:
         return np.array(upright, dtype=arr.dtype)
 
     def create_upright(self, group, angles, stream):
-        for joint, angles in angles.items():
+        for joint, _ in angles.items():
             (position_a, position_b) = joint
             if self.check(group, position_a, stream):
                 self.groups[group]['upright'][stream] = self.create_upright_stream(
@@ -1489,11 +1508,14 @@ class Kinematics:
                 )
                 return
 
-    def calculate_joint_angles(self, group, angles, stream='fquat', neutral_offsets={}):
+    def calculate_joint_angles(
+        self, group, angles, stream='fquat', neutral_offsets=None
+    ):
         """Calculates joint angles based on quat streams of positions
         and assigns Eulers to self.groups.
         """
-
+        if neutral_offsets is None:
+            neutral_offsets = {}
         # add an upright vector to the group
         # match in length to the first rotation stream
         self.create_upright(group, angles, stream)
@@ -1692,11 +1714,11 @@ class Kinematics:
         group,
         positions,
         stream="ladc",
-        stream_out="pressure",
         component_out="mv",
-        pressure_params={},
+        pressure_params=None,
     ):
-
+        if pressure_params is None:
+            pressure_params = {}
         rmsw = pressure_params.get('rms_window')
         filt = pressure_params.get('filter')
         norm = pressure_params.get('normalize')
@@ -1768,7 +1790,6 @@ class Kinematics:
         stream_in="digip",
         stream_out="fes",
         component_out="perc",
-        scale=1,
     ):
         """
         remap the components of the pressure sensor to their own locations
@@ -1816,7 +1837,6 @@ class Kinematics:
         stream_in="euler",
         stream_out="angle",
         component_out="degrees",
-        scale=1,
     ):
         """
         remap the components of the pressure sensor to their own locations
@@ -1970,7 +1990,7 @@ class Kinematics:
 
         # construct cycles - heel strike to heel strike
         swing_index = 0
-        for i, stance in enumerate(stances):
+        for _, stance in enumerate(stances):
             # get to the matching swing
             while (
                 swing_index < len(swings)

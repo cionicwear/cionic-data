@@ -317,7 +317,7 @@ def format_df(df):
     # blocks of related FRS records
     blocks = []
     prev_frs = None
-    for index, row in df.iterrows():
+    for _, row in df.iterrows():
         frs = int(row['frs'])
         if frs == prev_frs:
             blocks[-1].append(row)

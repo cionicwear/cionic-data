@@ -350,8 +350,10 @@ def package_npz(segments, npzdir, npzpath, segsuffix=''):
         print("study package complete", file=sys.stderr)
 
 
-def download_file(destpath, url, headers={}):
+def download_file(destpath, url, headers=None):
     'Download response from url to destpath'
+    if headers is None:
+        headers = {}
     destpath = ensure_parent(destpath)
 
     if destpath.exists():

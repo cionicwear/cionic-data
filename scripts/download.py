@@ -187,7 +187,7 @@ def main():
         sxid = studies[choice]['xid']
         args.studyid = studies[choice]['shortname']
     else:
-        for i, s in enumerate(studies):
+        for _, s in enumerate(studies):
             if args.studyid == s['shortname']:
                 sxid = s['xid']
 
