@@ -42,6 +42,13 @@ Creates a local package from source code:
 `python3 -m pip install --upgrade pip`
 `pip install -e .`
 
+Set up pre-commit hooks:
+
+`pre-commit install`
+
+
+`pre-commit run --all-files`
+
 ## download.py
 
 The download script enables fetch and segmentation of npz files to the local directory.
