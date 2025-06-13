@@ -72,7 +72,7 @@ def get_cionic(urlpath, microservice='c', cachepath=None, ver=apiver, **kwargs):
         cachepath = None
 
     url = f'https://{server}/{microservice}/v{ver}/{urlpath}'
-    print(f'fetching {url} {kwargs}', file=sys.stderr)
+    print(f'fetching {url} {kwargs if kwargs else ""}', file=sys.stderr)
     r = requests.get(url, headers={'x-cionic-user': authtoken}, params=kwargs)
 
     if r.status_code != 200:
