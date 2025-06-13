@@ -19,9 +19,10 @@ def run_collections(
     prepare_only=False,
     overwrite=False,
     limit=None,
-    parameters={},
+    parameters=None,
 ):
-
+    if parameters is None:
+        parameters = {}
     notepath = os.path.abspath(notebook)
 
     collections = sorted(collections, key=lambda collection: -collection['created_ts'])

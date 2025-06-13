@@ -329,11 +329,15 @@ def simple_plot(
     xlabel='',
     ylabel='',
     color='',
-    ylim=[0, 0],
-    leg_contents=[],
+    ylim=None,
+    leg_contents=None,
     style='-',
     legend_loc='best',
 ):
+    if ylim is None:
+        ylim = [0, 0]
+    if leg_contents is None:
+        leg_contents = []
     fig, axs = plt.subplots(ncols=1, nrows=1, constrained_layout=True)
     fig.set_size_inches(width, height, forward=False)
 
@@ -392,13 +396,18 @@ def component_plot(
     xlabel='',
     ylabel='',
     color='',
-    ylim=[0, 0],
-    leg_contents=[],
+    ylim=None,
+    leg_contents=None,
     style='-',
     legend_loc='best',
-    shades=[],
+    shades=None,
 ):
-
+    if ylim is None:
+        ylim = [0, 0]
+    if leg_contents is None:
+        leg_contents = []
+    if shades is None:
+        shades = []
     if not isinstance(streams, list):
         streams = [streams]
 
@@ -453,15 +462,21 @@ def configurable_plot(
     xlabel='',
     ylabel='',
     color='',
-    ylim=[0, 0],
+    ylim=None,
     ncols=1,
     same_plot=True,
-    leg_contents=[],
+    leg_contents=None,
     style='-',
     legend_loc='upper right',
     sharex=True,
-    shades=[],
+    shades=None,
 ):
+    if ylim is None:
+        ylim = [0, 0]
+    if leg_contents is None:
+        leg_contents = []
+    if shades is None:
+        shades = []
     if same_plot:
         fig, axs = plt.subplots(ncols=1, nrows=1, constrained_layout=True)
         fig.set_size_inches(width, height, forward=False)
@@ -526,7 +541,7 @@ def configurable_plot(
 
 def join_segments(npz, segments):
     data = {}
-    for index, seg in segments.iterrows():
+    for _, seg in segments.iterrows():
         position = seg.get('position')
         if not position:
             position = seg['device']
@@ -569,7 +584,7 @@ def segment_times(seg, times):
 
 def stream_regs(npz):
     device_regs = {}
-    for index, seg in pd.DataFrame(npz['segments']).iterrows():
+    for _, seg in pd.DataFrame(npz['segments']).iterrows():
         if seg['stream'] == 'regs' and seg['device'] not in device_regs:
             device_regs[seg['device']] = regs_data(npz, seg['path'])
         elif seg['stream'] == 'frsp' and seg['device'] + '_frsp' not in device_regs:
@@ -584,7 +599,7 @@ def stream_impedances(npz):
     parse ads stored impedance values returning a dictionary keyed on device and field
     """
     impedances = {}
-    for index, seg in pd.DataFrame(npz['segments']).iterrows():
+    for _, seg in pd.DataFrame(npz['segments']).iterrows():
         if seg['stream'] == 'emg':
             try:
                 cal = seg['calibration']
@@ -783,7 +798,7 @@ def stream_data(npz, streams, degrees=True):
     data = {}
     components = []
     times = None
-    for index, seg in pd.DataFrame(npz['segments']).iterrows():
+    for _, seg in pd.DataFrame(npz['segments']).iterrows():
         if seg['stream'] not in streams:
             continue
 
@@ -839,7 +854,7 @@ CHSETMAP = {
 def get_stream_data_joints(npz, streams):
     KINEMATICS_CONFIG = kc.get_kinematics_config()
     device_dict = {}
-    for index, seg in pd.DataFrame(npz['segments']).iterrows():
+    for _, seg in pd.DataFrame(npz['segments']).iterrows():
         if seg['stream'] == 'fquat':
             device_dict[seg.get('position')] = npz[seg['path']]
 
@@ -1300,7 +1315,7 @@ def compute_signals(
 
 def csv_imu_convert(frame):
     eulers = []
-    for i, r in frame.iterrows():
+    for _, r in frame.iterrows():
         orientation = Rotation.from_quat([r["x"], r["y"], r["z"], r["w"]])
         e = orientation.as_euler('xyz', degrees=True)
         euler = (r['elapsed'], r['limb'], e[0], e[1], e[2])

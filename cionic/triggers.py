@@ -88,6 +88,9 @@ class FESSetting(enum.IntEnum):
     FESMETA_PAUSED = 6
 
 
+COLORS = ['red', 'blue', 'green', 'orange', 'brown']
+
+
 def mask_count(mask):
     """
     Determine how much to bit shift (right) a value to match first set bit of the mask
@@ -309,7 +312,7 @@ def compute_stims(
     npz,
     actions,
     times=None,
-    colors=['red', 'blue', 'green', 'orange', 'brown'],
+    colors=COLORS,
     ts='elapsed_s',
 ):
     """
@@ -329,7 +332,7 @@ def compute_stim_muscles(
     tdf,
     muscles,
     times=None,
-    colors=['red', 'blue', 'green', 'orange', 'brown'],
+    colors=COLORS,
     ts='elapsed',
 ):
     """
@@ -348,7 +351,7 @@ def compute_stim_muscles(
         start_ramp = None
         last = None
         patterns = []
-        for index, row in muscle_actions.iterrows():
+        for _, row in muscle_actions.iterrows():
             elapsed = row[ts]
             if times and (elapsed < times[0] or elapsed > times[1]):
                 if row['intensity'] == 0:
