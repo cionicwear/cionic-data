@@ -8,17 +8,19 @@ import sys
 import pandas as pd
 
 import cionic
+from cionic import kinematics_setup, tools
 
 __usage__ = '''
 ./scripts/download.py
     [orgid]
     [studyid]
+    [-p <protocol shortname>]
     [-n <collection numbers to download>]
     [-c <streams to csv>]
     [-o <output directory>]
     [-t <filepath to tokenfile>]
     [-l <limit>]
-    [-f]
+    [-f <additional collection files>]
 
 Common usage examples:
 
@@ -40,6 +42,9 @@ Download from cionic org, sample study and quad-assist protocol
 Download collections 253 & 254 from cionic org, sample study
 ./scripts/download.py cionic sample -n 253 254
 '''
+
+
+KINEMATICS_SETUP = kinematics_setup.kinematics_setup
 
 
 def download_npz(collection, urlroot, fileroot, nameroot):
@@ -72,10 +77,92 @@ def download_files(collection, urlroot, fileroot):
     cionic.download_files(files_url, files_dir, exclude=[".CDE", ".npz"])
 
 
+def retrieve_stream(npz, position, stream, segment_num):
+    for line in npz['segments.jsonl'].split(b'\n'):
+        if line:
+            segment = json.loads(line)
+            if (
+                position == segment.get('position')
+                and stream == segment.get('stream')
+                and segment_num == segment.get('segment_num')
+            ):
+                return npz[segment['path']]
+    return None
+
+
+def get_segment_nums_labels(npz):
+    segment_nums = []
+    labels = []
+    for line in npz['segments.jsonl'].split(b'\n'):
+        if line:
+            segment = json.loads(line)
+            segment_num = segment.get('segment_num')
+            if segment_num is not None and segment_num not in segment_nums:
+                segment_nums.append(segment_num)
+                labels.append(segment.get('label'))
+    return segment_nums, labels
+
+
+def output_joint_streams(collection, fileroot, npz):
+    colnum = collection['num']
+    segment_nums, labels = get_segment_nums_labels(npz)
+    for segment_num, label in zip(segment_nums, labels):
+        groups = list(KINEMATICS_SETUP.keys())
+        for group in groups:
+            for positions, orientations in KINEMATICS_SETUP[group]['angles'].items():
+                position_1_quats = retrieve_stream(
+                    npz=npz,
+                    position=positions[0],
+                    stream='fquat',
+                    segment_num=segment_num,
+                )
+                position_2_quats = retrieve_stream(
+                    npz=npz,
+                    position=positions[1],
+                    stream='fquat',
+                    segment_num=segment_num,
+                )
+                if position_1_quats is None or position_2_quats is None:
+                    continue
+
+                df = pd.DataFrame(
+                    tools.stream_quat2euler_joint(position_1_quats, position_2_quats)
+                )
+                for axis, kinematic_name in orientations.items():
+                    if axis[0] == '-':
+                        df[axis[-1]] = -df[axis[-1]]
+                        df.rename(columns={axis[-1]: kinematic_name}, inplace=True)
+                    else:
+                        df.rename(columns={axis: kinematic_name}, inplace=True)
+                col = df.pop('elapsed_s')
+                df.insert(0, 'elapsed_s', col)
+
+                if 'upright' in positions[0] and 'hips' in positions[1]:
+                    position_name = 'pelvis_joint'
+                elif 'hips' in positions[0] and 'thigh' in positions[1]:
+                    position_name = 'hip_joint'
+                elif 'thigh' in positions[0] and 'shank' in positions[1]:
+                    position_name = 'knee_joint'
+                elif 'shank' in positions[0] and 'foot' in positions[1]:
+                    position_name = 'ankle_joint'
+                else:
+                    position_name = f'{positions[0]}_{positions[1]}'
+
+                outpath = (
+                    f'{fileroot}/{colnum}/{group[0]}_'
+                    f'{position_name}_euler_{segment_num:>03}_{label}.csv'
+                )
+                print(f"Saving {outpath}")
+                df.to_csv(outpath, index=False)
+
+
 def make_csv(collection, fileroot, npz, segment):
     # construct file path
     colnum = collection['num']
-    outpath = f"{fileroot}/{colnum}/{segment['path']}_{segment['label']}.csv"
+    outpath = (
+        f"{fileroot}/{colnum}/{segment['position']}_"
+        f"{segment['path']}_{segment['label']}.csv"
+    )
     print(f"Saving {outpath}")
     # load array into pandas
     arr = npz[segment['path']]
@@ -90,6 +177,34 @@ def make_csv(collection, fileroot, npz, segment):
     # save to csv
     df.to_csv(outpath, index=False)
 
+    if segment['stream'] == 'fquat':
+        outpath = (
+            f"{fileroot}/{colnum}/{segment['position']}_"
+            f"{segment['path'].replace('fquat', 'euler')}_{segment['label']}.csv"
+        )
+        df_euler = pd.DataFrame(tools.stream_quat2euler(arr))
+        # pop elapsed_s to front for convenience
+        col = df_euler.pop('elapsed_s')
+        df_euler.insert(0, 'elapsed_s', col)
+        df_euler.to_csv(outpath, index=False)
+
+
+def output_streams(c, fileroot, npz, segments, csvs):
+    for line in npz['segments.jsonl'].split(b'\n'):
+        if line:
+            segment = json.loads(line)
+            segments.append(segment)
+            if csvs and segment['stream'] in csvs:
+                make_csv(c, fileroot, npz, segment)
+    if 'fquat' in csvs:
+        output_joint_streams(c, fileroot, npz)
+    return segments
+
+
+def output_split_streams():
+    # TODO
+    pass
+
 
 def load_collections(collections, urlroot, fileroot, nameroot, files, csvs):
     segments = []
@@ -100,12 +215,9 @@ def load_collections(collections, urlroot, fileroot, nameroot, files, csvs):
             npz = download_npz(c, urlroot, fileroot, nameroot)
 
             if npz:
-                for line in npz['segments.jsonl'].split(b'\n'):
-                    if line:
-                        segment = json.loads(line)
-                        segments.append(segment)
-                        if csvs and segment['stream'] in csvs:
-                            make_csv(c, fileroot, npz, segment)
+                segments = output_streams(c, fileroot, npz, segments, csvs)
+                output_split_streams()
+
         except Exception as e:
             print(e)
 
