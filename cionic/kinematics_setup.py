@@ -133,40 +133,61 @@ def get_kinematics_config():
 kinematics_setup = {
     'left': {
         'angles': {
-            ('upright', 'hips'): {
-                '-x': 'pelvic_tilt',
-                'y': 'pelvic_obliquity',
-                '-z': 'pelvic_int_rotation',
+            'pelvis_joint': {
+                'segments': ('upright', 'hips'),
+                'angles': [
+                    {'rename': ('x', 'pelvic_tilt'), 'factor': -1.0},
+                    {'rename': ('y', 'pelvic_obliquity'), 'factor': 1.0},
+                    {'rename': ('z', 'pelvic_int_rotation'), 'factor': -1.0},
+                ],
             },
-            ('l_thigh', 'l_shank'): {
-                '-x': 'knee_flexion',
-                '-y': 'knee_adduction',
-                '-z': 'knee_int_rotation',
+            'knee_joint': {
+                'segments': ('l_thigh', 'l_shank'),
+                'angles': [
+                    {'rename': ('x', 'knee_flexion'), 'factor': -1.0},
+                    {'rename': ('y', 'knee_adduction'), 'factor': -1.0},
+                    {'rename': ('z', 'knee_int_rotation'), 'factor': -1.0},
+                ],
             },
-            ('hips', 'l_thigh'): {
-                'x': 'hip_flexion',
-                '-y': 'hip_adduction',
-                '-z': 'hip_int_rotation',
+            'hip_joint': {
+                'segments': ('hips', 'l_thigh'),
+                'angles': [
+                    {'rename': ('x', 'hip_flexion'), 'factor': 1.0},
+                    {'rename': ('y', 'hip_adduction'), 'factor': -1.0},
+                    {'rename': ('z', 'hip_int_rotation'), 'factor': -1.0},
+                ],
             },
-            ('l_shank', 'l_foot'): {
-                'x': 'dorsi_flexion',
-                '-y': 'ankle_inversion',
-                '-z': 'ankle_int_rotation',
+            'ankle_joint': {
+                'segments': ('l_shank', 'l_foot'),
+                'angles': [
+                    {'rename': ('x', 'dorsi_flexion'), 'factor': 1.0},
+                    {'rename': ('y', 'ankle_inversion'), 'factor': -1.0},
+                    {'rename': ('z', 'ankle_int_rotation'), 'factor': -1.0},
+                ],
             },
-            ('upright', 'l_foot'): {
-                'x': 'foot_floor_angle',
-                '-y': 'foot_supination',
-                '-z': 'foot_int_rotation',
+            'foot_angle': {
+                'segments': ('upright', 'l_foot'),
+                'angles': [
+                    {'rename': ('x', 'foot_floor_angle'), 'factor': 1.0},
+                    {'rename': ('y', 'foot_supination'), 'factor': -1.0},
+                    {'rename': ('z', 'foot_int_rotation'), 'factor': -1.0},
+                ],
             },
-            ('upright', 'l_shank'): {
-                'x': 'shank_floor_angle',
-                '-y': 'shank_adduction',
-                '-z': 'shank_int_rotation',
+            'shank_angle': {
+                'segments': ('upright', 'l_shank'),
+                'angles': [
+                    {'rename': ('x', 'shank_floor_angle'), 'factor': 1.0},
+                    {'rename': ('y', 'shank_adduction'), 'factor': -1.0},
+                    {'rename': ('z', 'shank_int_rotation'), 'factor': -1.0},
+                ],
             },
-            ('upright', 'l_thigh'): {
-                'x': 'thigh_floor_angle',
-                '-y': 'thigh_adduction',
-                '-z': 'thigh_int_rotation',
+            'thigh_angle': {
+                'segments': ('upright', 'l_thigh'),
+                'angles': [
+                    {'rename': ('x', 'thigh_floor_angle'), 'factor': 1.0},
+                    {'rename': ('y', 'thigh_adduction'), 'factor': -1.0},
+                    {'rename': ('z', 'thigh_int_rotation'), 'factor': -1.0},
+                ],
             },
         },
         'emgs': ['l_shank_emg', 'l_thigh_emg', 'l_emg'],
@@ -174,40 +195,61 @@ kinematics_setup = {
     },
     'right': {
         'angles': {
-            ('upright', 'hips'): {
-                '-x': 'pelvic_tilt',
-                '-y': 'pelvic_obliquity',
-                'z': 'pelvic_int_rotation',
+            'pelvis_joint': {
+                'segments': ('upright', 'hips'),
+                'angles': [
+                    {'rename': ('x', 'pelvic_tilt'), 'factor': -1.0},
+                    {'rename': ('y', 'pelvic_obliquity'), 'factor': -1.0},
+                    {'rename': ('z', 'pelvic_int_rotation'), 'factor': 1.0},
+                ],
             },
-            ('r_thigh', 'r_shank'): {
-                '-x': 'knee_flexion',
-                'y': 'knee_adduction',
-                'z': 'knee_int_rotation',
+            'knee_joint': {
+                'segments': ('r_thigh', 'r_shank'),
+                'angles': [
+                    {'rename': ('x', 'knee_flexion'), 'factor': -1.0},
+                    {'rename': ('y', 'knee_adduction'), 'factor': 1.0},
+                    {'rename': ('z', 'knee_int_rotation'), 'factor': 1.0},
+                ],
             },
-            ('hips', 'r_thigh'): {
-                'x': 'hip_flexion',
-                'y': 'hip_adduction',
-                'z': 'hip_int_rotation',
+            'hip_joint': {
+                'segments': ('hips', 'r_thigh'),
+                'angles': [
+                    {'rename': ('x', 'hip_flexion'), 'factor': 1.0},
+                    {'rename': ('y', 'hip_adduction'), 'factor': 1.0},
+                    {'rename': ('z', 'hip_int_rotation'), 'factor': 1.0},
+                ],
             },
-            ('r_shank', 'r_foot'): {
-                'x': 'dorsi_flexion',
-                'y': 'ankle_inversion',
-                'z': 'ankle_int_rotation',
+            'ankle_joint': {
+                'segments': ('r_shank', 'r_foot'),
+                'angles': [
+                    {'rename': ('x', 'dorsi_flexion'), 'factor': 1.0},
+                    {'rename': ('y', 'ankle_inversion'), 'factor': 1.0},
+                    {'rename': ('z', 'ankle_int_rotation'), 'factor': 1.0},
+                ],
             },
-            ('upright', 'r_foot'): {
-                'x': 'foot_floor_angle',
-                'y': 'foot_supination',
-                'z': 'foot_int_rotation',
+            'foot_angle': {
+                'segments': ('upright', 'r_foot'),
+                'angles': [
+                    {'rename': ('x', 'foot_floor_angle'), 'factor': 1.0},
+                    {'rename': ('y', 'foot_supination'), 'factor': 1.0},
+                    {'rename': ('z', 'foot_int_rotation'), 'factor': 1.0},
+                ],
             },
-            ('upright', 'r_shank'): {
-                'x': 'shank_floor_angle',
-                '-y': 'shank_adduction',
-                '-z': 'shank_int_rotation',
+            'shank_angle': {
+                'segments': ('upright', 'r_shank'),
+                'angles': [
+                    {'rename': ('x', 'shank_floor_angle'), 'factor': 1.0},
+                    {'rename': ('y', 'shank_adduction'), 'factor': -1.0},
+                    {'rename': ('z', 'shank_int_rotation'), 'factor': -1.0},
+                ],
             },
-            ('upright', 'r_thigh'): {
-                'x': 'thigh_floor_angle',
-                '-y': 'thigh_adduction',
-                '-z': 'thigh_int_rotation',
+            'thigh_angle': {
+                'segments': ('upright', 'r_thigh'),
+                'angles': [
+                    {'rename': ('x', 'thigh_floor_angle'), 'factor': 1.0},
+                    {'rename': ('y', 'thigh_adduction'), 'factor': -1.0},
+                    {'rename': ('z', 'thigh_int_rotation'), 'factor': -1.0},
+                ],
             },
         },
         'emgs': ['r_shank_emg', 'r_thigh_emg', 'r_emg'],

@@ -1495,8 +1495,8 @@ class Kinematics:
         return np.array(upright, dtype=arr.dtype)
 
     def create_upright(self, group, angles, stream):
-        for joint, _ in angles.items():
-            (position_a, position_b) = joint
+        for _, values in angles.items():
+            (position_a, position_b) = values['segments']
             if self.check(group, position_a, stream):
                 self.groups[group]['upright'][stream] = self.create_upright_stream(
                     self.groups[group][position_a][stream]
@@ -1521,9 +1521,9 @@ class Kinematics:
         self.create_upright(group, angles, stream)
 
         print('\nComputing joint angles...')
-        for joint, angles in angles.items():
+        for joint, values in angles.items():
 
-            (position_a, position_b) = joint
+            (position_a, position_b) = values['segments']
 
             print(f"between {position_a} and {position_b} ({stream} stream)")
 
@@ -1533,30 +1533,21 @@ class Kinematics:
                 continue
 
             computed = self.calculate_joint_angle(group, position_a, position_b, stream)
-            for axis, angle in angles.items():
-                if axis[0] == '-':
-                    arr = np.array(
-                        computed[[axis[1], "elapsed_s"]],
-                        dtype={
-                            'names': ('degrees', 'elapsed_s'),
-                            'formats': ('f8', 'f8'),
-                        },
-                    )
-                    arr["degrees"] = -arr["degrees"]
-                else:
-                    arr = np.array(
-                        computed[[axis, "elapsed_s"]],
-                        dtype={
-                            'names': ('degrees', 'elapsed_s'),
-                            'formats': ('f8', 'f8'),
-                        },
-                    )
+
+            for angle_dict in values['angles']:
+                angle = angle_dict['rename'][1]
+                arr = np.array(
+                    computed[[angle_dict['rename'][0], "elapsed_s"]],
+                    dtype={
+                        'names': ('degrees', 'elapsed_s'),
+                        'formats': ('f8', 'f8'),
+                    },
+                )
+                arr['degrees'] = arr['degrees'] * angle_dict['factor']
 
                 # calculate pelvis, hip, knee, ankle angles (°)
-                self.groups[group][angle]['angle'] = np.array(
-                    arr,
-                    dtype={'names': ('degrees', 'elapsed_s'), 'formats': ('f8', 'f8')},
-                )
+                self.groups[group][angle]['angle'] = arr
+
                 # offset angles by any passed neutral_offset default to 0
                 offset = neutral_offsets.get(group, {}).get(angle, 0)
                 self.groups[group][angle]['angle']['degrees'] += offset
