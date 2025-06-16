@@ -109,16 +109,16 @@ def output_joint_streams(collection, fileroot, npz):
     for segment_num, label in zip(segment_nums, labels):
         groups = list(KINEMATICS_SETUP.keys())
         for group in groups:
-            for positions, orientations in KINEMATICS_SETUP[group]['angles'].items():
+            for position_name, values in KINEMATICS_SETUP[group]['angles'].items():
                 position_1_quats = retrieve_stream(
                     npz=npz,
-                    position=positions[0],
+                    position=values['segments'][0],
                     stream='fquat',
                     segment_num=segment_num,
                 )
                 position_2_quats = retrieve_stream(
                     npz=npz,
-                    position=positions[1],
+                    position=values['segments'][1],
                     stream='fquat',
                     segment_num=segment_num,
                 )
@@ -128,25 +128,17 @@ def output_joint_streams(collection, fileroot, npz):
                 df = pd.DataFrame(
                     tools.stream_quat2euler_joint(position_1_quats, position_2_quats)
                 )
-                for axis, kinematic_name in orientations.items():
-                    if axis[0] == '-':
-                        df[axis[-1]] = -df[axis[-1]]
-                        df.rename(columns={axis[-1]: kinematic_name}, inplace=True)
-                    else:
-                        df.rename(columns={axis: kinematic_name}, inplace=True)
+                for angle_dict in values['angles']:
+                    df.rename(
+                        columns={angle_dict['rename'][0]: angle_dict['rename'][1]},
+                        inplace=True,
+                    )
+                    df[angle_dict['rename'][1]] = (
+                        df[angle_dict['rename'][1]] * angle_dict['factor']
+                    )
+
                 col = df.pop('elapsed_s')
                 df.insert(0, 'elapsed_s', col)
-
-                if 'upright' in positions[0] and 'hips' in positions[1]:
-                    position_name = 'pelvis_joint'
-                elif 'hips' in positions[0] and 'thigh' in positions[1]:
-                    position_name = 'hip_joint'
-                elif 'thigh' in positions[0] and 'shank' in positions[1]:
-                    position_name = 'knee_joint'
-                elif 'shank' in positions[0] and 'foot' in positions[1]:
-                    position_name = 'ankle_joint'
-                else:
-                    position_name = f'{positions[0]}_{positions[1]}'
 
                 outpath = (
                     f'{fileroot}/{colnum}/{group[0]}_'

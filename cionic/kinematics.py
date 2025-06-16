@@ -1521,7 +1521,7 @@ class Kinematics:
         self.create_upright(group, angles, stream)
 
         print('\nComputing joint angles...')
-        for joint, values in angles.items():
+        for _, values in angles.items():
 
             (position_a, position_b) = values['segments']
 
