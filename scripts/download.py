@@ -219,21 +219,37 @@ def output_split_streams(c, fileroot, npz, segments, csvs):
             if len(paired_splits) == 0:
                 continue
             for segment in segments:
-                if segment['segment_num'] == segment_num:
-                    stream = npz[segment['path']]
+                if segment['segment_num'] != segment_num:
+                    continue
+                stream = npz[segment['path']]
+                components = [
+                    name for name in stream.dtype.names if name != "elapsed_s"
+                ]
+                for component in components:
+                    splits_matrix = tools.stream_splits_to_matrix(
+                        stream_data=stream,
+                        splits=paired_splits,
+                        ch_field=component,
+                        n_interp=100,
+                        paired_splits=True,
+                    )
+                    make_csv_splits(c, fileroot, component, segment, splits_matrix)
+                if 'fquat' in csvs and segment['stream'] == 'fquat':
+                    euler_stream = tools.stream_quat2euler(stream)
                     components = [
-                        name for name in stream.dtype.names if name != "elapsed_s"
+                        name for name in euler_stream.dtype.names if name != "elapsed_s"
                     ]
                     for component in components:
                         splits_matrix = tools.stream_splits_to_matrix(
-                            stream_data=stream,
+                            stream_data=euler_stream,
                             splits=paired_splits,
                             ch_field=component,
                             n_interp=100,
                             paired_splits=True,
                         )
+                        segment['path'] = segment['path'].replace('fquat', 'euler')
                         make_csv_splits(c, fileroot, component, segment, splits_matrix)
-            # TODO: eulers and limb and joint
+            # TODO: eulers and joint
 
 
 def get_relevant_npz_segments(npz, csvs):
