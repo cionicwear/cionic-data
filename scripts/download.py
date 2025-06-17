@@ -8,7 +8,7 @@ import sys
 import pandas as pd
 
 import cionic
-from cionic import kinematics_setup, tools
+from cionic import kinematics, kinematics_setup, tools
 
 __usage__ = '''
 ./scripts/download.py
@@ -148,7 +148,7 @@ def output_joint_streams(collection, fileroot, npz):
                 df.to_csv(outpath, index=False)
 
 
-def make_csv(collection, fileroot, npz, segment):
+def make_csv_stream(collection, fileroot, npz, segment):
     # construct file path
     colnum = collection['num']
     outpath = (
@@ -181,39 +181,83 @@ def make_csv(collection, fileroot, npz, segment):
         df_euler.to_csv(outpath, index=False)
 
 
+def make_csv_splits(collection, fileroot, component, segment, splits_matrix):
+    # construct file path
+    colnum = collection['num']
+    outpath = (
+        f"{fileroot}/{colnum}/splits_{segment['position']}_{component}_"
+        f"{segment['path']}_{segment['label']}.csv"
+    )
+    print(f"Saving {outpath}")
+    pd.DataFrame(splits_matrix).to_csv(outpath, index=False)
+
+
 def output_streams(c, fileroot, npz, segments, csvs):
-    for line in npz['segments.jsonl'].split(b'\n'):
-        if line:
-            segment = json.loads(line)
-            segments.append(segment)
-            if csvs and segment['stream'] in csvs:
-                make_csv(c, fileroot, npz, segment)
+    for segment in segments:
+        make_csv_stream(c, fileroot, npz, segment)
     if 'fquat' in csvs:
         output_joint_streams(c, fileroot, npz)
     return segments
 
 
-def output_split_streams():
-    # TODO
-    pass
+def output_split_streams(c, fileroot, npz, segments, csvs):
+    segment_nums, _ = get_segment_nums_labels(npz)
+
+    # get walking intervals
+    for candidate_segment in segments:
+        segment_num = candidate_segment['segment_num']
+        if (
+            segment_num in segment_nums
+            and 'shank' in candidate_segment['position']
+            and candidate_segment['stream'] == 'fquat'
+        ):
+            paired_splits = kinematics.get_paired_walking_splits(
+                kinematic_time_series=tools.stream_quat2euler(
+                    npz[candidate_segment['path']]
+                )
+            )
+            if len(paired_splits) == 0:
+                continue
+            for segment in segments:
+                if segment['segment_num'] == segment_num:
+                    stream = npz[segment['path']]
+                    components = [
+                        name for name in stream.dtype.names if name != "elapsed_s"
+                    ]
+                    for component in components:
+                        splits_matrix = tools.stream_splits_to_matrix(
+                            stream_data=stream,
+                            splits=paired_splits,
+                            ch_field=component,
+                            n_interp=100,
+                            paired_splits=True,
+                        )
+                        make_csv_splits(c, fileroot, component, segment, splits_matrix)
+            # TODO: eulers and limb and joint
+
+
+def get_relevant_npz_segments(npz, csvs):
+    npz_segments = []
+    for line in npz['segments.jsonl'].split(b'\n'):
+        if not line:
+            continue
+        segment = json.loads(line)
+        if csvs and segment['stream'] in csvs:
+            npz_segments.append(segment)
+    return npz_segments
 
 
 def load_collections(collections, urlroot, fileroot, nameroot, files, csvs):
-    segments = []
     for c in collections:
-        try:
-            if files:
-                download_files(c, urlroot, fileroot)
-            npz = download_npz(c, urlroot, fileroot, nameroot)
+        if files:
+            download_files(c, urlroot, fileroot)
+        npz = download_npz(c, urlroot, fileroot, nameroot)
 
-            if npz:
-                segments = output_streams(c, fileroot, npz, segments, csvs)
-                output_split_streams()
-
-        except Exception as e:
-            print(e)
-
-    return segments
+        if not npz:
+            continue
+        segments = get_relevant_npz_segments(npz, csvs)
+        output_streams(c, fileroot, npz, segments, csvs)
+        output_split_streams(c, fileroot, npz, segments, csvs)
 
 
 def main():

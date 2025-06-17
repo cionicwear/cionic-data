@@ -20,6 +20,8 @@ from scipy.stats import ttest_ind
 
 from cionic import tools
 
+PEAK_KWARGS = {'distance': 50, 'prominence': 20, 'height': 15}
+
 
 def GaitCycleAxis():
     return {
@@ -136,13 +138,13 @@ def costri(a, b, C):
     }
 
 
-def get_walking_intervals(
+def get_grouped_walking_splits(
     kinematic_time_series,
     component="x",
-    n_start_remove=2,
-    n_stop_remove=1,
+    peak_kwargs=None,
 ):
-    peak_kwargs = {"distance": 50, "prominence": 20}
+    if not peak_kwargs:
+        peak_kwargs = PEAK_KWARGS
     peaks, _ = find_peaks(kinematic_time_series[component], **peak_kwargs)
     splits_timestamps = kinematic_time_series["elapsed_s"][peaks]
     if splits_timestamps.shape[0] < 2:
@@ -160,7 +162,48 @@ def get_walking_intervals(
             all_grouped_splits.append(sorted(list(set(this_group_splits))))
             this_group_splits = []
     all_grouped_splits.append(sorted(list(set(this_group_splits))))
+    return all_grouped_splits
 
+
+def get_paired_walking_splits(
+    kinematic_time_series,
+    component="x",
+    n_start_remove=1,
+    n_stop_remove=1,
+    peak_kwargs=None,
+):
+    all_grouped_splits = get_grouped_walking_splits(
+        kinematic_time_series,
+        component=component,
+        peak_kwargs=peak_kwargs,
+    )
+    paired_splits = []
+    for group_splits in all_grouped_splits:
+        if len(group_splits) + 1 > n_start_remove:
+            group_splits = group_splits[n_start_remove:]
+        if len(group_splits) + 1 > n_stop_remove:
+            group_splits = (
+                group_splits[:-n_stop_remove] if n_stop_remove > 0 else group_splits
+            )
+        if len(group_splits) < 2:
+            continue
+        for i in range(len(group_splits) - 1):
+            paired_splits.append((group_splits[i], group_splits[i + 1]))
+    return paired_splits
+
+
+def get_walking_intervals(
+    kinematic_time_series,
+    component="x",
+    n_start_remove=2,
+    n_stop_remove=1,
+    peak_kwargs=None,
+):
+    all_grouped_splits = get_grouped_walking_splits(
+        kinematic_time_series,
+        component=component,
+        peak_kwargs=peak_kwargs,
+    )
     walking_intervals = []
     for grouped_splits in all_grouped_splits:
         if len(grouped_splits) + 1 > n_start_remove:
