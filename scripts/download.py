@@ -103,7 +103,9 @@ def get_segment_nums_labels(npz):
     return segment_nums, labels
 
 
-def return_joint_streams(npz, included_groups=("left", "right"), segment_nums=None):
+def return_joint_streams(
+    npz, included_groups=("left", "right"), allowable_segment_nums=None
+):
     streams_data_packet = []
     segment_nums, labels = get_segment_nums_labels(npz)
     for segment_num, label in zip(segment_nums, labels):
@@ -111,7 +113,7 @@ def return_joint_streams(npz, included_groups=("left", "right"), segment_nums=No
         for group in groups:
             if group not in included_groups:
                 continue
-            if segment_nums and segment_num not in segment_nums:
+            if allowable_segment_nums and segment_num not in allowable_segment_nums:
                 continue
             for position_name, values in KINEMATICS_SETUP[group]['angles'].items():
                 position_1_quats = retrieve_stream(
@@ -275,9 +277,9 @@ def output_split_streams(c, fileroot, npz, segments, csvs):
                         )
                         segment['path'] = segment['path'].replace('fquat', 'euler')
                         make_csv_splits(c, fileroot, component, segment, splits_matrix)
-            # TODO: eulers and joint
+            # joint euler streams
             joint_euler_streams_packet = return_joint_streams(
-                npz, included_groups=(group), segment_nums=[segment_num]
+                npz, included_groups=(group), allowable_segment_nums=[segment_num]
             )
             for stream_data in joint_euler_streams_packet:
                 components = [
