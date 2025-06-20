@@ -15,6 +15,7 @@ from scipy.spatial.transform import Rotation, Slerp
 import cionic.bno080frps as b_frps
 import cionic.dsp as dsp
 import cionic.kinematics_setup as kc
+from cionic import npz_utils
 
 HP_PARAMS = {"filter_order": 5, "cutoff_freq": 50, "sampling_rate": 2000}
 RMS_PARAMS = {"window_size": 301}
@@ -638,6 +639,80 @@ def stream_calquat(stream, calibration):
             'formats': ('f8', 'f8', 'f8', 'f8', 'f8'),
         },
     )
+
+
+def return_joint_streams(
+    npz, included_groups=("left", "right"), allowable_segment_nums=None
+):
+    '''
+    Generate joint angle data streams from an NPZ archive for specified body groups
+    and segment numbers.
+
+    Args:
+        npz (np.lib.npyio.NpzFile): Loaded NPZ archive.
+        included_groups (tuple[str], optional): Tuple of group names whose streams to
+            return.
+        allowable_segment_nums (list[int], optional): If provided, only segment numbers
+            in this set/list will be processed.
+
+    Returns:
+        list[dict]: A list of dictionaries, each containing:
+            - 'group': Name of the body group (e.g., 'left')
+            - 'segment_num': Segment number
+            - 'label': Segment label
+            - 'position_name': Name of the joint or position
+            - 'stream': A pandas DataFrame with elapsed time and joint angle data
+    '''
+    KINEMATICS_SETUP = kc.kinematics_setup
+    streams_data_packet = []
+    segment_nums, labels = npz_utils.get_segment_nums_labels(npz)
+    for segment_num, label in zip(segment_nums, labels):
+        groups = list(KINEMATICS_SETUP.keys())
+        for group in groups:
+            if group not in included_groups:
+                continue
+            if allowable_segment_nums and segment_num not in allowable_segment_nums:
+                continue
+            for position_name, values in KINEMATICS_SETUP[group]['angles'].items():
+                position_1_quats = npz_utils.retrieve_stream(
+                    npz=npz,
+                    position=values['segments'][0],
+                    stream='fquat',
+                    segment_num=segment_num,
+                )
+                position_2_quats = npz_utils.retrieve_stream(
+                    npz=npz,
+                    position=values['segments'][1],
+                    stream='fquat',
+                    segment_num=segment_num,
+                )
+                if position_1_quats is None or position_2_quats is None:
+                    continue
+
+                df = pd.DataFrame(
+                    stream_quat2euler_joint(position_1_quats, position_2_quats)
+                )
+                for angle_dict in values['angles']:
+                    df.rename(
+                        columns={angle_dict['rename'][0]: angle_dict['rename'][1]},
+                        inplace=True,
+                    )
+                    df[angle_dict['rename'][1]] = (
+                        df[angle_dict['rename'][1]] * angle_dict['factor']
+                    )
+
+                col = df.pop('elapsed_s')
+                df.insert(0, 'elapsed_s', col)
+                streams_data_packet.append(
+                    {
+                        'group': group,
+                        'segment_num': segment_num,
+                        'label': label,
+                        'position_name': position_name,
+                        'stream': df,
+                    }
+                )
+    return streams_data_packet
 
 
 def stream_quat2euler(stream, calibration=None, degrees=True):

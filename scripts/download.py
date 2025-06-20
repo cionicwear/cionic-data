@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 
 import argparse
-import json
 import pathlib
 import sys
 
 import pandas as pd
 
 import cionic
-from cionic import kinematics, kinematics_setup, tools
+from cionic import kinematics, kinematics_setup, npz_utils, tools
 
 __usage__ = '''
 ./scripts/download.py
@@ -102,128 +101,6 @@ def download_files(collection, urlroot, fileroot):
     cionic.download_files(files_url, files_dir, exclude=[".CDE", ".npz"])
 
 
-def retrieve_stream(npz, position, stream, segment_num):
-    '''
-    Retrieve a specific data stream segment from an NPZ archive.
-
-    Args:
-        npz (np.lib.npyio.NpzFile): Loaded NPZ archive.
-        position (str): Position on body, e.g. "r_shank".
-        stream (str): Stream name, e.g. "fquat".
-        segment_num (int): Segment number to match in the segment metadata.
-
-    Returns:
-        np.ndarray or None: The matched data segment if found, otherwise None.
-    '''
-    for line in npz['segments.jsonl'].split(b'\n'):
-        if line:
-            segment = json.loads(line)
-            if (
-                position == segment.get('position')
-                and stream == segment.get('stream')
-                and segment_num == segment.get('segment_num')
-            ):
-                return npz[segment['path']]
-    return None
-
-
-def get_segment_nums_labels(npz):
-    '''
-    Extract unique segment numbers and their corresponding labels from NPZ archive.
-
-    Args:
-        npz (np.lib.npyio.NpzFile): Loaded NPZ archive.
-
-    Returns:
-        tuple[list[int], list[str]]: tuple containing two lists —
-            the first with unique segment numbers, and the second with their
-            corresponding labels.
-    '''
-    segment_nums = []
-    labels = []
-    for line in npz['segments.jsonl'].split(b'\n'):
-        if line:
-            segment = json.loads(line)
-            segment_num = segment.get('segment_num')
-            if segment_num is not None and segment_num not in segment_nums:
-                segment_nums.append(segment_num)
-                labels.append(segment.get('label'))
-    return segment_nums, labels
-
-
-def return_joint_streams(
-    npz, included_groups=("left", "right"), allowable_segment_nums=None
-):
-    '''
-    Generate joint angle data streams from an NPZ archive for specified body groups
-    and segment numbers.
-
-    Args:
-        npz (np.lib.npyio.NpzFile): Loaded NPZ archive.
-        included_groups (tuple[str], optional): Tuple of group names whose streams to
-            return.
-        allowable_segment_nums (list[int], optional): If provided, only segment numbers
-            in this set/list will be processed.
-
-    Returns:
-        list[dict]: A list of dictionaries, each containing:
-            - 'group': Name of the body group (e.g., 'left')
-            - 'segment_num': Segment number
-            - 'label': Segment label
-            - 'position_name': Name of the joint or position
-            - 'stream': A pandas DataFrame with elapsed time and joint angle data
-    '''
-    streams_data_packet = []
-    segment_nums, labels = get_segment_nums_labels(npz)
-    for segment_num, label in zip(segment_nums, labels):
-        groups = list(KINEMATICS_SETUP.keys())
-        for group in groups:
-            if group not in included_groups:
-                continue
-            if allowable_segment_nums and segment_num not in allowable_segment_nums:
-                continue
-            for position_name, values in KINEMATICS_SETUP[group]['angles'].items():
-                position_1_quats = retrieve_stream(
-                    npz=npz,
-                    position=values['segments'][0],
-                    stream='fquat',
-                    segment_num=segment_num,
-                )
-                position_2_quats = retrieve_stream(
-                    npz=npz,
-                    position=values['segments'][1],
-                    stream='fquat',
-                    segment_num=segment_num,
-                )
-                if position_1_quats is None or position_2_quats is None:
-                    continue
-
-                df = pd.DataFrame(
-                    tools.stream_quat2euler_joint(position_1_quats, position_2_quats)
-                )
-                for angle_dict in values['angles']:
-                    df.rename(
-                        columns={angle_dict['rename'][0]: angle_dict['rename'][1]},
-                        inplace=True,
-                    )
-                    df[angle_dict['rename'][1]] = (
-                        df[angle_dict['rename'][1]] * angle_dict['factor']
-                    )
-
-                col = df.pop('elapsed_s')
-                df.insert(0, 'elapsed_s', col)
-                streams_data_packet.append(
-                    {
-                        'group': group,
-                        'segment_num': segment_num,
-                        'label': label,
-                        'position_name': position_name,
-                        'stream': df,
-                    }
-                )
-    return streams_data_packet
-
-
 def output_joint_streams(collection, fileroot, npz):
     '''
     Save joint angle data streams from an NPZ archive to CSV files.
@@ -237,7 +114,7 @@ def output_joint_streams(collection, fileroot, npz):
         None
     '''
     colnum = collection['num']
-    joint_streams_packet = return_joint_streams(npz)
+    joint_streams_packet = tools.return_joint_streams(npz)
     for stream_data in joint_streams_packet:
         outpath = (
             f'{fileroot}/{colnum}/{stream_data["group"][0]}_'
@@ -354,7 +231,7 @@ def output_split_streams(c, fileroot, npz, segments, csvs):
     Returns:
         None
     '''
-    segment_nums, _ = get_segment_nums_labels(npz)
+    segment_nums, _ = npz_utils.get_segment_nums_labels(npz)
 
     # get walking intervals
     for candidate_segment in segments:
@@ -409,7 +286,7 @@ def output_split_streams(c, fileroot, npz, segments, csvs):
                         segment['path'] = segment['path'].replace('fquat', 'euler')
                         make_csv_splits(c, fileroot, component, segment, splits_matrix)
             # joint euler streams
-            joint_euler_streams_packet = return_joint_streams(
+            joint_euler_streams_packet = tools.return_joint_streams(
                 npz, included_groups=(group), allowable_segment_nums=[segment_num]
             )
             for stream_data in joint_euler_streams_packet:
@@ -439,27 +316,6 @@ def output_split_streams(c, fileroot, npz, segments, csvs):
                     )
 
 
-def get_relevant_npz_segments(npz, csvs):
-    '''
-    Filter segments from an NPZ archive based on specified stream types.
-
-    Args:
-        npz (np.lib.npyio.NpzFile): Loaded NPZ archive.
-        csvs (list[str]): List of stream types to include (e.g., ['fquat']).
-
-    Returns:
-        list[dict]: A list of segment dictionaries matching the specified stream types.
-    '''
-    npz_segments = []
-    for line in npz['segments.jsonl'].split(b'\n'):
-        if not line:
-            continue
-        segment = json.loads(line)
-        if csvs and segment['stream'] in csvs:
-            npz_segments.append(segment)
-    return npz_segments
-
-
 def load_collections(collections, urlroot, fileroot, nameroot, files, csvs):
     '''
     Load and process multiple data collections from a remote source,
@@ -469,7 +325,7 @@ def load_collections(collections, urlroot, fileroot, nameroot, files, csvs):
         collections (list[dict]): List of collection metadata dictionaries.
         urlroot (str): Base URL for downloading files and NPZ archives.
         fileroot (str): Local root directory for saving CSV outputs.
-        nameroot (str):  Typically orgid and studyid.
+        nameroot (str): Typically orgid and studyid.
         files (bool): Whether to download raw files for each collection.
         csvs (list[str]): List of stream types (e.g., ['fquat']) to extract and save.
 
@@ -483,7 +339,7 @@ def load_collections(collections, urlroot, fileroot, nameroot, files, csvs):
 
         if not npz:
             continue
-        segments = get_relevant_npz_segments(npz, csvs)
+        segments = npz_utils.get_relevant_npz_segments(npz, csvs)
         output_streams(c, fileroot, npz, segments, csvs)
         output_split_streams(c, fileroot, npz, segments, csvs)
 
