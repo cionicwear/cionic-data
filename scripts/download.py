@@ -249,6 +249,15 @@ def output_split_streams(c, fileroot, npz, segments, csvs):
             )
             if len(paired_splits) == 0:
                 continue
+
+            path = (
+                f'{fileroot}/{c["num"]}/paired_splits_{segment_num:>03}_'
+                f'{candidate_segment["label"]}.csv'
+            )
+            pd.DataFrame([{'start': x[0], 'stop': x[1]} for x in paired_splits]).to_csv(
+                path, index=False
+            )
+
             group = {'l': 'left', 'r': 'right'}.get(candidate_segment['position'][0])
             for segment in segments:
                 if (
