@@ -48,6 +48,19 @@ KINEMATICS_SETUP = kinematics_setup.kinematics_setup
 
 
 def download_npz(collection, urlroot, fileroot, nameroot):
+    '''
+    Download and return NPZ file.
+
+    Args:
+        collection (dict): Dictionary containing collection metadata. Must include
+            keys 'num' and 'xid'.
+        urlroot (str): Base URL for constructing the full download path.
+        fileroot (str): Root directory where the files should be saved locally.
+        nameroot (str): Typically orgid and studyid.
+
+    Returns:
+        np.lib.npyio.NpzFile: NPZ file
+    '''
     colnum = collection['num']
     coldir = f"{fileroot}/{colnum}"
     download = f"{urlroot}/{collection['xid']}/streams/npz"
@@ -71,6 +84,18 @@ def download_npz(collection, urlroot, fileroot, nameroot):
 
 
 def download_files(collection, urlroot, fileroot):
+    '''
+    Download files associated with a collection to a local directory.
+
+    Args:
+        collection (dict): Dictionary containing collection metadata. Must include
+            keys 'num' and 'xid'.
+        urlroot (str): Base URL for constructing the full download path.
+        fileroot (str): Root directory where the files should be saved locally.
+
+    Returns:
+        None
+    '''
     colnum = collection['num']
     files_dir = f"{fileroot}/{colnum}/files/"
     files_url = f"{urlroot}/{collection['xid']}/files"
@@ -78,6 +103,18 @@ def download_files(collection, urlroot, fileroot):
 
 
 def retrieve_stream(npz, position, stream, segment_num):
+    '''
+    Retrieve a specific data stream segment from an NPZ archive.
+
+    Args:
+        npz (np.lib.npyio.NpzFile): Loaded NPZ archive.
+        position (str): Position on body, e.g. "r_shank".
+        stream (str): Stream name, e.g. "fquat".
+        segment_num (int): Segment number to match in the segment metadata.
+
+    Returns:
+        np.ndarray or None: The matched data segment if found, otherwise None.
+    '''
     for line in npz['segments.jsonl'].split(b'\n'):
         if line:
             segment = json.loads(line)
@@ -91,6 +128,17 @@ def retrieve_stream(npz, position, stream, segment_num):
 
 
 def get_segment_nums_labels(npz):
+    '''
+    Extract unique segment numbers and their corresponding labels from NPZ archive.
+
+    Args:
+        npz (np.lib.npyio.NpzFile): Loaded NPZ archive.
+
+    Returns:
+        tuple[list[int], list[str]]: tuple containing two lists —
+            the first with unique segment numbers, and the second with their
+            corresponding labels.
+    '''
     segment_nums = []
     labels = []
     for line in npz['segments.jsonl'].split(b'\n'):
@@ -106,6 +154,25 @@ def get_segment_nums_labels(npz):
 def return_joint_streams(
     npz, included_groups=("left", "right"), allowable_segment_nums=None
 ):
+    '''
+    Generate joint angle data streams from an NPZ archive for specified body groups
+    and segment numbers.
+
+    Args:
+        npz (np.lib.npyio.NpzFile): Loaded NPZ archive.
+        included_groups (tuple[str], optional): Tuple of group names whose streams to
+            return.
+        allowable_segment_nums (list[int], optional): If provided, only segment numbers
+            in this set/list will be processed.
+
+    Returns:
+        list[dict]: A list of dictionaries, each containing:
+            - 'group': Name of the body group (e.g., 'left')
+            - 'segment_num': Segment number
+            - 'label': Segment label
+            - 'position_name': Name of the joint or position
+            - 'stream': A pandas DataFrame with elapsed time and joint angle data
+    '''
     streams_data_packet = []
     segment_nums, labels = get_segment_nums_labels(npz)
     for segment_num, label in zip(segment_nums, labels):
@@ -158,6 +225,17 @@ def return_joint_streams(
 
 
 def output_joint_streams(collection, fileroot, npz):
+    '''
+    Save joint angle data streams from an NPZ archive to CSV files.
+
+    Args:
+        collection (dict): Dictionary containing collection metadata, including 'num'.
+        fileroot (str): Root path where output CSV files should be saved.
+        npz ( np.lib.npyio.NpzFile): Loaded NPZ archive.
+
+    Returns:
+        None
+    '''
     colnum = collection['num']
     joint_streams_packet = return_joint_streams(npz)
     for stream_data in joint_streams_packet:
@@ -171,6 +249,18 @@ def output_joint_streams(collection, fileroot, npz):
 
 
 def make_csv_stream(collection, fileroot, npz, segment):
+    '''
+    Save a raw stream from an NPZ archive as CSV file.
+
+    Args:
+        collection (dict): Dictionary containing collection metadata, including a 'num'.
+        fileroot (str): Root path where output CSV files should be saved.
+        npz (np.lib.npyio.NpzFile): Loaded NPZ archive containing the data.
+        segment (dict): Dictionary describing the stream segment (from NPZ).
+
+    Returns:
+        None
+    '''
     # construct file path
     colnum = collection['num']
     outpath = (
@@ -204,6 +294,19 @@ def make_csv_stream(collection, fileroot, npz, segment):
 
 
 def make_csv_splits(collection, fileroot, component, segment, splits_matrix):
+    '''
+    Save a splits stream as CSV file.
+
+    Args:
+        collection (dict): Dictionary containing collection metadata, including a 'num'.
+        fileroot (str): Root path where output CSV files should be saved.
+        component (str): channel name for split stream, e.g. 'x', 'y', 'z'.
+        segment (dict): Dictionary describing the stream segment (from NPZ).
+        splits_matrix (numpy.NDArray): 2D matrix of split stream data
+
+    Returns:
+        None
+    '''
     # construct file path
     colnum = collection['num']
     outpath = (
@@ -215,6 +318,19 @@ def make_csv_splits(collection, fileroot, component, segment, splits_matrix):
 
 
 def output_streams(c, fileroot, npz, segments, csvs):
+    '''
+    Save specified data streams from an NPZ archive to CSV files.
+
+    Args:
+        c (dict): Collection metadata, including a 'num' key.
+        fileroot (str): Root path for where the CSV files should be saved.
+        npz (np.lib.npyio.NpzFile): Loaded NPZ archive containing the data streams.
+        segments (list[dict]): List of segment definitions.
+        csvs (list[str]): List of stream types (e.g., ['fquat']) to export.
+
+    Returns:
+        list[dict]: The input list of segment definitions.
+    '''
     for segment in segments:
         make_csv_stream(c, fileroot, npz, segment)
     if 'fquat' in csvs:
@@ -223,6 +339,21 @@ def output_streams(c, fileroot, npz, segments, csvs):
 
 
 def output_split_streams(c, fileroot, npz, segments, csvs):
+    '''
+    Save split-phase data streams from an NPZ archive to CSV files,
+    including joint angle segments.
+
+    Args:
+        c (dict): Collection metadata, including a 'num' key.
+        fileroot (str): Root path where CSV files should be saved.
+        npz (np.lib.npyio.NpzFile): Loaded NPZ archive.
+        segments (list[dict]): List of segment metadata dicts.
+        csvs (list[str]): List of stream types (e.g., ['fquat']),
+           indicating which types to process and save.
+
+    Returns:
+        None
+    '''
     segment_nums, _ = get_segment_nums_labels(npz)
 
     # get walking intervals
@@ -309,6 +440,16 @@ def output_split_streams(c, fileroot, npz, segments, csvs):
 
 
 def get_relevant_npz_segments(npz, csvs):
+    '''
+    Filter segments from an NPZ archive based on specified stream types.
+
+    Args:
+        npz (np.lib.npyio.NpzFile): Loaded NPZ archive.
+        csvs (list[str]): List of stream types to include (e.g., ['fquat']).
+
+    Returns:
+        list[dict]: A list of segment dictionaries matching the specified stream types.
+    '''
     npz_segments = []
     for line in npz['segments.jsonl'].split(b'\n'):
         if not line:
@@ -320,6 +461,21 @@ def get_relevant_npz_segments(npz, csvs):
 
 
 def load_collections(collections, urlroot, fileroot, nameroot, files, csvs):
+    '''
+    Load and process multiple data collections from a remote source,
+    saving streams to CSV.
+
+    Args:
+        collections (list[dict]): List of collection metadata dictionaries.
+        urlroot (str): Base URL for downloading files and NPZ archives.
+        fileroot (str): Local root directory for saving CSV outputs.
+        nameroot (str):  Typically orgid and studyid.
+        files (bool): Whether to download raw files for each collection.
+        csvs (list[str]): List of stream types (e.g., ['fquat']) to extract and save.
+
+    Returns:
+        None
+    '''
     for c in collections:
         if files:
             download_files(c, urlroot, fileroot)
