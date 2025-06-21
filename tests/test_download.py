@@ -68,11 +68,12 @@ def remove_spines(ax):
 def plot_full_streams(files, expected_dir):
     if not os.path.exists(os.path.join(expected_dir, 'plots')):
         os.makedirs(os.path.join(expected_dir, 'plots'))
-    splits_files = [f for f in os.listdir(expected_dir) if 'paired_splits' in f]
-    splits_data = {
-        re.findall(r'_(\d{3})_', f)[-1]: pd.read_csv(os.path.join(expected_dir, f))
-        for f in splits_files
-    }
+    splits_data = {}
+    for f in [f for f in os.listdir(expected_dir) if 'paired_splits' in f]:
+        segment_num = re.findall(r'_(\d{3})_', f)[-1]
+        key = f"{f[0]}_{segment_num}"
+        splits_data[key] = pd.read_csv(os.path.join(expected_dir, f))
+
     for file in files:
         # get the segment number and splits file
         segment_num = re.findall(r'_(\d{3})_', file)[-1]
@@ -90,7 +91,7 @@ def plot_full_streams(files, expected_dir):
             axs[i].legend(loc='upper right')
             remove_spines(axs[i])
 
-        splits = splits_data.get(segment_num)
+        splits = splits_data.get(f'{file[0]}_{segment_num}')
         if splits is not None:
             for ax in axs:
                 for _, pair in splits.iterrows():
@@ -126,8 +127,16 @@ def generate_test_plots(expected_dir):
         raise FileNotFoundError(f'Expected directory {expected_dir} does not exist.')
 
     files = os.listdir(expected_dir)
-    full_stream_files = [f for f in files if f.endswith('.csv') and 'splits' not in f]
-    split_stream_files = [f for f in files if f.endswith('.csv') and 'splits' in f]
+    full_stream_files = [
+        f
+        for f in files
+        if f.endswith('.csv') and 'splits' not in f and 'paired_splits' not in f
+    ]
+    split_stream_files = [
+        f
+        for f in files
+        if f.endswith('.csv') and 'splits' in f and 'paired_splits' not in f
+    ]
     print(f'Found {len(full_stream_files)} full stream CSV files in {expected_dir}')
     print(f'Found {len(split_stream_files)} splits CSV files in {expected_dir}')
     plot_full_streams(full_stream_files, expected_dir)
