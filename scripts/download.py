@@ -6,8 +6,7 @@ import sys
 
 import pandas as pd
 
-import cionic
-from cionic import kinematics, kinematics_setup, npz_utils, tools
+from cionic import api, kinematics, kinematics_setup, npz_utils, segmenter, tools
 
 __usage__ = '''
 ./scripts/download.py
@@ -69,9 +68,9 @@ def download_npz(collection, urlroot, fileroot, nameroot):
     # exit if npz already exists
     if pathlib.Path(npzpath).exists():
         print(f"already exists {npzpath}", file=sys.stderr)
-        return cionic.load_segmented(npzpath)
+        return segmenter.load_segmented(npzpath)
 
-    cionic.download_npz(npzpath, download)
+    api.download_npz(npzpath, download)
 
     # exit if npz was not downloaded
     if not pathlib.Path(npzpath).exists():
@@ -79,7 +78,7 @@ def download_npz(collection, urlroot, fileroot, nameroot):
         return None
 
     # segment npz
-    return cionic.load_segmented(npzpath)
+    return segmenter.load_segmented(npzpath)
 
 
 def download_files(collection, urlroot, fileroot):
@@ -98,7 +97,7 @@ def download_files(collection, urlroot, fileroot):
     colnum = collection['num']
     files_dir = f"{fileroot}/{colnum}/files/"
     files_url = f"{urlroot}/{collection['xid']}/files"
-    cionic.download_files(files_url, files_dir, exclude=[".CDE", ".npz"])
+    api.download_files(files_url, files_dir, exclude=[".CDE", ".npz"])
 
 
 def output_joint_streams(collection, fileroot, npz):
@@ -411,7 +410,7 @@ def main():
 
     # select orgid
     tokenpath = args.token
-    orgs = cionic.auth(tokenpath=tokenpath)
+    orgs = api.auth(tokenpath=tokenpath)
     if args.orgid is None:
         for i, o in enumerate(orgs):
             print(f"{i} : {o['shortname']}")
@@ -419,7 +418,7 @@ def main():
         args.orgid = orgs[choice]['shortname']
 
     # fetch studies
-    studies = cionic.get_cionic(f"{args.orgid}/studies")
+    studies = api.get_cionic(f"{args.orgid}/studies")
     if studies is None:
         print(f"Studies not found not for org [{args.orgid}]")
         return
@@ -443,7 +442,7 @@ def main():
         return
 
     # fetch study protocols
-    protocols = cionic.get_cionic(f"{args.orgid}/protocols?sxid={sxid}")
+    protocols = api.get_cionic(f"{args.orgid}/protocols?sxid={sxid}")
     named_protos = {p['shortname']: p['xid'] for p in protocols}
 
     # match study or print the protocols in the selected study
@@ -454,13 +453,13 @@ def main():
         )
         for p in protocols:
             print(f"  {p['shortname']}")
-        collections = cionic.get_cionic(f"{args.orgid}/collections?sxid={sxid}")
+        collections = api.get_cionic(f"{args.orgid}/collections?sxid={sxid}")
     elif pxid := named_protos.get(args.protoid):
         print(
             f"Fetching [{args.limit}] collections for org [{args.orgid}] "
             f"study [{args.studyid}] proto [{args.protoid}]"
         )
-        collections = cionic.get_cionic(f"{args.orgid}/collections?protoxid={pxid}")
+        collections = api.get_cionic(f"{args.orgid}/collections?protoxid={pxid}")
     else:
         print(
             f"Protocol [{args.protoid}] not found for org [{args.orgid}] "

@@ -10,7 +10,7 @@ import zipfile
 
 import numpy as np
 
-from cionic import from_jsonl, to_jsonl, to_nparray
+from cionic import json2npy
 
 META_STEMS = ['PATCHES', 'devices', 'segments']
 
@@ -26,7 +26,7 @@ def parse_metatables(inputs):
             for zi in inzf.infolist():
                 zipath = pathlib.Path(zi.filename)
                 if zipath.suffix == '.jsonl':
-                    for row in from_jsonl(inzf.open(zi)):
+                    for row in json2npy.from_jsonl(inzf.open(zi)):
                         row['source_stem'] = instem
                         metatables[zipath.stem].append(row)
     return metatables
@@ -155,16 +155,16 @@ def segmentize(inputs, boundaries, output, progress=progress_none):
         for tblname, tbl in metatables.items():
             if tblname in META_STEMS:
                 with outzf.open(tblname + '.npy', mode='w') as fp:
-                    np.save(fp, to_nparray(tbl), allow_pickle=False)
-                outzf.writestr(tblname + '.jsonl', to_jsonl(tbl))
+                    np.save(fp, json2npy.to_nparray(tbl), allow_pickle=False)
+                outzf.writestr(tblname + '.jsonl', json2npy.to_jsonl(tbl))
 
-        outzf.writestr('gwlabels.jsonl', to_jsonl(boundaries))
+        outzf.writestr('gwlabels.jsonl', json2npy.to_jsonl(boundaries))
 
 
 def load_boundary_times(npz, segfile='gwlabels.jsonl'):
     times = []
     max_time = np.max(npz['segments']['end_s'])
-    boundaries = from_jsonl(npz[segfile].split(b"\n"))
+    boundaries = json2npy.from_jsonl(npz[segfile].split(b"\n"))
     for i, boundary in enumerate(boundaries):
         label = boundary.get('add', {}).get('label', i).replace(" ", "_")
         segment = boundary.get('add', {}).get('segment_num', i)

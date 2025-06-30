@@ -3,7 +3,7 @@
 import argparse
 import sys
 
-import cionic
+from cionic import api
 
 __usage__ = '''
 ./scripts/auth.py [email] [org]
@@ -36,7 +36,7 @@ def main():
 
     args = parser.parse_args(sys.argv[1:])
     tokenpath = args.token
-    orgs = cionic.auth(tokenpath=tokenpath)
+    orgs = api.auth(tokenpath=tokenpath)
     org_names = [org['shortname'] for org in orgs]
 
     if args.org not in org_names:
@@ -52,7 +52,7 @@ def main():
         print("Please specify at least one role to add [-a] or remove [-r]")
         return
 
-    users = cionic.get_user(args.email)
+    users = api.get_user(args.email)
     if len(users) > 0:
         user = users[0]
     else:
@@ -61,14 +61,14 @@ def main():
             f'User [{args.email}] no found for [{args.org}]. Create Y/N\n'
         ).lower()
         if answer == "y":
-            user = cionic.create_user(args.org, args.email)
+            user = api.create_user(args.org, args.email)
         else:
             return
 
     if args.add:
-        cionic.add_roles(args.org, user['xid'], args.add)
+        api.add_roles(args.org, user['xid'], args.add)
     if args.rem:
-        cionic.remove_roles(args.org, user['xid'], args.rem)
+        api.remove_roles(args.org, user['xid'], args.rem)
 
 
 if __name__ == '__main__':

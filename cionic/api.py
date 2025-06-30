@@ -13,7 +13,7 @@ import zipfile
 import numpy as np
 import requests
 
-import cionic
+from cionic import json2npy, segmenter
 
 apiver = '0.22'
 server = None
@@ -205,11 +205,6 @@ def remove_roles(orgid, xid, roles):
             print(f'Role {role} unknown')
 
 
-def to_jsonl(objs):
-    'Return jsonl of list of dicts.'
-    return '\n'.join(json.dumps(obj) for obj in objs) + '\n'
-
-
 def local_npz(num, npzdir, suffix=''):
     npzname = f"{num}{suffix}.npz"
     return pathlib.Path(npzdir) / npzname
@@ -297,7 +292,7 @@ def download_collections(
         if segroot is not None:
             segpath = f"{npzdir}/{num}_{segroot}.jsonl"
             segfile = open(segpath)
-        npz = cionic.load_segmented(
+        npz = segmenter.load_segmented(
             local_npz(num, npzdir), segfile=segfile, segsuffix=segsuffix
         )
         for line in npz['segments.jsonl'].split(b'\n'):
@@ -342,7 +337,7 @@ def package_npz(segments, npzdir, npzpath, segsuffix=''):
             except Exception as e:
                 print(collpath, seg.get('path', '<None>'), str(e), file=sys.stderr)
 
-        segnpy = cionic.JSONL2NPY().convert_array(segment_jsonl)
+        segnpy = json2npy.JSONL2NPY().convert_array(segment_jsonl)
         output = io.BytesIO()
         np.save(output, segnpy)
         outnpz.writestr('segments.npy', output.getvalue())
