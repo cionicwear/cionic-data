@@ -20,6 +20,8 @@ from scipy.stats import ttest_ind
 
 from cionic import tools
 
+PEAK_KWARGS = {'distance': 50, 'prominence': 20, 'height': 15}
+
 
 def GaitCycleAxis():
     return {
@@ -136,13 +138,28 @@ def costri(a, b, C):
     }
 
 
-def get_walking_intervals(
+def get_grouped_walking_splits(
     kinematic_time_series,
     component="x",
-    n_start_remove=2,
-    n_stop_remove=1,
+    peak_kwargs=None,
 ):
-    peak_kwargs = {"distance": 50, "prominence": 20}
+    '''
+    Identify groups of walking split timestamps using peak detection in
+    kinematic time series.
+
+    Args:
+        kinematic_time_series (numpy.ndarray): Kinematic time series data with
+            column-accessible components (e.g., 'x', 'y', 'z') and an 'elapsed_s'.
+        component (str): The component to analyze for peak detection. Defaults to 'x'.
+        peak_kwargs (dict, optional): Optional dictionary of arguments to customize
+            peak detection behavior.
+
+    Returns:
+        list[list[float]]: A list of groups, a group is a list of split timestamps
+        that occur close together and likely represent a single walking sequence.
+    '''
+    if not peak_kwargs:
+        peak_kwargs = PEAK_KWARGS
     peaks, _ = find_peaks(kinematic_time_series[component], **peak_kwargs)
     splits_timestamps = kinematic_time_series["elapsed_s"][peaks]
     if splits_timestamps.shape[0] < 2:
@@ -155,12 +172,91 @@ def get_walking_intervals(
         this_split, next_split = splits_timestamps[i], splits_timestamps[i + 1]
 
         if next_split - this_split < 2 * median_time_interval:
+            # a split can be no longer than twice the median of splits
             this_group_splits += [this_split, next_split]
         else:
             all_grouped_splits.append(sorted(list(set(this_group_splits))))
             this_group_splits = []
     all_grouped_splits.append(sorted(list(set(this_group_splits))))
+    return all_grouped_splits
 
+
+def get_paired_walking_splits(
+    kinematic_time_series,
+    component="x",
+    n_start_remove=1,
+    n_stop_remove=1,
+    peak_kwargs=None,
+):
+    '''
+    Identify and return paired consecutive walking splits from a kinematic time series.
+
+    Args:
+        kinematic_time_series (numpy.ndarray): Kinematic time series data with
+            column-accessible components (e.g., 'x', 'y', 'z') and an 'elapsed_s'.
+        component (str): The component to analyze for peak detection. Defaults to 'x'.
+        n_start_remove (int): Number of splits to remove from the beginning of each
+            group before pairing. Defaults to 1.
+        n_stop_remove (int): Number of splits to remove from the end of each group
+            before pairing. Defaults to 1.
+        peak_kwargs (dict, optional): Optional dictionary of arguments to customize
+            peak detection behavior.
+
+    Returns:
+        list[tuple]: A list of tuples, each containing two consecutive walking splits
+        from the processed time series. E.g., [(ts_start_0, ts_end_0), ...]
+    '''
+    all_grouped_splits = get_grouped_walking_splits(
+        kinematic_time_series,
+        component=component,
+        peak_kwargs=peak_kwargs,
+    )
+    paired_splits = []
+    for group_splits in all_grouped_splits:
+        if len(group_splits) + 1 > n_start_remove:
+            group_splits = group_splits[n_start_remove:]
+        if len(group_splits) + 1 > n_stop_remove:
+            group_splits = (
+                group_splits[:-n_stop_remove] if n_stop_remove > 0 else group_splits
+            )
+        if len(group_splits) < 2:
+            continue
+        for i in range(len(group_splits) - 1):
+            paired_splits.append((group_splits[i], group_splits[i + 1]))
+    return paired_splits
+
+
+def get_walking_intervals(
+    kinematic_time_series,
+    component="x",
+    n_start_remove=1,
+    n_stop_remove=1,
+    peak_kwargs=None,
+):
+    '''
+    Extracts continuous walking intervals from a kinematic time series. A walking
+    interval is a period of time over which continuous walking is taking place.
+
+    Args:
+        kinematic_time_series (numpy.ndarray): Kinematic time series data with
+            column-accessible components (e.g., 'x', 'y', 'z') and an 'elapsed_s'.
+        component (str): The component to analyze for peak detection. Defaults to 'x'.
+        n_start_remove (int): Number of splits to remove from the beginning of each
+            group before pairing. Defaults to 1.
+        n_stop_remove (int): Number of splits to remove from the end of each group
+            before pairing. Defaults to 1.
+        peak_kwargs (dict, optional): Optional dictionary of arguments to customize
+            peak detection behavior.
+
+    Returns:
+        list[tuple[float, float]]: A list of walking intervals represented as tuples of
+        (start_time, end_time) in seconds.
+    '''
+    all_grouped_splits = get_grouped_walking_splits(
+        kinematic_time_series,
+        component=component,
+        peak_kwargs=peak_kwargs,
+    )
     walking_intervals = []
     for grouped_splits in all_grouped_splits:
         if len(grouped_splits) + 1 > n_start_remove:
@@ -1495,8 +1591,8 @@ class Kinematics:
         return np.array(upright, dtype=arr.dtype)
 
     def create_upright(self, group, angles, stream):
-        for joint, _ in angles.items():
-            (position_a, position_b) = joint
+        for _, values in angles.items():
+            (position_a, position_b) = values['segments']
             if self.check(group, position_a, stream):
                 self.groups[group]['upright'][stream] = self.create_upright_stream(
                     self.groups[group][position_a][stream]
@@ -1521,9 +1617,9 @@ class Kinematics:
         self.create_upright(group, angles, stream)
 
         print('\nComputing joint angles...')
-        for joint, angles in angles.items():
+        for _, values in angles.items():
 
-            (position_a, position_b) = joint
+            (position_a, position_b) = values['segments']
 
             print(f"between {position_a} and {position_b} ({stream} stream)")
 
@@ -1533,30 +1629,21 @@ class Kinematics:
                 continue
 
             computed = self.calculate_joint_angle(group, position_a, position_b, stream)
-            for axis, angle in angles.items():
-                if axis[0] == '-':
-                    arr = np.array(
-                        computed[[axis[1], "elapsed_s"]],
-                        dtype={
-                            'names': ('degrees', 'elapsed_s'),
-                            'formats': ('f8', 'f8'),
-                        },
-                    )
-                    arr["degrees"] = -arr["degrees"]
-                else:
-                    arr = np.array(
-                        computed[[axis, "elapsed_s"]],
-                        dtype={
-                            'names': ('degrees', 'elapsed_s'),
-                            'formats': ('f8', 'f8'),
-                        },
-                    )
+
+            for angle_dict in values['angles']:
+                angle = angle_dict['rename'][1]
+                arr = np.array(
+                    computed[[angle_dict['rename'][0], "elapsed_s"]],
+                    dtype={
+                        'names': ('degrees', 'elapsed_s'),
+                        'formats': ('f8', 'f8'),
+                    },
+                )
+                arr['degrees'] = arr['degrees'] * angle_dict['factor']
 
                 # calculate pelvis, hip, knee, ankle angles (°)
-                self.groups[group][angle]['angle'] = np.array(
-                    arr,
-                    dtype={'names': ('degrees', 'elapsed_s'), 'formats': ('f8', 'f8')},
-                )
+                self.groups[group][angle]['angle'] = arr
+
                 # offset angles by any passed neutral_offset default to 0
                 offset = neutral_offsets.get(group, {}).get(angle, 0)
                 self.groups[group][angle]['angle']['degrees'] += offset
