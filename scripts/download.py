@@ -194,12 +194,12 @@ def make_csv_splits(collection, fileroot, component, segment, splits_matrix):
     pd.DataFrame(splits_matrix).to_csv(outpath, index=False)
 
 
-def output_streams(c, fileroot, npz, segments, csvs):
+def output_streams(collection, fileroot, npz, segments, csvs):
     '''
     Save specified data streams from an NPZ archive to CSV files.
 
     Args:
-        c (dict): Collection metadata, including a 'num' key.
+        collection (dict): Collection metadata, including a 'num' key.
         fileroot (str): Root path for where the CSV files should be saved.
         npz (np.lib.npyio.NpzFile): Loaded NPZ archive containing the data streams.
         segments (list[dict]): List of segment definitions.
@@ -209,19 +209,19 @@ def output_streams(c, fileroot, npz, segments, csvs):
         list[dict]: The input list of segment definitions.
     '''
     for segment in segments:
-        make_csv_stream(c, fileroot, npz, segment)
+        make_csv_stream(collection, fileroot, npz, segment)
     if 'fquat' in csvs:
-        output_joint_streams(c, fileroot, npz)
+        output_joint_streams(collection, fileroot, npz)
     return segments
 
 
-def output_split_streams(c, fileroot, npz, segments, csvs):
+def output_split_streams(collection, fileroot, npz, segments, csvs):
     '''
     Save split-phase data streams from an NPZ archive to CSV files,
     including joint angle segments.
 
     Args:
-        c (dict): Collection metadata, including a 'num' key.
+        collection (dict): Collection metadata, including a 'num' key.
         fileroot (str): Root path where CSV files should be saved.
         npz (np.lib.npyio.NpzFile): Loaded NPZ archive.
         segments (list[dict]): List of segment metadata dicts.
@@ -253,8 +253,8 @@ def output_split_streams(c, fileroot, npz, segments, csvs):
             group = {'l': 'left', 'r': 'right'}.get(candidate_segment['position'][0])
 
             path = (
-                f'{fileroot}/{c["num"]}/{group[0]}_paired_splits_{segment_num:>03}_'
-                f'{candidate_segment["label"]}.csv'
+                f'{fileroot}/{collection["num"]}/{group[0]}_paired_splits_'
+                f'{segment_num:>03}_{candidate_segment["label"]}.csv'
             )
             pd.DataFrame([{'start': x[0], 'stop': x[1]} for x in paired_splits]).to_csv(
                 path, index=False
@@ -279,7 +279,9 @@ def output_split_streams(c, fileroot, npz, segments, csvs):
                         n_interp=100,
                         paired_splits=True,
                     )
-                    make_csv_splits(c, fileroot, component, segment, splits_matrix)
+                    make_csv_splits(
+                        collection, fileroot, component, segment, splits_matrix
+                    )
                 if 'fquat' in csvs and segment['stream'] == 'fquat':
                     euler_stream = tools.stream_quat2euler(stream)
                     components = [
@@ -294,7 +296,9 @@ def output_split_streams(c, fileroot, npz, segments, csvs):
                             paired_splits=True,
                         )
                         segment['path'] = segment['path'].replace('fquat', 'euler')
-                        make_csv_splits(c, fileroot, component, segment, splits_matrix)
+                        make_csv_splits(
+                            collection, fileroot, component, segment, splits_matrix
+                        )
             # joint euler streams
             joint_euler_streams_packet = tools.return_joint_streams(
                 npz, included_groups=(group), allowable_segment_nums=[segment_num]
@@ -322,7 +326,7 @@ def output_split_streams(c, fileroot, npz, segments, csvs):
                         'label': stream_data['label'],
                     }
                     make_csv_splits(
-                        c, fileroot, component, joint_segment, splits_matrix
+                        collection, fileroot, component, joint_segment, splits_matrix
                     )
 
 
@@ -342,16 +346,16 @@ def load_collections(collections, urlroot, fileroot, nameroot, files, csvs):
     Returns:
         None
     '''
-    for c in collections:
+    for collection in collections:
         if files:
-            download_files(c, urlroot, fileroot)
-        npz = download_npz(c, urlroot, fileroot, nameroot)
+            download_files(collection, urlroot, fileroot)
+        npz = download_npz(collection, urlroot, fileroot, nameroot)
 
         if not npz:
             continue
         segments = npz_utils.get_relevant_npz_segments(npz, csvs)
-        output_streams(c, fileroot, npz, segments, csvs)
-        output_split_streams(c, fileroot, npz, segments, csvs)
+        output_streams(collection, fileroot, npz, segments, csvs)
+        output_split_streams(collection, fileroot, npz, segments, csvs)
 
 
 def main():
