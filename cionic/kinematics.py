@@ -143,6 +143,21 @@ def get_grouped_walking_splits(
     component="x",
     peak_kwargs=None,
 ):
+    '''
+    Identify groups of walking split timestamps using peak detection in
+    kinematic time series.
+
+    Args:
+        kinematic_time_series (numpy.ndarray): Kinematic time series data with
+            column-accessible components (e.g., 'x', 'y', 'z') and an 'elapsed_s'.
+        component (str): The component to analyze for peak detection. Defaults to 'x'.
+        peak_kwargs (dict, optional): Optional dictionary of arguments to customize
+            peak detection behavior.
+
+    Returns:
+        list[list[float]]: A list of groups, a group is a list of split timestamps
+        that occur close together and likely represent a single walking sequence.
+    '''
     if not peak_kwargs:
         peak_kwargs = PEAK_KWARGS
     peaks, _ = find_peaks(kinematic_time_series[component], **peak_kwargs)
@@ -157,6 +172,7 @@ def get_grouped_walking_splits(
         this_split, next_split = splits_timestamps[i], splits_timestamps[i + 1]
 
         if next_split - this_split < 2 * median_time_interval:
+            # a split can be no longer than twice the median of splits
             this_group_splits += [this_split, next_split]
         else:
             all_grouped_splits.append(sorted(list(set(this_group_splits))))
@@ -172,6 +188,24 @@ def get_paired_walking_splits(
     n_stop_remove=1,
     peak_kwargs=None,
 ):
+    '''
+    Identify and return paired consecutive walking splits from a kinematic time series.
+
+    Args:
+        kinematic_time_series (numpy.ndarray): Kinematic time series data with
+            column-accessible components (e.g., 'x', 'y', 'z') and an 'elapsed_s'.
+        component (str): The component to analyze for peak detection. Defaults to 'x'.
+        n_start_remove (int): Number of splits to remove from the beginning of each
+            group before pairing. Defaults to 1.
+        n_stop_remove (int): Number of splits to remove from the end of each group
+            before pairing. Defaults to 1.
+        peak_kwargs (dict, optional): Optional dictionary of arguments to customize
+            peak detection behavior.
+
+    Returns:
+        list[tuple]: A list of tuples, each containing two consecutive walking splits
+        from the processed time series. E.g., [(ts_start_0, ts_end_0), ...]
+    '''
     all_grouped_splits = get_grouped_walking_splits(
         kinematic_time_series,
         component=component,
@@ -195,10 +229,29 @@ def get_paired_walking_splits(
 def get_walking_intervals(
     kinematic_time_series,
     component="x",
-    n_start_remove=2,
+    n_start_remove=1,
     n_stop_remove=1,
     peak_kwargs=None,
 ):
+    '''
+    Extracts continuous walking intervals from a kinematic time series. A walking
+    interval is a period of time over which continuous walking is taking place.
+
+    Args:
+        kinematic_time_series (numpy.ndarray): Kinematic time series data with
+            column-accessible components (e.g., 'x', 'y', 'z') and an 'elapsed_s'.
+        component (str): The component to analyze for peak detection. Defaults to 'x'.
+        n_start_remove (int): Number of splits to remove from the beginning of each
+            group before pairing. Defaults to 1.
+        n_stop_remove (int): Number of splits to remove from the end of each group
+            before pairing. Defaults to 1.
+        peak_kwargs (dict, optional): Optional dictionary of arguments to customize
+            peak detection behavior.
+
+    Returns:
+        list[tuple[float, float]]: A list of walking intervals represented as tuples of
+        (start_time, end_time) in seconds.
+    '''
     all_grouped_splits = get_grouped_walking_splits(
         kinematic_time_series,
         component=component,

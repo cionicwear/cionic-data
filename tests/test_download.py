@@ -1,4 +1,6 @@
 '''
+Usage: python tests/test_download.py
+
 This test runs download.py on a set of test collections. The resulting downloaded
 files are then reloaded and plotted as figures for manual verification of correctness.
 Each test collection is chosen for a certain set of characteristics described below.
@@ -33,9 +35,11 @@ cionic KHE 6 (https://cionic.com/cionic/studies/khe/collections/6)
 import os
 import re
 import subprocess
+from typing import Optional
 
 import matplotlib.pyplot as plt
 import pandas as pd
+from matplotlib.axes import Axes
 
 TEST_CASES = [
     {
@@ -53,19 +57,48 @@ TEST_CASES = [
 ]
 
 
-def get_splits_file(segment_num, splits_files):
+def get_splits_file(segment_num: str, splits_files: list[str]) -> Optional[str]:
+    '''
+    Returns the filename containing the specified segment number.
+
+    Args:
+        segment_num (str): The segment number to search for.
+        splits_files (list[str]): A list of filenames to search.
+
+    Returns:
+        str | None: The matching filename if found, otherwise None.
+    '''
     for splits_file in splits_files:
         if segment_num in splits_file:
             return splits_file
     return None
 
 
-def remove_spines(ax):
+def remove_spines(ax: Axes) -> None:
+    '''
+    Removes the top and right spines from a matplotlib Axes object.
+
+    Args:
+        ax (matplotlib.axes.Axes): The Axes object to modify.
+
+    Returns:
+        None
+    '''
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
 
 
-def plot_full_streams(files, expected_dir):
+def plot_full_streams(files: list[str], expected_dir: str) -> None:
+    '''
+    Plots full kinematic streams with overlaid paired split intervals.
+
+    Args:
+        files (list[str]): List of filenames for full-stream CSV files.
+        expected_dir (str): Path to dir containing CSV files and where plots are saved.
+
+    Returns:
+        None
+    '''
     if not os.path.exists(os.path.join(expected_dir, 'plots')):
         os.makedirs(os.path.join(expected_dir, 'plots'))
     splits_data = {}
@@ -103,7 +136,17 @@ def plot_full_streams(files, expected_dir):
         plt.close()
 
 
-def plot_split_streams(files, expected_dir):
+def plot_split_streams(files: list[str], expected_dir: str) -> None:
+    '''
+    Plots individual split streams as overlayed traces for each split.
+
+    Args:
+        files (list[str]): List of filenames for split-stream CSV files.
+        expected_dir (str): Path to dir containing CSV files and where plots are saved.
+
+    Returns:
+        None
+    '''
     if not os.path.exists(os.path.join(expected_dir, 'plots')):
         os.makedirs(os.path.join(expected_dir, 'plots'))
     for file in files:
@@ -122,7 +165,19 @@ def plot_split_streams(files, expected_dir):
         plt.close()
 
 
-def generate_test_plots(expected_dir):
+def generate_test_plots(expected_dir: str) -> None:
+    '''
+    Generates and saves test plots for both full and split kinematic streams.
+
+    Args:
+        expected_dir (str): Directory containing CSV files to plot.
+
+    Returns:
+        None
+
+    Raises:
+        FileNotFoundError: If the expected directory does not exist.
+    '''
     if not os.path.exists(expected_dir):
         raise FileNotFoundError(f'Expected directory {expected_dir} does not exist.')
 
@@ -149,6 +204,7 @@ def main():
             ['python3', 'scripts/download.py'] + test_case['args'], check=True
         )
         generate_test_plots(test_case['expected_dir'])
+    print("Done, successfully completed.")
 
 
 if __name__ == '__main__':
