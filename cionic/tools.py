@@ -12,10 +12,7 @@ from matplotlib import gridspec
 from scipy import signal
 from scipy.spatial.transform import Rotation, Slerp
 
-import cionic.bno080frps as b_frps
-import cionic.dsp as dsp
-import cionic.kinematics_setup as kc
-from cionic import npz_utils
+from cionic import bno080frps, dsp, kinematics_setup, npz_utils
 
 HP_PARAMS = {"filter_order": 5, "cutoff_freq": 50, "sampling_rate": 2000}
 RMS_PARAMS = {"window_size": 301}
@@ -589,7 +586,7 @@ def stream_regs(npz):
         if seg['stream'] == 'regs' and seg['device'] not in device_regs:
             device_regs[seg['device']] = regs_data(npz, seg['path'])
         elif seg['stream'] == 'frsp' and seg['device'] + '_frsp' not in device_regs:
-            frps_data_frame = b_frps.format_df(pd.DataFrame(npz[seg['path']]))
+            frps_data_frame = bno080frps.format_df(pd.DataFrame(npz[seg['path']]))
             device_regs[seg['device'] + '_frsp'] = frps_data_frame
 
     return device_regs
@@ -663,7 +660,7 @@ def return_joint_streams(
             - 'position_name': Name of the joint or position
             - 'stream': A pandas DataFrame with elapsed time and joint angle data
     '''
-    KINEMATICS_SETUP = kc.kinematics_setup
+    KINEMATICS_SETUP = kinematics_setup.kinematics_setup
     streams_data_packet = []
     segment_nums, labels = npz_utils.get_segment_nums_labels(npz)
     for segment_num, label in zip(segment_nums, labels):
@@ -927,7 +924,7 @@ CHSETMAP = {
 
 
 def get_stream_data_joints(npz, streams):
-    KINEMATICS_CONFIG = kc.get_kinematics_config()
+    KINEMATICS_CONFIG = kinematics_setup.get_kinematics_config()
     device_dict = {}
     for _, seg in pd.DataFrame(npz['segments']).iterrows():
         if seg['stream'] == 'fquat':
