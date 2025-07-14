@@ -7,7 +7,7 @@ import dateutil.parser
 import papermill as pm
 from IPython.display import HTML, Markdown, display
 
-import cionic
+from cionic import api
 
 
 def run_collections(
@@ -81,7 +81,7 @@ def run_collections(
                 f"""<table><tr>
         <td> {day} </td>
         <td> {time} </td>
-        <td> <a href="{cionic.web_url(path)}">{path}</a> </td>
+        <td> <a href="{api.web_url(path)}">{path}</a> </td>
         </tr></table>"""
             )
         )

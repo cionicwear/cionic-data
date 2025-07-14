@@ -8,6 +8,11 @@ def from_jsonl(fp):
     return [json.loads(line) for line in fp if line]
 
 
+def to_jsonl(objs):
+    'Return jsonl of list of dicts.'
+    return '\n'.join(json.dumps(obj) for obj in objs) + '\n'
+
+
 class JSONL2NPY:
     def __init__(self):
         self.formats = {}
