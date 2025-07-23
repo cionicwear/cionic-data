@@ -419,7 +419,7 @@ def add_arrays_to_npz_and_store(
     np.savez(destpath, **npz_dict)
 
 
-def get_segment_eulers(
+def get_limb_eulers(
     npz: np.lib.npyio.NpzFile, degrees: bool = True
 ) -> tuple[dict[str, np.ndarray], np.ndarray]:
     """
@@ -434,7 +434,7 @@ def get_segment_eulers(
             - dict[str, np.ndarray]: Dict of euler_path names to Euler arrays.
             - np.ndarray: Array of new segment metadata dicts for the Euler streams.
     """
-    segment_eulers = {}
+    limb_eulers = {}
     new_segments = []
     for seg in npz['segments']:
         if seg['stream'] != 'fquat':
@@ -443,7 +443,7 @@ def get_segment_eulers(
             stream=npz[seg['path']], calibration=seg['calibration'], degrees=degrees
         )
         euler_path = f'{seg["path"]}2euler'
-        segment_eulers[euler_path] = stream
+        limb_eulers[euler_path] = stream
 
         new_segment = seg.copy()
         new_segment['path'] = euler_path
@@ -451,7 +451,7 @@ def get_segment_eulers(
         new_segment['stream'] = 'euler'
         new_segments.append(new_segment)
 
-    return segment_eulers, np.array(new_segments)
+    return limb_eulers, np.array(new_segments)
 
 
 def get_joint_eulers(npz):
@@ -471,12 +471,12 @@ def include_eulers_to_npz(destpath: str):
         print(f"File {destpath} not found.")
         return
 
-    segment_eulers, new_segments = get_segment_eulers(npz)
+    limb_eulers, new_segments = get_limb_eulers(npz)
     # joint_eulers = get_joint_eulers(npz)  # TODO
 
     updated_segments = np.concatenate([npz['segments'], new_segments])
 
-    array_dict = {**segment_eulers, 'segments': updated_segments}
+    array_dict = {**limb_eulers, 'segments': updated_segments}
     add_arrays_to_npz_and_store(npz, array_dict, destpath)
 
 
