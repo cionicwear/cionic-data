@@ -13,7 +13,9 @@ import zipfile
 import numpy as np
 import requests
 
-from cionic import json2npy, segmenter
+from cionic import json2npy, segmenter, tools
+
+# TODO: add .item() to all bytes files
 
 apiver = '0.22'
 server = None
@@ -353,7 +355,7 @@ def download_file(destpath, url, headers=None):
 
     if destpath.exists():
         print(f"already exists {destpath}", file=sys.stderr)
-        return
+        return 0
 
     print(f"getting {destpath}", file=sys.stderr)
 
@@ -361,11 +363,15 @@ def download_file(destpath, url, headers=None):
     with destpath.open(mode='wb') as fp:
         for chunk in r.iter_content(chunk_size=512 * 1024):
             fp.write(chunk)
+    return 1
 
 
 def download_npz(destpath, urlpath):
     npz = get_cionic(urlpath)
-    download_file(destpath, npz['streams.npz'])
+    status = download_file(destpath, npz['streams.npz'])
+    if status == 0:
+        return 0
+    include_eulers_to_npz(destpath)
 
 
 def download_files(urlpath, directory, include=None, exclude=None, ver=apiver):
@@ -382,6 +388,96 @@ def download_files(urlpath, directory, include=None, exclude=None, ver=apiver):
         results.append(filename)
         download_file(destpath, absolute, headers={'x-cionic-user': authtoken})
     return results
+
+
+def add_arrays_to_npz_and_store(
+    npz: np.lib.npyio.NpzFile,
+    array_dict: dict[str, np.ndarray],
+    destpath: str,
+    keep_existing_segments_file: bool = False,
+) -> None:
+    """
+    Adds arrays from `array_dict` to an existing NumPy `.npz` file object `npz`,
+    and saves the combined arrays to a new `.npz` file at `destpath`.
+
+    Parameters:
+        npz (numpy.lib.npyio.NpzFile): An opened `.npz` file object containing arrays.
+        array_dict (dict): Dictionary of arrays to add.
+        destpath (str): Destination file path to save the updated `.npz` file.
+        keep_existing_segments_file (bool): If True, keeps the 'segments' in the npz.
+
+    Returns:
+        None
+    """
+    for arr in array_dict.values():
+        if not isinstance(arr, np.ndarray):
+            raise TypeError(f"Expected numpy.ndarray, got {type(arr)}")
+    npz_dict = {
+        f: npz[f] for f in npz.files if f != 'segments' or keep_existing_segments_file
+    }
+    npz_dict.update(array_dict)
+    np.savez(destpath, **npz_dict)
+
+
+def get_segment_eulers(
+    npz: np.lib.npyio.NpzFile, degrees: bool = True
+) -> tuple[dict[str, np.ndarray], np.ndarray]:
+    """
+    Extract Euler angles from quaternion segments in a .npz file.
+
+    Args:
+        npz (np.lib.npyio.NpzFile): Opened .npz file containing segment data.
+        degrees (bool, optional): If True, returns Euler angles in degrees.
+
+    Returns:
+        tuple:
+            - dict[str, np.ndarray]: Dict of euler_path names to Euler arrays.
+            - np.ndarray: Array of new segment metadata dicts for the Euler streams.
+    """
+    segment_eulers = {}
+    new_segments = []
+    for seg in npz['segments']:
+        if seg['stream'] != 'fquat':
+            continue
+        stream = tools.stream_quat2euler(
+            stream=npz[seg['path']], calibration=seg['calibration'], degrees=degrees
+        )
+        euler_path = f'{seg["path"]}2euler'
+        segment_eulers[euler_path] = stream
+
+        new_segment = seg.copy()
+        new_segment['path'] = euler_path
+        new_segment['fields'] = 'x y z'
+        new_segment['stream'] = 'euler'
+        new_segments.append(new_segment)
+
+    return segment_eulers, np.array(new_segments)
+
+
+def get_joint_eulers(npz):
+    """
+    TODO
+    """
+    pass
+
+
+def include_eulers_to_npz(destpath: str):
+    """
+    TODO
+    """
+    try:
+        npz = np.load(destpath)
+    except FileNotFoundError:
+        print(f"File {destpath} not found.")
+        return
+
+    segment_eulers, new_segments = get_segment_eulers(npz)
+    # joint_eulers = get_joint_eulers(npz)  # TODO
+
+    updated_segments = np.concatenate([npz['segments'], new_segments])
+
+    array_dict = {**segment_eulers, 'segments': updated_segments}
+    add_arrays_to_npz_and_store(npz, array_dict, destpath)
 
 
 def list_files(directory, include=None, exclude=None):
