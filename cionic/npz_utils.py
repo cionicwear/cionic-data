@@ -46,7 +46,7 @@ def get_relevant_npz_segments(npz, csvs):
     return npz_segments
 
 
-def retrieve_stream(npz, position, stream, segment_num):
+def retrieve_stream(npz, position, stream, segment_num=False):
     '''
     Retrieve a specific data stream segment from an NPZ archive.
 
@@ -54,7 +54,8 @@ def retrieve_stream(npz, position, stream, segment_num):
         npz (np.lib.npyio.NpzFile): Loaded NPZ archive.
         position (str): Position on body, e.g. "r_shank".
         stream (str): Stream name, e.g. "fquat".
-        segment_num (int): Segment number to match in the segment metadata.
+        segment_num (int or bool): Segment number to match in the segment metadata,
+            or False to ignore.
 
     Returns:
         np.ndarray or None: The matched data segment if found, otherwise None.
@@ -65,7 +66,7 @@ def retrieve_stream(npz, position, stream, segment_num):
             if (
                 position == segment.get('position')
                 and stream == segment.get('stream')
-                and segment_num == segment.get('segment_num')
+                and (segment_num is False or segment_num == segment.get('segment_num'))
             ):
                 return npz[segment['path']]
     return None

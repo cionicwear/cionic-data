@@ -41,6 +41,7 @@ Download collections 253 & 254 from cionic org, sample study
 ./scripts/download.py cionic sample -n 253 254
 '''
 
+# TODO: verify this still works with the latest cionic API changes
 
 KINEMATICS_SETUP = kinematics_setup.kinematics_setup
 
@@ -113,7 +114,7 @@ def output_joint_streams(collection, fileroot, npz):
         None
     '''
     colnum = collection['num']
-    joint_streams_packet = tools.return_joint_streams(npz)
+    joint_streams_packet = tools.get_joint_streams(npz)
     for stream_data in joint_streams_packet:
         outpath = (
             f'{fileroot}/{colnum}/{stream_data["group"][0]}_'
@@ -299,7 +300,7 @@ def output_split_streams(collection, fileroot, npz, segments, csvs):
                             collection, fileroot, component, segment, splits_matrix
                         )
             # joint euler streams
-            joint_euler_streams_packet = tools.return_joint_streams(
+            joint_euler_streams_packet = tools.get_joint_streams(
                 npz, included_groups=(group), allowable_segment_nums=[segment_num]
             )
             for stream_data in joint_euler_streams_packet:

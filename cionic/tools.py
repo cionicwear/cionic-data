@@ -638,8 +638,8 @@ def stream_calquat(stream, calibration):
     )
 
 
-def return_joint_streams(
-    npz, included_groups=("left", "right"), allowable_segment_nums=None
+def get_joint_streams(
+    npz, included_groups=("left", "right"), allowable_segment_nums=None, segmented=True
 ):
     '''
     Generate joint angle data streams from an NPZ archive for specified body groups
@@ -650,38 +650,98 @@ def return_joint_streams(
         included_groups (tuple[str], optional): Tuple of group names whose streams to
             return.
         allowable_segment_nums (list[int], optional): If provided, only segment numbers
-            in this set/list will be processed.
+            in this list will be processed.
+        segmented (bool, optional): If True, loop over segments as in the default
+            behavior. If False, ignore segments and just get stream data.
 
     Returns:
         list[dict]: A list of dictionaries, each containing:
             - 'group': Name of the body group (e.g., 'left')
-            - 'segment_num': Segment number
-            - 'label': Segment label
+            - 'segment_num': Segment number (only if segmented=True)
+            - 'label': Segment label (only if segmented=True)
             - 'position_name': Name of the joint or position
             - 'stream': A pandas DataFrame with elapsed time and joint angle data
     '''
     KINEMATICS_SETUP = kinematics_setup.kinematics_setup
     streams_data_packet = []
-    segment_nums, labels = npz_utils.get_segment_nums_labels(npz)
-    for segment_num, label in zip(segment_nums, labels):
+
+    if segmented:
+        segment_nums, labels = npz_utils.get_segment_nums_labels(npz)
+        for segment_num, label in zip(segment_nums, labels):
+            groups = list(KINEMATICS_SETUP.keys())
+            for group in groups:
+                if group not in included_groups:
+                    continue
+                if allowable_segment_nums and segment_num not in allowable_segment_nums:
+                    continue
+                for position_name, values in KINEMATICS_SETUP[group]['angles'].items():
+                    position_1_quats = npz_utils.retrieve_stream(
+                        npz=npz,
+                        position=values['segments'][0],
+                        stream='fquat',
+                        segment_num=segment_num,
+                    )
+                    position_2_quats = npz_utils.retrieve_stream(
+                        npz=npz,
+                        position=values['segments'][1],
+                        stream='fquat',
+                        segment_num=segment_num,
+                    )
+                    if position_1_quats is None or position_2_quats is None:
+                        continue
+
+                    df = pd.DataFrame(
+                        stream_quat2euler_joint(position_1_quats, position_2_quats)
+                    )
+                    for angle_dict in values['angles']:
+                        df.rename(
+                            columns={angle_dict['rename'][0]: angle_dict['rename'][1]},
+                            inplace=True,
+                        )
+                        df[angle_dict['rename'][1]] = (
+                            df[angle_dict['rename'][1]] * angle_dict['factor']
+                        )
+
+                    col = df.pop('elapsed_s')
+                    df.insert(0, 'elapsed_s', col)
+                    streams_data_packet.append(
+                        {
+                            'fields': ' '.join(
+                                [c for c in df.columns.tolist() if c != 'elapsed_s']
+                            ),
+                            'group': group,
+                            'segment_num': segment_num,
+                            'label': label,
+                            'position': f'{group[0]}_{position_name}',
+                            'stream': 'euler',
+                            'path': f'{group[0]}_{position_name}_fquat2euler',
+                            'start_s': df['elapsed_s'].min(),
+                            'end_s': df['elapsed_s'].max(),
+                            'duration_s': df['elapsed_s'].max() - df['elapsed_s'].min(),
+                            'nsamples': df.shape[0],
+                            'avg_rate_hz': df.shape[0]
+                            / (df['elapsed_s'].max() - df['elapsed_s'].min()),
+                            'data_stream': df,
+                        }
+                    )
+
+    else:
         groups = list(KINEMATICS_SETUP.keys())
         for group in groups:
             if group not in included_groups:
-                continue
-            if allowable_segment_nums and segment_num not in allowable_segment_nums:
                 continue
             for position_name, values in KINEMATICS_SETUP[group]['angles'].items():
                 position_1_quats = npz_utils.retrieve_stream(
                     npz=npz,
                     position=values['segments'][0],
                     stream='fquat',
-                    segment_num=segment_num,
+                    segment_num=None,
                 )
                 position_2_quats = npz_utils.retrieve_stream(
                     npz=npz,
                     position=values['segments'][1],
                     stream='fquat',
-                    segment_num=segment_num,
+                    segment_num=None,
                 )
                 if position_1_quats is None or position_2_quats is None:
                     continue
@@ -700,15 +760,26 @@ def return_joint_streams(
 
                 col = df.pop('elapsed_s')
                 df.insert(0, 'elapsed_s', col)
+
                 streams_data_packet.append(
                     {
+                        'fields': ' '.join(
+                            [c for c in df.columns.tolist() if c != 'elapsed_s']
+                        ),
                         'group': group,
-                        'segment_num': segment_num,
-                        'label': label,
-                        'position_name': position_name,
-                        'stream': df,
+                        'position': f'{group[0]}_{position_name}',
+                        'stream': 'euler',
+                        'path': f'{group[0]}_{position_name}_fquat2euler',
+                        'start_s': df['elapsed_s'].min(),
+                        'end_s': df['elapsed_s'].max(),
+                        'duration_s': df['elapsed_s'].max() - df['elapsed_s'].min(),
+                        'nsamples': df.shape[0],
+                        'avg_rate_hz': df.shape[0]
+                        / (df['elapsed_s'].max() - df['elapsed_s'].min()),
+                        'data_stream': df,
                     }
                 )
+
     return streams_data_packet
 
 
@@ -924,6 +995,7 @@ CHSETMAP = {
 
 
 def get_stream_data_joints(npz, streams):
+    # TODO: change this back to the old kinematics setup.
     KINEMATICS_CONFIG = kinematics_setup.get_kinematics_config()
     device_dict = {}
     for _, seg in pd.DataFrame(npz['segments']).iterrows():

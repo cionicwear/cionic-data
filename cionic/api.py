@@ -11,6 +11,7 @@ import sys
 import zipfile
 
 import numpy as np
+import pandas as pd
 import requests
 
 from cionic import json2npy, segmenter, tools
@@ -436,7 +437,7 @@ def get_limb_eulers(
     """
     limb_eulers = {}
     new_limb_segments = []
-    for seg in npz['segments']:
+    for seg in change_segments_column_dtype(npz['segments']):
         if seg['stream'] != 'fquat':
             continue
         stream = tools.stream_quat2euler(
@@ -454,16 +455,100 @@ def get_limb_eulers(
     return limb_eulers, np.array(new_limb_segments)
 
 
-def get_joint_eulers(npz):
+def pandas_to_ndarray(df: pd.DataFrame) -> np.ndarray:
     """
-    TODO
+    Convert a pandas DataFrame to a NumPy ndarray.
+
+    Args:
+        df (pandas.DataFrame): The DataFrame to convert.
+
+    Returns:
+        np.ndarray: The converted ndarray.
     """
-    pass
+    array = np.array(
+        list(df.itertuples(index=False)),
+        dtype=np.dtype(
+            {
+                'names': df.columns.tolist(),
+                'formats': [df[col].dtype for col in df.columns],
+            }
+        ),
+    )
+    return array
 
 
-def include_eulers_to_npz(destpath: str):
+def get_joint_eulers(
+    npz: np.lib.npyio.NpzFile,
+) -> tuple[dict[str, np.ndarray], list[np.ndarray]]:
+    '''
+    Extracts joint Euler angle data and corresponding segment information from NPZ.
+
+    Args:
+        npz (np.lib.npyio.NpzFile): The NPZ file containing joint data.
+
+    Returns:
+        tuple:
+            - joint_eulers (dict): A dictionary mapping each joint stream path to its
+              Euler angle data as a NumPy ndarray.
+            - new_joint_segments (list): A list of segment metadata arrays.
+    '''
+    segments = change_segments_column_dtype(npz['segments'])
+    streams_data_packet = tools.get_joint_streams(npz, segmented=False)
+    joint_eulers = {}
+    new_joint_segments = []
+
+    for stream_data in streams_data_packet:
+        data_stream = stream_data['data_stream']
+        joint_eulers[stream_data['path']] = pandas_to_ndarray(data_stream)
+
+        seg_dtype = segments.dtype
+        values = tuple(stream_data.get(name, '') for name in seg_dtype.names)
+
+        new_segment = np.array([values], dtype=seg_dtype)[0]
+        new_joint_segments.append(new_segment)
+
+    return joint_eulers, new_joint_segments
+
+
+def change_segments_column_dtype(segments: np.ndarray, dtype_dict=None) -> np.ndarray:
+    '''
+    Change dtype of specified columns in a structured numpy array.
+
+    Args:
+        segments (np.ndarray): Structured numpy array (like pandas DataFrame).
+        new_dtypes (list of tuples): List of (field, dtype) to update.
+
+    Returns:
+        np.ndarray: New array with updated dtypes.
+    '''
+    if dtype_dict is None:
+        dtype_dict = {
+            'position': 'U20',
+        }
+
+    # Build new dtype: update only specified fields, keep others the same
+    new_dtype = []
+    for name, oldtype in segments.dtype.descr:
+        if name in dtype_dict.keys():
+            new_dtype.append((name, dtype_dict[name]))
+        else:
+            new_dtype.append((name, oldtype))
+
+    # Create new array and copy data
+    new_segments = np.empty(segments.shape, dtype=new_dtype)
+    for name in segments.dtype.names:
+        new_segments[name] = segments[name]
+
+    return new_segments
+
+
+def include_eulers_to_npz(destpath: str) -> None:
     """
-    TODO
+    Load a .npz file, compute limb and joint Euler angles, update segments,
+    and save the updated arrays back to the .npz file.
+
+    Args:
+        destpath (str): Path to the .npz file to update.
     """
     try:
         npz = np.load(destpath)
@@ -472,11 +557,17 @@ def include_eulers_to_npz(destpath: str):
         return
 
     limb_eulers, new_limb_segments = get_limb_eulers(npz)
-    # joint_eulers = get_joint_eulers(npz)  # TODO
+    joint_eulers, new_joint_segments = get_joint_eulers(npz)
 
-    updated_segments = np.concatenate([npz['segments'], new_limb_segments])
+    updated_segments = np.concatenate(
+        [
+            change_segments_column_dtype(npz['segments']),
+            new_limb_segments,
+            new_joint_segments,
+        ]
+    )
 
-    array_dict = {**limb_eulers, 'segments': updated_segments}
+    array_dict = {**limb_eulers, **joint_eulers, 'segments': updated_segments}
     add_arrays_to_npz_and_store(npz, array_dict, destpath)
 
 
