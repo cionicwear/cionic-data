@@ -118,11 +118,11 @@ def output_joint_streams(collection, fileroot, npz):
     for stream_data in joint_streams_packet:
         outpath = (
             f'{fileroot}/{colnum}/{stream_data["group"][0]}_'
-            f'{stream_data["position_name"]}_euler_{stream_data["segment_num"]:>03}_'
+            f'{stream_data["position"]}_euler_{stream_data["segment_num"]:>03}_'
             f'{stream_data["label"]}.csv'
         )
         print(f"Saving {outpath}")
-        stream_data["stream"].to_csv(outpath, index=False)
+        stream_data["data_stream"].to_csv(outpath, index=False)
 
 
 def make_csv_stream(collection, fileroot, npz, segment):
@@ -306,12 +306,12 @@ def output_split_streams(collection, fileroot, npz, segments, csvs):
             for stream_data in joint_euler_streams_packet:
                 components = [
                     name
-                    for name in stream_data['stream'].columns
+                    for name in stream_data['data_stream'].columns
                     if name != "elapsed_s"
                 ]
                 for component in components:
                     splits_matrix = tools.stream_splits_to_matrix(
-                        stream_data=stream_data['stream'],
+                        stream_data=stream_data['data_stream'],
                         splits=paired_splits,
                         ch_field=component,
                         n_interp=100,
@@ -320,7 +320,7 @@ def output_split_streams(collection, fileroot, npz, segments, csvs):
                     joint_segment = {
                         'position': (
                             f'{stream_data["group"][0]}_'
-                            f'{stream_data["position_name"]}_euler'
+                            f'{stream_data["position"]}_euler'
                         ),
                         'path': f'{stream_data["segment_num"]:>03}',
                         'label': stream_data['label'],

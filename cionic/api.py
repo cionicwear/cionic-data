@@ -391,15 +391,19 @@ def download_files(urlpath, directory, include=None, exclude=None, ver=apiver):
     return results
 
 
+# TODO: fix signal.ipynb
+# TODO: fix gait.ipynb
+
+
 def add_arrays_to_npz_and_store(
     npz: np.lib.npyio.NpzFile,
     array_dict: dict[str, np.ndarray],
     destpath: str,
-    keep_existing_segments_file: bool = False,
 ) -> None:
     """
     Adds arrays from `array_dict` to an existing NumPy `.npz` file object `npz`,
     and saves the combined arrays to a new `.npz` file at `destpath`.
+    Handles both .npy arrays and .jsonl files (as bytes).
 
     Parameters:
         npz (numpy.lib.npyio.NpzFile): An opened `.npz` file object containing arrays.
@@ -410,14 +414,36 @@ def add_arrays_to_npz_and_store(
     Returns:
         None
     """
-    for arr in array_dict.values():
-        if not isinstance(arr, np.ndarray):
-            raise TypeError(f"Expected numpy.ndarray, got {type(arr)}")
-    npz_dict = {
-        f: npz[f] for f in npz.files if f != 'segments' or keep_existing_segments_file
-    }
-    npz_dict.update(array_dict)
-    np.savez(destpath, **npz_dict)
+    arrays_to_write = {}
+    for file in npz.files:
+        arrays_to_write[file] = npz[file]
+    arrays_to_write.update(array_dict)
+
+    with zipfile.ZipFile(destpath, mode='w', compression=zipfile.ZIP_DEFLATED) as outzf:
+        for file, arr in arrays_to_write.items():
+            if file == 'segments.jsonl':
+                continue
+            if file == 'segments':
+                print(f'Writing {file} as JSONL bytes')
+                # Convert JSONL bytes since segments file is updated with Eulers.
+                outzf.writestr(
+                    'segments.jsonl',
+                    json2npy.structured_array_to_jsonl_bytes(arr),
+                )
+            if (
+                file.endswith('.jsonl')
+                or file.endswith('.json')
+                or file.endswith('.csv')
+                or file == "ERRORS"
+            ):
+                # Write as bytes (if not already bytes, encode as utf-8)
+                if isinstance(arr, bytes):
+                    outzf.writestr(file, arr)
+                else:
+                    outzf.writestr(file, arr.encode('utf-8'))
+            else:
+                with outzf.open(f"{file}.npy", mode='w') as fp:
+                    np.save(fp, arr, allow_pickle=False)
 
 
 def get_limb_eulers(

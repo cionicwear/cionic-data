@@ -13,6 +13,27 @@ def to_jsonl(objs):
     return '\n'.join(json.dumps(obj) for obj in objs) + '\n'
 
 
+def structured_array_to_jsonl_bytes(array: np.ndarray) -> bytes:
+    '''
+    Converts a NumPy structured array to JSON Lines (JSONL) formatted bytes.
+    Args:
+        array (np.ndarray): A NumPy structured array with named fields.
+
+    Returns:
+        bytes: The JSONL representation of the structured array, encoded as UTF-8 bytes.
+    '''
+
+    lines = []
+    for row in array:
+        # Convert the structured row to a dict
+        record = {
+            name: row[name].item() if isinstance(row[name], np.generic) else row[name]
+            for name in array.dtype.names
+        }
+        lines.append(json.dumps(record))
+    return '\n'.join(lines).encode('utf-8')
+
+
 class JSONL2NPY:
     def __init__(self):
         self.formats = {}

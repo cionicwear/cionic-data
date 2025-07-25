@@ -656,10 +656,7 @@ def get_joint_streams(
 
     Returns:
         list[dict]: A list of dictionaries, each containing:
-            - 'group': Name of the body group (e.g., 'left')
-            - 'segment_num': Segment number (only if segmented=True)
-            - 'label': Segment label (only if segmented=True)
-            - 'position_name': Name of the joint or position
+            - relevant metadata fields
             - 'stream': A pandas DataFrame with elapsed time and joint angle data
     '''
     KINEMATICS_SETUP = kinematics_setup.kinematics_setup
