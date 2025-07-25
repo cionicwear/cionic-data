@@ -725,6 +725,7 @@ def get_joint_streams(
                             'segment_num': segment_num,
                             'label': label,
                             'position': f'{group[0]}_{position_name}',
+                            'device': f'{device_name_1}_{device_name_2}',
                             'stream': 'euler',
                             'path': f'{device_name_1}_{device_name_2}_fquat2euler',
                             'start_s': df['elapsed_s'].min(),
@@ -795,6 +796,7 @@ def get_joint_streams(
                         ),
                         'group': group,
                         'position': f'{group[0]}_{position_name}',
+                        'device': f'{device_name_1}_{device_name_2}',
                         'stream': 'euler',
                         'path': f'{device_name_1}_{device_name_2}_fquat2euler',
                         'start_s': df['elapsed_s'].min(),
@@ -979,12 +981,6 @@ def stream_data(npz, streams, degrees=True):
         except Exception:
             continue
         times = segment_times(seg, times)
-
-        # turn fquat into cailbrated quat
-        if stream_name in ['fquat', 'r_knee', 'l_knee']:
-            print(f"converting {device_name} fquat to calibrated euler")
-            stream_name = "".join(e for e in stream_name if e.isalpha()) + '2euler'
-            stream = stream_quat2euler(stream, seg['calibration'], degrees=degrees)
 
         # create the device stream
         # and add fields to the components array
