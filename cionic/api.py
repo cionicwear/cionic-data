@@ -458,7 +458,7 @@ def get_limb_eulers(
             - dict[str, np.ndarray]: Dict of euler_path names to Euler arrays.
             - np.ndarray: Array of new segment metadata dicts for the Euler streams.
     """
-    print("Getting limb eulers from npz", file=sys.stderr)
+    print("getting limb eulers from npz", file=sys.stderr)
     limb_eulers = {}
     new_limb_segments = []
     for seg in change_segments_column_dtype(npz['segments']):
@@ -516,7 +516,7 @@ def get_joint_eulers(
               Euler angle data as a NumPy ndarray.
             - new_joint_segments (list): A list of segment metadata arrays.
     '''
-    print("Getting joint eulers from npz", file=sys.stderr)
+    print("getting joint eulers from npz", file=sys.stderr)
     segments = change_segments_column_dtype(npz['segments'])
     streams_data_packet = tools.get_joint_streams(npz, segmented=False)
     joint_eulers = {}
