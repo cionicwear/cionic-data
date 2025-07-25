@@ -4,6 +4,7 @@ import os
 import struct
 import sys
 from bisect import bisect_left
+from typing import Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -639,8 +640,11 @@ def stream_calquat(stream, calibration):
 
 
 def get_joint_streams(
-    npz, included_groups=("left", "right"), allowable_segment_nums=None, segmented=True
-):
+    npz: np.lib.npyio.NpzFile,
+    included_groups: tuple[str] = ("left", "right"),
+    allowable_segment_nums: Union[list[int], None] = None,
+    segmented: bool = True,
+) -> list[dict]:
     '''
     Generate joint angle data streams from an NPZ archive for specified body groups
     and segment numbers.

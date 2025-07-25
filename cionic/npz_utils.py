@@ -1,4 +1,5 @@
 import json
+from typing import Union
 
 import numpy as np
 
@@ -48,7 +49,12 @@ def get_relevant_npz_segments(npz, csvs):
     return npz_segments
 
 
-def retrieve_stream(npz, position, stream, segment_num=False):
+def retrieve_stream(
+    npz: np.lib.npyio.NpzFile,
+    position: str,
+    stream: str,
+    segment_num: Union[int, bool] = False,
+) -> Union[np.ndarray, None]:
     '''
     Retrieve a specific data stream segment from an NPZ archive.
 
@@ -74,7 +80,13 @@ def retrieve_stream(npz, position, stream, segment_num=False):
     return None
 
 
-def retrieve_segment_field(npz, position, stream, field_name, segment_num=False):
+def retrieve_segment_field(
+    npz: np.lib.npyio.NpzFile,
+    position: str,
+    stream: str,
+    field_name: str,
+    segment_num: Union[int, bool] = False,
+) -> Union[str, int, float, None]:
     '''
     Retrieve a specific field from a line in the segments file in an NPZ archive.
 
@@ -87,7 +99,7 @@ def retrieve_segment_field(npz, position, stream, field_name, segment_num=False)
             or False to ignore.
 
     Returns:
-        np.ndarray or None: The matched data segment if found, otherwise None.
+        str, int, float, or None: The matched field value if found, otherwise None.
     '''
     for line in npz['segments.jsonl'].split(b'\n'):
         if line:

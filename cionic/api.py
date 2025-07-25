@@ -364,11 +364,21 @@ def download_file(destpath, url, headers=None):
     return 1
 
 
-def download_npz(destpath, urlpath):
+def download_npz(destpath: str, urlpath: str):
+    """
+    Downloads a .npz file from a specified URL path and saves it to the destpath.
+
+    Args:
+        destpath (str): The local file path where the .npz file will be saved.
+        urlpath (str): The URL or identifier used to locate the .npz file.
+
+    Returns:
+        None
+    """
     npz = get_cionic(urlpath)
     status = download_file(destpath, npz['streams.npz'])
     if status == 0:
-        return 0
+        return
     include_eulers_to_npz(destpath)
 
 
