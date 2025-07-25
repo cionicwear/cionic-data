@@ -1,5 +1,7 @@
 import json
 
+import numpy as np
+
 
 def get_segment_nums_labels(npz):
     '''
@@ -97,3 +99,37 @@ def retrieve_segment_field(npz, position, stream, field_name, segment_num=False)
             ):
                 return segment[field_name]
     return None
+
+
+def change_segments_column_dtype(segments: np.ndarray, dtype_dict=None) -> np.ndarray:
+    '''
+    Change dtype of specified columns in a structured numpy array.
+
+    Args:
+        segments (np.ndarray): Structured numpy array (like pandas DataFrame).
+        new_dtypes (list of tuples): List of (field, dtype) to update.
+
+    Returns:
+        np.ndarray: New array with updated dtypes.
+    '''
+    if dtype_dict is None:
+        dtype_dict = {
+            'position': 'U20',
+            'device': 'U40',
+            'path': 'U100',
+        }
+
+    # Build new dtype: update only specified fields, keep others the same
+    new_dtype = []
+    for name, oldtype in segments.dtype.descr:
+        if name in dtype_dict.keys():
+            new_dtype.append((name, dtype_dict[name]))
+        else:
+            new_dtype.append((name, oldtype))
+
+    # Create new array and copy data
+    new_segments = np.empty(segments.shape, dtype=new_dtype)
+    for name in segments.dtype.names:
+        new_segments[name] = segments[name]
+
+    return new_segments

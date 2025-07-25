@@ -812,6 +812,98 @@ def get_joint_streams(
     return streams_data_packet
 
 
+def get_limb_eulers(
+    npz: np.lib.npyio.NpzFile, degrees: bool = True
+) -> tuple[dict[str, np.ndarray], np.ndarray]:
+    """
+    Extract Euler angles from quaternion segments in a .npz file.
+
+    Args:
+        npz (np.lib.npyio.NpzFile): Opened .npz file containing segment data.
+        degrees (bool, optional): If True, returns Euler angles in degrees.
+
+    Returns:
+        tuple:
+            - dict[str, np.ndarray]: Dict of euler_path names to Euler arrays.
+            - np.ndarray: Array of new segment metadata dicts for the Euler streams.
+    """
+    print("getting limb eulers from npz", file=sys.stderr)
+    limb_eulers = {}
+    new_limb_segments = []
+    for seg in npz_utils.change_segments_column_dtype(npz['segments']):
+        if seg['stream'] != 'fquat':
+            continue
+        stream = stream_quat2euler(
+            stream=npz[seg['path']], calibration=seg['calibration'], degrees=degrees
+        )
+        euler_path = f'{seg["path"]}2euler'
+        limb_eulers[euler_path] = stream
+
+        new_segment = seg.copy()
+        new_segment['path'] = euler_path
+        new_segment['fields'] = 'x y z'
+        new_segment['stream'] = 'euler'
+        new_limb_segments.append(new_segment)
+
+    return limb_eulers, np.array(new_limb_segments)
+
+
+def get_joint_eulers(
+    npz: np.lib.npyio.NpzFile,
+) -> tuple[dict[str, np.ndarray], list[np.ndarray]]:
+    '''
+    Extracts joint Euler angle data and corresponding segment information from NPZ.
+
+    Args:
+        npz (np.lib.npyio.NpzFile): The NPZ file containing joint data.
+
+    Returns:
+        tuple:
+            - joint_eulers (dict): A dictionary mapping each joint stream path to its
+              Euler angle data as a NumPy ndarray.
+            - new_joint_segments (list): A list of segment metadata arrays.
+    '''
+    print("getting joint eulers from npz", file=sys.stderr)
+    segments = npz_utils.change_segments_column_dtype(npz['segments'])
+    streams_data_packet = get_joint_streams(npz, segmented=False)
+    joint_eulers = {}
+    new_joint_segments = []
+
+    for stream_data in streams_data_packet:
+        data_stream = stream_data['data_stream']
+        joint_eulers[stream_data['path']] = pandas_to_ndarray(data_stream)
+
+        seg_dtype = segments.dtype
+        values = tuple(stream_data.get(name, '') for name in seg_dtype.names)
+
+        new_segment = np.array([values], dtype=seg_dtype)[0]
+        new_joint_segments.append(new_segment)
+
+    return joint_eulers, new_joint_segments
+
+
+def pandas_to_ndarray(df: pd.DataFrame) -> np.ndarray:
+    """
+    Convert a pandas DataFrame to a NumPy ndarray.
+
+    Args:
+        df (pandas.DataFrame): The DataFrame to convert.
+
+    Returns:
+        np.ndarray: The converted ndarray.
+    """
+    array = np.array(
+        list(df.itertuples(index=False)),
+        dtype=np.dtype(
+            {
+                'names': df.columns.tolist(),
+                'formats': [df[col].dtype for col in df.columns],
+            }
+        ),
+    )
+    return array
+
+
 def stream_quat2euler(stream, calibration=None, degrees=True):
     if calibration:
         # TODO : eliminate eval
@@ -1019,6 +1111,7 @@ CHSETMAP = {
 
 def get_stream_data_joints(npz, streams):
     # TODO: change this back to the old kinematics setup.
+    # Orphaned? This function is not used in the current codebase, it seems.
     KINEMATICS_CONFIG = kinematics_setup.get_kinematics_config()
     device_dict = {}
     for _, seg in pd.DataFrame(npz['segments']).iterrows():
