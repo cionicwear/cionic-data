@@ -687,6 +687,21 @@ def get_joint_streams(
                     if position_1_quats is None or position_2_quats is None:
                         continue
 
+                    device_name_1 = npz_utils.retrieve_segment_field(
+                        npz=npz,
+                        position=values['segments'][0],
+                        stream='fquat',
+                        field_name='device',
+                        segment_num=None,
+                    )
+                    device_name_2 = npz_utils.retrieve_segment_field(
+                        npz=npz,
+                        position=values['segments'][1],
+                        stream='fquat',
+                        field_name='device',
+                        segment_num=None,
+                    )
+
                     df = pd.DataFrame(
                         stream_quat2euler_joint(position_1_quats, position_2_quats)
                     )
@@ -711,7 +726,7 @@ def get_joint_streams(
                             'label': label,
                             'position': f'{group[0]}_{position_name}',
                             'stream': 'euler',
-                            'path': f'{group[0]}_{position_name}_fquat2euler',
+                            'path': f'{device_name_1}_{device_name_2}_fquat2euler',
                             'start_s': df['elapsed_s'].min(),
                             'end_s': df['elapsed_s'].max(),
                             'duration_s': df['elapsed_s'].max() - df['elapsed_s'].min(),
@@ -743,6 +758,21 @@ def get_joint_streams(
                 if position_1_quats is None or position_2_quats is None:
                     continue
 
+                device_name_1 = npz_utils.retrieve_segment_field(
+                    npz=npz,
+                    position=values['segments'][0],
+                    stream='fquat',
+                    field_name='device',
+                    segment_num=None,
+                )
+                device_name_2 = npz_utils.retrieve_segment_field(
+                    npz=npz,
+                    position=values['segments'][1],
+                    stream='fquat',
+                    field_name='device',
+                    segment_num=None,
+                )
+
                 df = pd.DataFrame(
                     stream_quat2euler_joint(position_1_quats, position_2_quats)
                 )
@@ -766,7 +796,7 @@ def get_joint_streams(
                         'group': group,
                         'position': f'{group[0]}_{position_name}',
                         'stream': 'euler',
-                        'path': f'{group[0]}_{position_name}_fquat2euler',
+                        'path': f'{device_name_1}_{device_name_2}_fquat2euler',
                         'start_s': df['elapsed_s'].min(),
                         'end_s': df['elapsed_s'].max(),
                         'duration_s': df['elapsed_s'].max() - df['elapsed_s'].min(),

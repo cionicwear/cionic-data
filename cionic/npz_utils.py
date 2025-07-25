@@ -70,3 +70,30 @@ def retrieve_stream(npz, position, stream, segment_num=False):
             ):
                 return npz[segment['path']]
     return None
+
+
+def retrieve_segment_field(npz, position, stream, field_name, segment_num=False):
+    '''
+    Retrieve a specific field from a line in the segments file in an NPZ archive.
+
+    Args:
+        npz (np.lib.npyio.NpzFile): Loaded NPZ archive.
+        position (str): Position on body, e.g. "r_shank".
+        stream (str): Stream name, e.g. "fquat".
+        field_name (str): Name of the field to retrieve from the segment metadata.
+        segment_num (int or bool): Segment number to match in the segment metadata,
+            or False to ignore.
+
+    Returns:
+        np.ndarray or None: The matched data segment if found, otherwise None.
+    '''
+    for line in npz['segments.jsonl'].split(b'\n'):
+        if line:
+            segment = json.loads(line)
+            if (
+                position == segment.get('position')
+                and stream == segment.get('stream')
+                and (segment_num is False or segment_num == segment.get('segment_num'))
+            ):
+                return segment[field_name]
+    return None

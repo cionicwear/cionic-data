@@ -16,8 +16,6 @@ import requests
 
 from cionic import json2npy, segmenter, tools
 
-# TODO: add .item() to all bytes files
-
 apiver = '0.22'
 server = None
 authtoken = None
@@ -424,7 +422,6 @@ def add_arrays_to_npz_and_store(
             if file == 'segments.jsonl':
                 continue
             if file == 'segments':
-                print(f'Writing {file} as JSONL bytes')
                 # Convert JSONL bytes since segments file is updated with Eulers.
                 outzf.writestr(
                     'segments.jsonl',
@@ -550,6 +547,7 @@ def change_segments_column_dtype(segments: np.ndarray, dtype_dict=None) -> np.nd
     if dtype_dict is None:
         dtype_dict = {
             'position': 'U20',
+            'path': 'U100',
         }
 
     # Build new dtype: update only specified fields, keep others the same

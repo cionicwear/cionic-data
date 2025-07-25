@@ -43,15 +43,15 @@ from matplotlib.axes import Axes
 
 TEST_CASES = [
     {
-        'args': ['cionic', 'DPN', '-n', '3', '-c', 'fquat'],
+        'args': ['cionic', 'DPN', '-n', '3', '-c', 'fquat', 'euler'],
         'expected_dir': 'recordings/cionic/DPN/3',
     },
     {
-        'args': ['cionic', 'DPN', '-n', '10', '-c', 'fquat'],
+        'args': ['cionic', 'DPN', '-n', '10', '-c', 'fquat', 'euler'],
         'expected_dir': 'recordings/cionic/DPN/10',
     },
     {
-        'args': ['cionic', 'khe', '-n', '6', '-c', 'fquat'],
+        'args': ['cionic', 'khe', '-n', '6', '-c', 'fquat', 'euler'],
         'expected_dir': 'recordings/cionic/khe/6',
     },
 ]
