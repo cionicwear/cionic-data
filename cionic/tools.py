@@ -1082,49 +1082,6 @@ CHSETMAP = {
 }
 
 
-def get_stream_data_joints(npz, streams):
-    # TODO: change this back to the old kinematics setup.
-    # Orphaned? This function is not used in the current codebase, it seems.
-    KINEMATICS_CONFIG = kinematics_setup.get_kinematics_config()
-    device_dict = {}
-    for _, seg in pd.DataFrame(npz['segments']).iterrows():
-        if seg['stream'] == 'fquat':
-            device_dict[seg.get('position')] = npz[seg['path']]
-
-    joint_dict = {}
-    joint_component_list = []
-    sides = ['left', 'right']
-    joints = ['knee', 'ankle']
-    for joint in joints:
-        for side in sides:
-            body_part_config = getattr(getattr(KINEMATICS_CONFIG, side), joint)
-            factors = {
-                'x': body_part_config.x.factor,
-                'y': body_part_config.y.factor,
-                'z': body_part_config.z.factor,
-            }
-            limb_comp_1, limb_comp_2 = body_part_config.limb_components
-
-            if (
-                f'{side[0]}_{limb_comp_1}' in device_dict.keys()
-                and f'{side[0]}_{limb_comp_2}' in device_dict.keys()
-            ):
-                joint_stream = stream_quat2euler_joint(
-                    device_dict[f'{side[0]}_{limb_comp_1}'],
-                    device_dict[f'{side[0]}_{limb_comp_2}'],
-                )
-                joint_stream_name = f'{side[0]}_{joint}_joint_fquat2euler'
-                for dtype in joint_stream.dtype.fields:
-                    if dtype != 'elapsed_s':
-                        joint_stream[dtype] = factors[dtype] * joint_stream[dtype]
-                        joint_component_list.append(
-                            f'{side[0]}_{joint}_joint fquat2euler '
-                            f'{dtype} {side[0]}_{joint}'
-                        )
-                joint_dict[joint_stream_name] = joint_stream
-    return joint_dict, joint_component_list
-
-
 def regs_get(regs, regname, position='first'):
     """
     If there are register changes during a collection, multiple register values are
@@ -1673,34 +1630,6 @@ def unit_normalize_array(array):
         array: Unit normalized numpy array of shape (n, )
     """
     return (array - np.min(array)) / (np.max(array) - np.min(array))
-
-
-def find_nearest_idx(array, value):
-    """Finds the index of an array whose element is closest to the value.
-
-    Args:
-        array: numpy array
-        value: value to find nearest element in array
-
-    Returns:
-        index in array with closest element to value
-    """
-    idx = (np.abs(array - value)).argmin()
-    return idx
-
-    """
-    To suppress function/library prints
-        with tools.HidePrints():
-            INSERT FUNCTION CALLS
-    """
-
-    def __enter__(self):
-        self._original_stdout = sys.stdout
-        sys.stdout = open(os.devnull, 'w')
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        sys.stdout.close()
-        sys.stdout = self._original_stdout
 
 
 def calc_impedance(

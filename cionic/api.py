@@ -522,9 +522,9 @@ def auth(tokenpath=None, domain=None):
         )
         if ouser_resp.status_code != http.client.OK:
             print(
-                '''
-CIONIC AUTH ERROR: OAuth token failed. Please logout/login.
-            '''
+                "CIONIC AUTH ERROR: OAuth token authentication failed. "
+                "Please logout and login again.",
+                file=sys.stderr,
             )
 
         ouser = ouser_resp.json()
