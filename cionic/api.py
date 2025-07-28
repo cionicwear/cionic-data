@@ -345,15 +345,25 @@ def package_npz(segments, npzdir, npzpath, segsuffix=''):
         print("study package complete", file=sys.stderr)
 
 
-def download_file(destpath, url, headers=None):
-    'Download response from url to destpath'
+def download_file(destpath: str, url: str, headers: dict = None) -> bool:
+    """
+    Download the content from the given URL and save it to the destination path.
+
+    Args:
+        destpath (str): The local file path where the downloaded content will be saved.
+        url (str): The URL to download the content from.
+        headers (dict, optional): Optional HTTP headers to include in the request.
+
+    Returns:
+        bool: True if the file was downloaded, False if it already exists.
+    """
     if headers is None:
         headers = {}
     destpath = ensure_parent(destpath)
 
     if destpath.exists():
         print(f"already exists {destpath}", file=sys.stderr)
-        return 0
+        return False
 
     print(f"getting {destpath}", file=sys.stderr)
 
@@ -361,7 +371,7 @@ def download_file(destpath, url, headers=None):
     with destpath.open(mode='wb') as fp:
         for chunk in r.iter_content(chunk_size=512 * 1024):
             fp.write(chunk)
-    return 1
+    return True
 
 
 def download_npz(
@@ -385,7 +395,9 @@ def download_npz(
         include_eulers_to_npz(destpath)
     if include_gait_splits:
         # TODO: Implement gait splits processing
-        pass
+        raise NotImplementedError(
+            "The 'include_gait_splits' functionality is not yet implemented."
+        )
 
 
 def download_files(urlpath, directory, include=None, exclude=None, ver=apiver):

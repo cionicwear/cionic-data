@@ -119,7 +119,7 @@ def change_segments_column_dtype(segments: np.ndarray, dtype_dict=None) -> np.nd
 
     Args:
         segments (np.ndarray): Structured numpy array (like pandas DataFrame).
-        new_dtypes (list of tuples): List of (field, dtype) to update.
+        dtype_dict (dict): Dictionary mapping field names to new dtypes.)
 
     Returns:
         np.ndarray: New array with updated dtypes.
