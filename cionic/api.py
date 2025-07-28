@@ -364,7 +364,9 @@ def download_file(destpath, url, headers=None):
     return 1
 
 
-def download_npz(destpath: str, urlpath: str):
+def download_npz(
+    destpath: str, urlpath: str, include_eulers=True, include_gait_splits=True
+) -> None:
     """
     Downloads a .npz file from a specified URL path and saves it to the destpath.
 
@@ -379,7 +381,11 @@ def download_npz(destpath: str, urlpath: str):
     status = download_file(destpath, npz['streams.npz'])
     if status == 0:
         return
-    include_eulers_to_npz(destpath)
+    if include_eulers:
+        include_eulers_to_npz(destpath)
+    if include_gait_splits:
+        # TODO: Implement gait splits processing
+        pass
 
 
 def download_files(urlpath, directory, include=None, exclude=None, ver=apiver):
