@@ -34,7 +34,7 @@ to specify additional volumes.
 For example:
 
 * create a directory called `cool-analysis` at the same directory level as `cionic-data`
-* create a docker-compose file `private-volumes.yml` with the following volume specification
+* create a docker-compose file `private-volumes.yml` in `cionic-data/jupyter/` with the following volume specification
 
 ```
 version: "3.1"
@@ -50,7 +50,7 @@ services:
 docker-compose -f docker-compose.yml -f private-volumes.yml up
 ```
 
-private-*.yml is added to `.gitignore` to avoid accidental cehckin
+private-*.yml is added to `.gitignore` to avoid accidental checkin
 
 ## Troubleshooting
 - When version dependencies change, rebuild the contain with `docker compose up --build`
