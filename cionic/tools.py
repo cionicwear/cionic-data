@@ -639,6 +639,91 @@ def stream_calquat(stream, calibration):
     )
 
 
+def process_joint_stream(
+    npz: np.lib.npyio.NpzFile,
+    group: str,
+    position_name: str,
+    values: dict,
+    segment_num: int = None,
+    label: str = None,
+) -> Union[dict, None]:
+    '''
+    Processes two quaternion streams for a joint, converts them to Euler angles,
+    and returns metadata and processed data. Called ONLY from get_joint_streams().
+
+    Args:
+        group (str): Group name (e.g., 'left', 'right').
+        position_name (str): Name of the joint position.
+        values (dict): Joint configuration dictionary.
+        segment_num (int, optional): Segment number.
+        label (str, optional): Segment label.
+
+    Returns:
+        dict or None: Metadata and processed data stream as a pandas DataFrame,
+            or None if streams are missing.
+    '''
+    position_1_quats = npz_utils.retrieve_stream(
+        npz=npz,
+        position=values['segments'][0],
+        stream='fquat',
+        segment_num=segment_num,
+    )
+    position_2_quats = npz_utils.retrieve_stream(
+        npz=npz,
+        position=values['segments'][1],
+        stream='fquat',
+        segment_num=segment_num,
+    )
+    if position_1_quats is None or position_2_quats is None:
+        return None
+
+    device_name_1 = npz_utils.retrieve_segment_field(
+        npz=npz,
+        position=values['segments'][0],
+        stream='fquat',
+        field_name='device',
+        segment_num=None,
+    )
+    device_name_2 = npz_utils.retrieve_segment_field(
+        npz=npz,
+        position=values['segments'][1],
+        stream='fquat',
+        field_name='device',
+        segment_num=None,
+    )
+
+    df = pd.DataFrame(stream_quat2euler_joint(position_1_quats, position_2_quats))
+    for angle_dict in values['angles']:
+        df.rename(
+            columns={angle_dict['rename'][0]: angle_dict['rename'][1]},
+            inplace=True,
+        )
+        df[angle_dict['rename'][1]] = df[angle_dict['rename'][1]] * angle_dict['factor']
+
+    col = df.pop('elapsed_s')
+    df.insert(0, 'elapsed_s', col)
+
+    meta = {
+        'fields': ' '.join([c for c in df.columns.tolist() if c != 'elapsed_s']),
+        'group': group,
+        'position': f'{group[0]}_{position_name}',
+        'device': f'{device_name_1}_{device_name_2}',
+        'stream': 'euler',
+        'path': f'{device_name_1}_{device_name_2}_fquat2euler',
+        'start_s': df['elapsed_s'].min(),
+        'end_s': df['elapsed_s'].max(),
+        'duration_s': df['elapsed_s'].max() - df['elapsed_s'].min(),
+        'nsamples': df.shape[0],
+        'avg_rate_hz': df.shape[0] / (df['elapsed_s'].max() - df['elapsed_s'].min()),
+        'data_stream': df,
+    }
+    if segment_num is not None:
+        meta['segment_num'] = segment_num
+    if label is not None:
+        meta['label'] = label
+    return meta
+
+
 def get_joint_streams(
     npz: np.lib.npyio.NpzFile,
     included_groups: tuple[str] = ("left", "right"),
@@ -666,92 +751,6 @@ def get_joint_streams(
     KINEMATICS_SETUP = kinematics_setup.kinematics_setup
     streams_data_packet = []
 
-    def process_joint_stream(
-        group: str,
-        position_name: str,
-        values: dict,
-        segment_num: int = None,
-        label: str = None,
-    ) -> Union[dict, None]:
-        '''
-        Processes two quaternion streams for a joint, converts them to Euler angles,
-        and returns metadata and processed data.
-
-        Args:
-            group (str): Group name (e.g., 'left', 'right').
-            position_name (str): Name of the joint position.
-            values (dict): Joint configuration dictionary.
-            segment_num (int, optional): Segment number.
-            label (str, optional): Segment label.
-
-        Returns:
-            dict or None: Metadata and processed data stream as a pandas DataFrame,
-                or None if streams are missing.
-        '''
-        position_1_quats = npz_utils.retrieve_stream(
-            npz=npz,
-            position=values['segments'][0],
-            stream='fquat',
-            segment_num=segment_num,
-        )
-        position_2_quats = npz_utils.retrieve_stream(
-            npz=npz,
-            position=values['segments'][1],
-            stream='fquat',
-            segment_num=segment_num,
-        )
-        if position_1_quats is None or position_2_quats is None:
-            return None
-
-        device_name_1 = npz_utils.retrieve_segment_field(
-            npz=npz,
-            position=values['segments'][0],
-            stream='fquat',
-            field_name='device',
-            segment_num=None,
-        )
-        device_name_2 = npz_utils.retrieve_segment_field(
-            npz=npz,
-            position=values['segments'][1],
-            stream='fquat',
-            field_name='device',
-            segment_num=None,
-        )
-
-        df = pd.DataFrame(stream_quat2euler_joint(position_1_quats, position_2_quats))
-        for angle_dict in values['angles']:
-            df.rename(
-                columns={angle_dict['rename'][0]: angle_dict['rename'][1]},
-                inplace=True,
-            )
-            df[angle_dict['rename'][1]] = (
-                df[angle_dict['rename'][1]] * angle_dict['factor']
-            )
-
-        col = df.pop('elapsed_s')
-        df.insert(0, 'elapsed_s', col)
-
-        meta = {
-            'fields': ' '.join([c for c in df.columns.tolist() if c != 'elapsed_s']),
-            'group': group,
-            'position': f'{group[0]}_{position_name}',
-            'device': f'{device_name_1}_{device_name_2}',
-            'stream': 'euler',
-            'path': f'{device_name_1}_{device_name_2}_fquat2euler',
-            'start_s': df['elapsed_s'].min(),
-            'end_s': df['elapsed_s'].max(),
-            'duration_s': df['elapsed_s'].max() - df['elapsed_s'].min(),
-            'nsamples': df.shape[0],
-            'avg_rate_hz': df.shape[0]
-            / (df['elapsed_s'].max() - df['elapsed_s'].min()),
-            'data_stream': df,
-        }
-        if segment_num is not None:
-            meta['segment_num'] = segment_num
-        if label is not None:
-            meta['label'] = label
-        return meta
-
     groups = list(KINEMATICS_SETUP.keys())
     if segmented:
         segment_nums, labels = npz_utils.get_segment_nums_labels(npz)
@@ -763,9 +762,10 @@ def get_joint_streams(
                     continue
                 for position_name, values in KINEMATICS_SETUP[group]['angles'].items():
                     meta = process_joint_stream(
-                        group,
-                        position_name,
-                        values,
+                        npz=npz,
+                        group=group,
+                        position_name=position_name,
+                        values=values,
                         segment_num=segment_num,
                         label=label,
                     )
@@ -777,7 +777,12 @@ def get_joint_streams(
                 continue
             for position_name, values in KINEMATICS_SETUP[group]['angles'].items():
                 meta = process_joint_stream(
-                    group, position_name, values, segment_num=None, label=None
+                    npz=npz,
+                    group=group,
+                    position_name=position_name,
+                    values=values,
+                    segment_num=None,
+                    label=None,
                 )
                 if meta is not None:
                     streams_data_packet.append(meta)
