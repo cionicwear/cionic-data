@@ -100,30 +100,6 @@ def download_files(collection, urlroot, fileroot):
     api.download_files(files_url, files_dir, exclude=[".CDE", ".npz"])
 
 
-def output_joint_streams(collection, fileroot, npz):
-    '''
-    Save joint angle data streams from an NPZ archive to CSV files.
-
-    Args:
-        collection (dict): Dictionary containing collection metadata, including 'num'.
-        fileroot (str): Root path where output CSV files should be saved.
-        npz ( np.lib.npyio.NpzFile): Loaded NPZ archive.
-
-    Returns:
-        None
-    '''
-    colnum = collection['num']
-    joint_streams_packet = tools.return_joint_streams(npz)
-    for stream_data in joint_streams_packet:
-        outpath = (
-            f'{fileroot}/{colnum}/{stream_data["group"][0]}_'
-            f'{stream_data["position_name"]}_euler_{stream_data["segment_num"]:>03}_'
-            f'{stream_data["label"]}.csv'
-        )
-        print(f"Saving {outpath}")
-        stream_data["stream"].to_csv(outpath, index=False)
-
-
 def make_csv_stream(collection, fileroot, npz, segment):
     '''
     Save a raw stream from an NPZ archive as CSV file.
@@ -156,17 +132,6 @@ def make_csv_stream(collection, fileroot, npz, segment):
     df.insert(0, 'elapsed_s', col)
     # save to csv
     df.to_csv(outpath, index=False)
-
-    if segment['stream'] == 'fquat':
-        outpath = (
-            f"{fileroot}/{colnum}/{segment['position']}_"
-            f"{segment['path'].replace('fquat', 'euler')}_{segment['label']}.csv"
-        )
-        df_euler = pd.DataFrame(tools.stream_quat2euler(arr))
-        # pop elapsed_s to front for convenience
-        col = df_euler.pop('elapsed_s')
-        df_euler.insert(0, 'elapsed_s', col)
-        df_euler.to_csv(outpath, index=False)
 
 
 def make_csv_splits(collection, fileroot, component, segment, splits_matrix):
@@ -209,8 +174,6 @@ def output_streams(collection, fileroot, npz, segments, csvs):
     '''
     for segment in segments:
         make_csv_stream(collection, fileroot, npz, segment)
-    if 'fquat' in csvs:
-        output_joint_streams(collection, fileroot, npz)
     return segments
 
 
@@ -280,52 +243,6 @@ def output_split_streams(collection, fileroot, npz, segments, csvs):
                     )
                     make_csv_splits(
                         collection, fileroot, component, segment, splits_matrix
-                    )
-                if 'fquat' in csvs and segment['stream'] == 'fquat':
-                    euler_stream = tools.stream_quat2euler(stream)
-                    components = [
-                        name for name in euler_stream.dtype.names if name != "elapsed_s"
-                    ]
-                    for component in components:
-                        splits_matrix = tools.stream_splits_to_matrix(
-                            stream_data=euler_stream,
-                            splits=paired_splits,
-                            ch_field=component,
-                            n_interp=100,
-                            paired_splits=True,
-                        )
-                        segment['path'] = segment['path'].replace('fquat', 'euler')
-                        make_csv_splits(
-                            collection, fileroot, component, segment, splits_matrix
-                        )
-            # joint euler streams
-            joint_euler_streams_packet = tools.return_joint_streams(
-                npz, included_groups=(group), allowable_segment_nums=[segment_num]
-            )
-            for stream_data in joint_euler_streams_packet:
-                components = [
-                    name
-                    for name in stream_data['stream'].columns
-                    if name != "elapsed_s"
-                ]
-                for component in components:
-                    splits_matrix = tools.stream_splits_to_matrix(
-                        stream_data=stream_data['stream'],
-                        splits=paired_splits,
-                        ch_field=component,
-                        n_interp=100,
-                        paired_splits=True,
-                    )
-                    joint_segment = {
-                        'position': (
-                            f'{stream_data["group"][0]}_'
-                            f'{stream_data["position_name"]}_euler'
-                        ),
-                        'path': f'{stream_data["segment_num"]:>03}',
-                        'label': stream_data['label'],
-                    }
-                    make_csv_splits(
-                        collection, fileroot, component, joint_segment, splits_matrix
                     )
 
 

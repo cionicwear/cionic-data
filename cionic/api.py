@@ -13,7 +13,7 @@ import zipfile
 import numpy as np
 import requests
 
-from cionic import json2npy, segmenter
+from cionic import json2npy, npz_utils, segmenter, tools
 
 apiver = '0.22'
 server = None
@@ -345,15 +345,25 @@ def package_npz(segments, npzdir, npzpath, segsuffix=''):
         print("study package complete", file=sys.stderr)
 
 
-def download_file(destpath, url, headers=None):
-    'Download response from url to destpath'
+def download_file(destpath: str, url: str, headers: dict = None) -> bool:
+    """
+    Download the content from the given URL and save it to the destination path.
+
+    Args:
+        destpath (str): The local file path where the downloaded content will be saved.
+        url (str): The URL to download the content from.
+        headers (dict, optional): Optional HTTP headers to include in the request.
+
+    Returns:
+        bool: True if the file was downloaded, False if it already exists.
+    """
     if headers is None:
         headers = {}
     destpath = ensure_parent(destpath)
 
     if destpath.exists():
         print(f"already exists {destpath}", file=sys.stderr)
-        return
+        return False
 
     print(f"getting {destpath}", file=sys.stderr)
 
@@ -361,11 +371,33 @@ def download_file(destpath, url, headers=None):
     with destpath.open(mode='wb') as fp:
         for chunk in r.iter_content(chunk_size=512 * 1024):
             fp.write(chunk)
+    return True
 
 
-def download_npz(destpath, urlpath):
+def download_npz(
+    destpath: str, urlpath: str, include_eulers=True, include_gait_splits=True
+) -> None:
+    """
+    Downloads a .npz file from a specified URL path and saves it to the destpath.
+
+    Args:
+        destpath (str): The local file path where the .npz file will be saved.
+        urlpath (str): The URL or identifier used to locate the .npz file.
+
+    Returns:
+        None
+    """
     npz = get_cionic(urlpath)
-    download_file(destpath, npz['streams.npz'])
+    status = download_file(destpath, npz['streams.npz'])
+    if status is False:
+        return
+    if include_eulers:
+        include_eulers_to_npz(destpath)
+    if include_gait_splits:
+        # TODO: Implement gait splits processing
+        raise NotImplementedError(
+            "The 'include_gait_splits' functionality is not yet implemented."
+        )
 
 
 def download_files(urlpath, directory, include=None, exclude=None, ver=apiver):
@@ -382,6 +414,85 @@ def download_files(urlpath, directory, include=None, exclude=None, ver=apiver):
         results.append(filename)
         download_file(destpath, absolute, headers={'x-cionic-user': authtoken})
     return results
+
+
+def add_arrays_to_npz_and_store(
+    npz: np.lib.npyio.NpzFile,
+    array_dict: dict[str, np.ndarray],
+    destpath: str,
+) -> None:
+    """
+    Adds arrays from `array_dict` to an existing NumPy `.npz` file object `npz`,
+    and saves the combined arrays to a new `.npz` file at `destpath`.
+    Handles both .npy arrays and .jsonl files (as bytes).
+
+    Parameters:
+        npz (numpy.lib.npyio.NpzFile): An opened `.npz` file object containing arrays.
+        array_dict (dict): Dictionary of arrays to add.
+        destpath (str): Destination file path to save the updated `.npz` file.
+        keep_existing_segments_file (bool): If True, keeps the 'segments' in the npz.
+
+    Returns:
+        None
+    """
+    arrays_to_write = {}
+    for file in npz.files:
+        arrays_to_write[file] = npz[file]
+    arrays_to_write.update(array_dict)
+
+    with zipfile.ZipFile(destpath, mode='w', compression=zipfile.ZIP_DEFLATED) as outzf:
+        for file, arr in arrays_to_write.items():
+            if file == 'segments.jsonl':
+                continue
+            if file == 'segments':
+                # Convert JSONL bytes since segments file is updated with Eulers.
+                outzf.writestr(
+                    'segments.jsonl',
+                    json2npy.structured_array_to_jsonl_bytes(arr),
+                )
+            if (
+                file.endswith('.jsonl')
+                or file.endswith('.json')
+                or file.endswith('.csv')
+                or file == "ERRORS"
+            ):
+                # Write as bytes (if not already bytes, encode as utf-8)
+                if isinstance(arr, bytes):
+                    outzf.writestr(file, arr)
+                else:
+                    outzf.writestr(file, arr.encode('utf-8'))
+            else:
+                with outzf.open(f"{file}.npy", mode='w') as fp:
+                    np.save(fp, arr, allow_pickle=False)
+
+
+def include_eulers_to_npz(destpath: str) -> None:
+    """
+    Load a .npz file, compute limb and joint Euler angles, update segments,
+    and save the updated arrays back to the .npz file.
+
+    Args:
+        destpath (str): Path to the .npz file to update.
+    """
+    try:
+        npz = np.load(destpath)
+    except FileNotFoundError:
+        print(f"File {destpath} not found.", file=sys.stderr)
+        return
+
+    limb_eulers, new_limb_segments = tools.get_limb_eulers(npz)
+    joint_eulers, new_joint_segments = tools.get_joint_eulers(npz)
+
+    updated_segments = np.concatenate(
+        [
+            npz_utils.change_segments_column_dtype(npz['segments']),
+            new_limb_segments,
+            new_joint_segments,
+        ]
+    )
+
+    array_dict = {**limb_eulers, **joint_eulers, 'segments': updated_segments}
+    add_arrays_to_npz_and_store(npz, array_dict, destpath)
 
 
 def list_files(directory, include=None, exclude=None):
@@ -429,9 +540,9 @@ def auth(tokenpath=None, domain=None):
         )
         if ouser_resp.status_code != http.client.OK:
             print(
-                '''
-CIONIC AUTH ERROR: OAuth token failed. Please logout/login.
-            '''
+                "CIONIC AUTH ERROR: OAuth token authentication failed. "
+                "Please logout and login again.",
+                file=sys.stderr,
             )
 
         ouser = ouser_resp.json()

@@ -1,4 +1,7 @@
 import json
+from typing import Union
+
+import numpy as np
 
 
 def get_segment_nums_labels(npz):
@@ -46,7 +49,12 @@ def get_relevant_npz_segments(npz, csvs):
     return npz_segments
 
 
-def retrieve_stream(npz, position, stream, segment_num):
+def retrieve_stream(
+    npz: np.lib.npyio.NpzFile,
+    position: str,
+    stream: str,
+    segment_num: Union[int, bool] = False,
+) -> Union[np.ndarray, None]:
     '''
     Retrieve a specific data stream segment from an NPZ archive.
 
@@ -54,7 +62,8 @@ def retrieve_stream(npz, position, stream, segment_num):
         npz (np.lib.npyio.NpzFile): Loaded NPZ archive.
         position (str): Position on body, e.g. "r_shank".
         stream (str): Stream name, e.g. "fquat".
-        segment_num (int): Segment number to match in the segment metadata.
+        segment_num (int or bool): Segment number to match in the segment metadata,
+            or False to ignore.
 
     Returns:
         np.ndarray or None: The matched data segment if found, otherwise None.
@@ -65,7 +74,74 @@ def retrieve_stream(npz, position, stream, segment_num):
             if (
                 position == segment.get('position')
                 and stream == segment.get('stream')
-                and segment_num == segment.get('segment_num')
+                and (segment_num is False or segment_num == segment.get('segment_num'))
             ):
                 return npz[segment['path']]
     return None
+
+
+def retrieve_segment_field(
+    npz: np.lib.npyio.NpzFile,
+    position: str,
+    stream: str,
+    field_name: str,
+    segment_num: Union[int, bool] = False,
+) -> Union[str, int, float, None]:
+    '''
+    Retrieve a specific field from a line in the segments file in an NPZ archive.
+
+    Args:
+        npz (np.lib.npyio.NpzFile): Loaded NPZ archive.
+        position (str): Position on body, e.g. "r_shank".
+        stream (str): Stream name, e.g. "fquat".
+        field_name (str): Name of the field to retrieve from the segment metadata.
+        segment_num (int or bool): Segment number to match in the segment metadata,
+            or False to ignore.
+
+    Returns:
+        str, int, float, or None: The matched field value if found, otherwise None.
+    '''
+    for line in npz['segments.jsonl'].split(b'\n'):
+        if line:
+            segment = json.loads(line)
+            if (
+                position == segment.get('position')
+                and stream == segment.get('stream')
+                and (segment_num is False or segment_num == segment.get('segment_num'))
+            ):
+                return segment[field_name]
+    return None
+
+
+def change_segments_column_dtype(segments: np.ndarray, dtype_dict=None) -> np.ndarray:
+    '''
+    Change dtype of specified columns in a structured numpy array.
+
+    Args:
+        segments (np.ndarray): Structured numpy array (like pandas DataFrame).
+        dtype_dict (dict): Dictionary mapping field names to new dtypes.)
+
+    Returns:
+        np.ndarray: New array with updated dtypes.
+    '''
+    if dtype_dict is None:
+        dtype_dict = {
+            'position': 'U20',
+            'device': 'U40',
+            'path': 'U100',
+        }
+
+    # Build new dtype: update only specified fields, keep others the same
+    new_dtype = []
+    for name, oldtype in segments.dtype.descr:
+        if name in dtype_dict.keys():
+            new_dtype.append((name, dtype_dict[name]))
+        else:
+            new_dtype.append((name, oldtype))
+
+    # Create new array and copy data
+    new_segments = np.empty(segments.shape, dtype=new_dtype)
+    for name in segments.dtype.names:
+        new_segments[name] = segments[name]
+
+    return new_segments

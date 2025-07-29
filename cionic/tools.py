@@ -4,6 +4,7 @@ import os
 import struct
 import sys
 from bisect import bisect_left
+from typing import Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -638,9 +639,98 @@ def stream_calquat(stream, calibration):
     )
 
 
-def return_joint_streams(
-    npz, included_groups=("left", "right"), allowable_segment_nums=None
-):
+def process_joint_stream(
+    npz: np.lib.npyio.NpzFile,
+    group: str,
+    position_name: str,
+    values: dict,
+    segment_num: int = None,
+    label: str = None,
+) -> Union[dict, None]:
+    '''
+    Processes two quaternion streams for a joint, converts them to Euler angles,
+    and returns metadata and processed data. Called ONLY from get_joint_streams().
+
+    Args:
+        npz (np.lib.npyio.NpzFile): Loaded NPZ archive.
+        group (str): Group name (e.g., 'left', 'right').
+        position_name (str): Name of the joint position.
+        values (dict): Joint configuration dictionary.
+        segment_num (int, optional): Segment number.
+        label (str, optional): Segment label.
+
+    Returns:
+        dict or None: Metadata and processed data stream as a pandas DataFrame,
+            or None if streams are missing.
+    '''
+    position_1_quats = npz_utils.retrieve_stream(
+        npz=npz,
+        position=values['segments'][0],
+        stream='fquat',
+        segment_num=segment_num,
+    )
+    position_2_quats = npz_utils.retrieve_stream(
+        npz=npz,
+        position=values['segments'][1],
+        stream='fquat',
+        segment_num=segment_num,
+    )
+    if position_1_quats is None or position_2_quats is None:
+        return None
+
+    device_name_1 = npz_utils.retrieve_segment_field(
+        npz=npz,
+        position=values['segments'][0],
+        stream='fquat',
+        field_name='device',
+        segment_num=None,
+    )
+    device_name_2 = npz_utils.retrieve_segment_field(
+        npz=npz,
+        position=values['segments'][1],
+        stream='fquat',
+        field_name='device',
+        segment_num=None,
+    )
+
+    df = pd.DataFrame(stream_quat2euler_joint(position_1_quats, position_2_quats))
+    for angle_dict in values['angles']:
+        df.rename(
+            columns={angle_dict['rename'][0]: angle_dict['rename'][1]},
+            inplace=True,
+        )
+        df[angle_dict['rename'][1]] = df[angle_dict['rename'][1]] * angle_dict['factor']
+
+    col = df.pop('elapsed_s')
+    df.insert(0, 'elapsed_s', col)
+
+    meta = {
+        'fields': ' '.join([c for c in df.columns.tolist() if c != 'elapsed_s']),
+        'group': group,
+        'position': f'{group[0]}_{position_name}',
+        'device': f'{device_name_1}_{device_name_2}',
+        'stream': 'euler',
+        'path': f'{device_name_1}_{device_name_2}_fquat2euler',
+        'start_s': df['elapsed_s'].min(),
+        'end_s': df['elapsed_s'].max(),
+        'duration_s': df['elapsed_s'].max() - df['elapsed_s'].min(),
+        'nsamples': df.shape[0],
+        'avg_rate_hz': df.shape[0] / (df['elapsed_s'].max() - df['elapsed_s'].min()),
+        'data_stream': df,
+    }
+    if segment_num is not None:
+        meta['segment_num'] = segment_num
+    if label is not None:
+        meta['label'] = label
+    return meta
+
+
+def get_joint_streams(
+    npz: np.lib.npyio.NpzFile,
+    included_groups: tuple[str] = ("left", "right"),
+    allowable_segment_nums: Union[list[int], None] = None,
+    segmented: bool = True,
+) -> list[dict]:
     '''
     Generate joint angle data streams from an NPZ archive for specified body groups
     and segment numbers.
@@ -650,66 +740,147 @@ def return_joint_streams(
         included_groups (tuple[str], optional): Tuple of group names whose streams to
             return.
         allowable_segment_nums (list[int], optional): If provided, only segment numbers
-            in this set/list will be processed.
+            in this list will be processed.
+        segmented (bool, optional): If True, loop over segments as in the default
+            behavior. If False, ignore segments and just get stream data.
 
     Returns:
         list[dict]: A list of dictionaries, each containing:
-            - 'group': Name of the body group (e.g., 'left')
-            - 'segment_num': Segment number
-            - 'label': Segment label
-            - 'position_name': Name of the joint or position
+            - relevant metadata fields
             - 'stream': A pandas DataFrame with elapsed time and joint angle data
     '''
     KINEMATICS_SETUP = kinematics_setup.kinematics_setup
     streams_data_packet = []
-    segment_nums, labels = npz_utils.get_segment_nums_labels(npz)
-    for segment_num, label in zip(segment_nums, labels):
-        groups = list(KINEMATICS_SETUP.keys())
+
+    groups = list(KINEMATICS_SETUP.keys())
+    if segmented:
+        segment_nums, labels = npz_utils.get_segment_nums_labels(npz)
+        for segment_num, label in zip(segment_nums, labels):
+            for group in groups:
+                if group not in included_groups:
+                    continue
+                if allowable_segment_nums and segment_num not in allowable_segment_nums:
+                    continue
+                for position_name, values in KINEMATICS_SETUP[group]['angles'].items():
+                    meta = process_joint_stream(
+                        npz=npz,
+                        group=group,
+                        position_name=position_name,
+                        values=values,
+                        segment_num=segment_num,
+                        label=label,
+                    )
+                    if meta is not None:
+                        streams_data_packet.append(meta)
+    else:
         for group in groups:
             if group not in included_groups:
                 continue
-            if allowable_segment_nums and segment_num not in allowable_segment_nums:
-                continue
             for position_name, values in KINEMATICS_SETUP[group]['angles'].items():
-                position_1_quats = npz_utils.retrieve_stream(
+                meta = process_joint_stream(
                     npz=npz,
-                    position=values['segments'][0],
-                    stream='fquat',
-                    segment_num=segment_num,
+                    group=group,
+                    position_name=position_name,
+                    values=values,
+                    segment_num=None,
+                    label=None,
                 )
-                position_2_quats = npz_utils.retrieve_stream(
-                    npz=npz,
-                    position=values['segments'][1],
-                    stream='fquat',
-                    segment_num=segment_num,
-                )
-                if position_1_quats is None or position_2_quats is None:
-                    continue
+                if meta is not None:
+                    streams_data_packet.append(meta)
 
-                df = pd.DataFrame(
-                    stream_quat2euler_joint(position_1_quats, position_2_quats)
-                )
-                for angle_dict in values['angles']:
-                    df.rename(
-                        columns={angle_dict['rename'][0]: angle_dict['rename'][1]},
-                        inplace=True,
-                    )
-                    df[angle_dict['rename'][1]] = (
-                        df[angle_dict['rename'][1]] * angle_dict['factor']
-                    )
-
-                col = df.pop('elapsed_s')
-                df.insert(0, 'elapsed_s', col)
-                streams_data_packet.append(
-                    {
-                        'group': group,
-                        'segment_num': segment_num,
-                        'label': label,
-                        'position_name': position_name,
-                        'stream': df,
-                    }
-                )
     return streams_data_packet
+
+
+def get_limb_eulers(
+    npz: np.lib.npyio.NpzFile, degrees: bool = True
+) -> tuple[dict[str, np.ndarray], np.ndarray]:
+    """
+    Extract Euler angles from quaternion segments in a .npz file.
+
+    Args:
+        npz (np.lib.npyio.NpzFile): Opened .npz file containing segment data.
+        degrees (bool, optional): If True, returns Euler angles in degrees.
+
+    Returns:
+        tuple:
+            - dict[str, np.ndarray]: Dict of euler_path names to Euler arrays.
+            - np.ndarray: Array of new segment metadata dicts for the Euler streams.
+    """
+    print("getting limb eulers from npz", file=sys.stderr)
+    limb_eulers = {}
+    new_limb_segments = []
+    for seg in npz_utils.change_segments_column_dtype(npz['segments']):
+        if seg['stream'] != 'fquat':
+            continue
+        stream = stream_quat2euler(
+            stream=npz[seg['path']], calibration=seg['calibration'], degrees=degrees
+        )
+        euler_path = f'{seg["path"]}2euler'
+        limb_eulers[euler_path] = stream
+
+        new_segment = seg.copy()
+        new_segment['path'] = euler_path
+        new_segment['fields'] = 'x y z'
+        new_segment['stream'] = 'euler'
+        new_limb_segments.append(new_segment)
+
+    return limb_eulers, np.array(new_limb_segments)
+
+
+def get_joint_eulers(
+    npz: np.lib.npyio.NpzFile,
+) -> tuple[dict[str, np.ndarray], list[np.ndarray]]:
+    '''
+    Extracts joint Euler angle data and corresponding segment information from NPZ.
+
+    Args:
+        npz (np.lib.npyio.NpzFile): The NPZ file containing joint data.
+
+    Returns:
+        tuple:
+            - joint_eulers (dict): A dictionary mapping each joint stream path to its
+              Euler angle data as a NumPy ndarray.
+            - new_joint_segments (list): A list of segment metadata arrays.
+    '''
+    print("getting joint eulers from npz", file=sys.stderr)
+    segments = npz_utils.change_segments_column_dtype(npz['segments'])
+    streams_data_packet = get_joint_streams(npz, segmented=False)
+    joint_eulers = {}
+    new_joint_segments = []
+
+    for stream_data in streams_data_packet:
+        data_stream = stream_data['data_stream']
+        joint_eulers[stream_data['path']] = pandas_to_ndarray(data_stream)
+
+        seg_dtype = segments.dtype
+        values = tuple(stream_data.get(name, '') for name in seg_dtype.names)
+
+        new_segment = np.array([values], dtype=seg_dtype)[0]
+        new_joint_segments.append(new_segment)
+
+    return joint_eulers, new_joint_segments
+
+
+def pandas_to_ndarray(df: pd.DataFrame) -> np.ndarray:
+    """
+    Convert a pandas DataFrame to a NumPy ndarray.
+
+    Args:
+        df (pandas.DataFrame): The DataFrame to convert.
+
+    Returns:
+        np.ndarray: The converted ndarray.
+    """
+    array = np.array(
+        list(df.itertuples(index=False)),
+        dtype=np.dtype(
+            {
+                'names': df.columns.tolist(),
+                'formats': [df[col].dtype for col in df.columns],
+            }
+        ),
+    )
+    return array
 
 
 def stream_quat2euler(stream, calibration=None, degrees=True):
@@ -882,12 +1053,6 @@ def stream_data(npz, streams, degrees=True):
             continue
         times = segment_times(seg, times)
 
-        # turn fquat into cailbrated quat
-        if stream_name in ['fquat', 'r_knee', 'l_knee']:
-            print(f"converting {device_name} fquat to calibrated euler")
-            stream_name = "".join(e for e in stream_name if e.isalpha()) + '2euler'
-            stream = stream_quat2euler(stream, seg['calibration'], degrees=degrees)
-
         # create the device stream
         # and add fields to the components array
         device_stream = f"{device_name}_{stream_name}"
@@ -921,47 +1086,6 @@ CHSETMAP = {
     "c7": "CH7SET",
     "c8": "CH8SET",
 }
-
-
-def get_stream_data_joints(npz, streams):
-    KINEMATICS_CONFIG = kinematics_setup.get_kinematics_config()
-    device_dict = {}
-    for _, seg in pd.DataFrame(npz['segments']).iterrows():
-        if seg['stream'] == 'fquat':
-            device_dict[seg.get('position')] = npz[seg['path']]
-
-    joint_dict = {}
-    joint_component_list = []
-    sides = ['left', 'right']
-    joints = ['knee', 'ankle']
-    for joint in joints:
-        for side in sides:
-            body_part_config = getattr(getattr(KINEMATICS_CONFIG, side), joint)
-            factors = {
-                'x': body_part_config.x.factor,
-                'y': body_part_config.y.factor,
-                'z': body_part_config.z.factor,
-            }
-            limb_comp_1, limb_comp_2 = body_part_config.limb_components
-
-            if (
-                f'{side[0]}_{limb_comp_1}' in device_dict.keys()
-                and f'{side[0]}_{limb_comp_2}' in device_dict.keys()
-            ):
-                joint_stream = stream_quat2euler_joint(
-                    device_dict[f'{side[0]}_{limb_comp_1}'],
-                    device_dict[f'{side[0]}_{limb_comp_2}'],
-                )
-                joint_stream_name = f'{side[0]}_{joint}_joint_fquat2euler'
-                for dtype in joint_stream.dtype.fields:
-                    if dtype != 'elapsed_s':
-                        joint_stream[dtype] = factors[dtype] * joint_stream[dtype]
-                        joint_component_list.append(
-                            f'{side[0]}_{joint}_joint fquat2euler '
-                            f'{dtype} {side[0]}_{joint}'
-                        )
-                joint_dict[joint_stream_name] = joint_stream
-    return joint_dict, joint_component_list
 
 
 def regs_get(regs, regname, position='first'):
@@ -1512,34 +1636,6 @@ def unit_normalize_array(array):
         array: Unit normalized numpy array of shape (n, )
     """
     return (array - np.min(array)) / (np.max(array) - np.min(array))
-
-
-def find_nearest_idx(array, value):
-    """Finds the index of an array whose element is closest to the value.
-
-    Args:
-        array: numpy array
-        value: value to find nearest element in array
-
-    Returns:
-        index in array with closest element to value
-    """
-    idx = (np.abs(array - value)).argmin()
-    return idx
-
-    """
-    To suppress function/library prints
-        with tools.HidePrints():
-            INSERT FUNCTION CALLS
-    """
-
-    def __enter__(self):
-        self._original_stdout = sys.stdout
-        sys.stdout = open(os.devnull, 'w')
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        sys.stdout.close()
-        sys.stdout = self._original_stdout
 
 
 def calc_impedance(
