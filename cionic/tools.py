@@ -652,6 +652,7 @@ def process_joint_stream(
     and returns metadata and processed data. Called ONLY from get_joint_streams().
 
     Args:
+        npz (np.lib.npyio.NpzFile): Loaded NPZ archive.
         group (str): Group name (e.g., 'left', 'right').
         position_name (str): Name of the joint position.
         values (dict): Joint configuration dictionary.
