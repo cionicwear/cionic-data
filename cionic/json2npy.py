@@ -1,10 +1,16 @@
 import json
+
 import numpy as np
 
 
 def from_jsonl(fp):
     'Return list of dicts from jsonl in open file.'
     return [json.loads(line) for line in fp if line]
+
+
+def to_jsonl(objs):
+    'Return jsonl of list of dicts.'
+    return '\n'.join(json.dumps(obj) for obj in objs) + '\n'
 
 
 class JSONL2NPY:
@@ -24,9 +30,9 @@ class JSONL2NPY:
         measures the formats and sets the default type
         for each column in the ndarray
         """
-        for row, line in enumerate(f):
+        for _, line in enumerate(f):
             data = json.loads(line)
-            [ self.npformat(k, v) for k,v in data.items() ]
+            [self.npformat(k, v) for k, v in data.items()]
 
     def to_nparray(self, objs):
         """
@@ -38,10 +44,10 @@ class JSONL2NPY:
         keys = self.formats.keys()
         arrs = []
         for data in objs:
-            ts = tuple([ self.npdata(data, k) for k in keys ])
+            ts = tuple([self.npdata(data, k) for k in keys])
             arrs.append(ts)
 
-        return np.array(arrs, dtype=[ self.npdtype(k) for k in keys ])
+        return np.array(arrs, dtype=[self.npdtype(k) for k in keys])
 
     def npdata(self, data, k):
         """
@@ -66,7 +72,7 @@ class JSONL2NPY:
 
     def npformat(self, k, obj):
         """
-        sets the (type, length, and default value) for the object **obj** for column **k**
+        sets the (type, length, and default value) for the object obj for column k
 
         currently only supports column types of string, float, int
 
@@ -74,9 +80,9 @@ class JSONL2NPY:
 
         length property is relevant to string types only
         """
-        prev = self.formats.get(k, {'t' : str, 'l' : 1, 'd' : ''})
+        prev = self.formats.get(k, {'t': str, 'l': 1, 'd': ''})
         if prev['t'] == str and obj is not None:
-            if type(obj) == str:
+            if isinstance(obj, str):
                 prev['l'] = max(prev['l'], len(obj))
                 prev['d'] = ''
             else:

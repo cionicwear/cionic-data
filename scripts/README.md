@@ -13,7 +13,7 @@ You will first need to download an authorization token from the web portal.
 
 ## Setup
 
-The scripts depend on the following python packages:
+The scripts depend on the following third party python packages:
 
 ```
 numpy==1.23.4
@@ -37,12 +37,21 @@ Install packages:
 
 `pip3 install -r scripts/requirements.txt`
 
+Creates a local package from source code:
+
+`python3 -m pip install --upgrade pip`
+`pip install -e .`
+
+Set up pre-commit hooks:
+
+`pre-commit install`
+
 ## download.py
 
 The download script enables fetch and segmentation of npz files to the local directory.
 
 ```
-python ./scripts/download.py [orgid] [studyid] [-n <collection numbers to download>] [-c <streams to csv>] [-o <output directory>] [-t <filepath to tokenfile>] [-l <limit>] [-f] 
+./scripts/download.py [orgid] [studyid] [-n <collection numbers to download>] [-c <streams to csv>] [-o <output directory>] [-t <filepath to tokenfile>] [-l <limit>] [-f] 
 
 Common usage examples:
 ./scripts/download.py -h                            (print help)
@@ -76,3 +85,27 @@ and the segmented npz `<orgid>_<studyid>_<collnum>_seg.npz`
 If all files from the collection are desired (including videos and notes) specify the `-f` option
 
 For csv export specify a list of stream names to convert.  For example `-c fquat emg` will create CSV files for all quaternion and emg streams
+
+## auth.py
+
+```
+usage: 
+./scripts/auth.py [email] [org] [-a <admin collector analyst>] [-r <admin collector analyst>]
+REQUIRES ORG ADMIN ROLE
+
+positional arguments:
+  email             email to grant permission
+  org               organization shortname
+
+optional arguments:
+  -h, --help        show this help message and exit
+  -a ADD [ADD ...]  add role flags: -a analyst collector admin
+  -r REM [REM ...]  remove role flags: -d analyst collector admin
+  -t TOKEN          path to auth credentials json file
+```
+
+## Committing changes with pre-commit hooks
+
+Pushing changes requires passing formatting and linting standards integrated into pre-commit hooks. These will automatically run when you try to commit, and the commit will be blocked if any tests fail. It is convenient to check if changes will pass prior to committing with:
+
+`pre-commit run --all-files`

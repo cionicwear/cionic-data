@@ -24,6 +24,7 @@ You will first need to download an authorization token from the web portal.
 4. Select options for org / study / notebook
 5. Hit run
 
+
 ## Private volumes
 A common pattern of use is to have notebooks/code that you do not intend to share publicly.
 
@@ -50,3 +51,8 @@ docker-compose -f docker-compose.yml -f private-volumes.yml up
 ```
 
 private-*.yml is added to `.gitignore` to avoid accidental cehckin
+
+## Troubleshooting
+- When version dependencies change, rebuild the contain with `docker compose up --build`
+- If a notebook is misbehaving (e.g, when downloading an `npz`, a `FileNotFoundError` may appear on rare occassions), shut down the notebook's kernel and retry
+
