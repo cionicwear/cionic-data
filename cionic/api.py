@@ -389,7 +389,7 @@ def download_npz(
     """
     npz = get_cionic(urlpath)
     status = download_file(destpath, npz['streams.npz'])
-    if status == 0:
+    if status is False:
         return
     if include_eulers:
         include_eulers_to_npz(destpath)

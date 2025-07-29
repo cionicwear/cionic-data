@@ -22,7 +22,6 @@ def structured_array_to_jsonl_bytes(array: np.ndarray) -> bytes:
     Returns:
         bytes: The JSONL representation of the structured array, encoded as UTF-8 bytes.
     '''
-
     lines = []
     for row in array:
         # Convert the structured row to a dict
