@@ -393,7 +393,7 @@ def download_npz(
         return
     if include_eulers:
         include_eulers_to_npz(destpath)
-    if include_eulers and include_gait_splits:
+    if include_gait_splits:
         include_gait_splits_to_npz(destpath)
 
 
@@ -518,6 +518,28 @@ def include_gait_splits_to_npz(destpath: str) -> None:
     add_arrays_to_npz_and_store(npz, array_dict, destpath)
 
 
+def create_new_segment_helper(
+    segment: np.void, path: str, stream: str = 'intervals'
+) -> np.void:
+    """
+    Create a new segment structured array entry for walking intervals.
+
+    Args:
+        segment (np.void): Existing segment structured array entry.
+        path (str): Path for the new segment.
+        stream (str): Stream name for the new segment (default 'intervals').
+
+    Returns:
+        np.void: New segment structured array entry with updated fields.
+    """
+    new_segment = np.zeros((), dtype=segment.dtype)
+    new_segment['path'] = path
+    new_segment['position'] = segment['position']
+    new_segment['device'] = segment['device']
+    new_segment['stream'] = stream
+    return new_segment
+
+
 def get_splits_arrays_and_segments(
     npz: np.lib.npyio.NpzFile,
 ) -> tuple[dict[str, np.ndarray], np.ndarray]:
@@ -546,11 +568,7 @@ def get_splits_arrays_and_segments(
             path = f'{segment["device"]}_walking_intervals'
             new_files[path] = grouped_walking_intervals
 
-            new_segment = np.zeros((), dtype=segment.dtype)
-            new_segment['path'] = path
-            new_segment['position'] = segment['position']
-            new_segment['device'] = segment['device']
-            new_segment['stream'] = 'intervals'
+            new_segment = create_new_segment_helper(segment=segment, path=path)
             new_segments.append(new_segment)
 
         if (is_shank or is_thigh) and is_euler:
@@ -563,13 +581,15 @@ def get_splits_arrays_and_segments(
             path = f'{segment["device"]}_paired_walking_splits'
             new_files[path] = paired_walking_splits
 
-            new_segment = np.zeros((), dtype=segment.dtype)
-            new_segment['path'] = path
-            new_segment['position'] = segment['position']
-            new_segment['device'] = segment['device']
-            new_segment['stream'] = 'intervals'
+            new_segment = create_new_segment_helper(segment=segment, path=path)
             new_segments.append(new_segment)
 
+    if len(new_files) == 0:
+        raise RuntimeError(
+            "No gait splits computed from the provided NPZ file. This likely means "
+            "include_eulers is set to False. Try setting include_eulers to True when "
+            "calling download_npz()."
+        )
     updated_segments = np.concatenate(
         [
             npz_utils.change_segments_column_dtype(npz['segments']),
