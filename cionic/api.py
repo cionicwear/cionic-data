@@ -562,24 +562,24 @@ def get_splits_arrays_and_segments(
         is_euler = segment['stream'] == 'euler'
 
         if is_shank and is_euler:
-            grouped_walking_intervals = get_grouped_walking_splits_as_array(
+            grouped_walking_periods = get_grouped_walking_periods_as_array(
                 kinematic_time_series=npz[segment['path']],
             )
-            path = f'{segment["device"]}_walking_intervals'
-            new_files[path] = grouped_walking_intervals
+            path = f'{segment["device"]}_walking_periods'
+            new_files[path] = grouped_walking_periods
 
             new_segment = create_new_segment_helper(segment=segment, path=path)
             new_segments.append(new_segment)
 
         if (is_shank or is_thigh) and is_euler:
-            paired_walking_splits = get_paired_walking_splits_as_array(
+            paired_stride_splits = get_paired_stride_splits_as_array(
                 kinematic_time_series=npz[segment['path']],
                 component="x",
                 n_start_remove=0,
                 n_stop_remove=0,
             )
-            path = f'{segment["device"]}_paired_walking_splits'
-            new_files[path] = paired_walking_splits
+            path = f'{segment["device"]}_paired_stride_splits'
+            new_files[path] = paired_stride_splits
 
             new_segment = create_new_segment_helper(segment=segment, path=path)
             new_segments.append(new_segment)
@@ -599,7 +599,7 @@ def get_splits_arrays_and_segments(
     return new_files, updated_segments
 
 
-def get_grouped_walking_splits_as_array(
+def get_grouped_walking_periods_as_array(
     kinematic_time_series: np.ndarray,
     component: str = "x",
     peak_kwargs: dict = None,
@@ -615,22 +615,22 @@ def get_grouped_walking_splits_as_array(
     Returns:
         np.ndarray: Structured array with start, stop, and elapsed times.
     '''
-    grouped_walking_splits = kinematics.get_grouped_walking_splits(
+    grouped_walking_periods = kinematics.get_grouped_walking_splits(
         kinematic_time_series=kinematic_time_series,
         component=component,
         peak_kwargs=peak_kwargs,
     )
-    grouped_walking_splits_array = np.array(
+    grouped_walking_periods_array = np.array(
         [
             (group[0], group[-1], group[-1] - group[0])
-            for group in grouped_walking_splits
+            for group in grouped_walking_periods
         ],
         dtype=np.dtype([('start_s', 'f8'), ('stop_s', 'f8'), ('elapsed_s', 'f8')]),
     )
-    return grouped_walking_splits_array
+    return grouped_walking_periods_array
 
 
-def get_paired_walking_splits_as_array(
+def get_paired_stride_splits_as_array(
     kinematic_time_series: np.ndarray,
     component: str = "x",
     n_start_remove: int = 0,
@@ -650,18 +650,18 @@ def get_paired_walking_splits_as_array(
     Returns:
         np.ndarray: Structured array with start, stop, and elapsed times.
     '''
-    paired_walking_splits = kinematics.get_paired_walking_splits(
+    paired_stride_splits = kinematics.get_paired_walking_splits(
         kinematic_time_series=kinematic_time_series,
         component=component,
         n_start_remove=n_start_remove,
         n_stop_remove=n_stop_remove,
         peak_kwargs=peak_kwargs,
     )
-    paired_walking_splits_array = np.array(
-        [(start, stop, stop - start) for start, stop in paired_walking_splits],
+    paired_stride_splits_array = np.array(
+        [(start, stop, stop - start) for start, stop in paired_stride_splits],
         dtype=np.dtype([('start_s', 'f8'), ('stop_s', 'f8'), ('elapsed_s', 'f8')]),
     )
-    return paired_walking_splits_array
+    return paired_stride_splits_array
 
 
 def list_files(directory, include=None, exclude=None):
