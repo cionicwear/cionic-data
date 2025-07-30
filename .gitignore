@@ -78,6 +78,9 @@ docs/_build/
 # token file
 token.json
 
+# private yml files
+private-*.yml
+
 # recordings
 recordings/*
 !recordings/README.md
