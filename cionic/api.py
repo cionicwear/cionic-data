@@ -13,7 +13,7 @@ import zipfile
 import numpy as np
 import requests
 
-from cionic import json2npy, npz_utils, segmenter, tools
+from cionic import json2npy, kinematics, npz_utils, segmenter, tools
 
 apiver = '0.22'
 server = None
@@ -393,11 +393,8 @@ def download_npz(
         return
     if include_eulers:
         include_eulers_to_npz(destpath)
-    if include_gait_splits:
-        # TODO: Implement gait splits processing
-        raise NotImplementedError(
-            "The 'include_gait_splits' functionality is not yet implemented."
-        )
+    if include_eulers and include_gait_splits:
+        include_gait_splits_to_npz(destpath)
 
 
 def download_files(urlpath, directory, include=None, exclude=None, ver=apiver):
@@ -493,6 +490,158 @@ def include_eulers_to_npz(destpath: str) -> None:
 
     array_dict = {**limb_eulers, **joint_eulers, 'segments': updated_segments}
     add_arrays_to_npz_and_store(npz, array_dict, destpath)
+
+
+def include_gait_splits_to_npz(destpath: str) -> None:
+    '''
+    Loads a NumPy .npz file from the specified path, computes gait split arrays and
+    updated segments, and adds them to the .npz file.
+
+    Args:
+        destpath (str): The file path to the .npz file to be updated.
+
+    Returns:
+        None
+
+    Raises:
+        FileNotFoundError: If the specified file does not exist.
+    '''
+    try:
+        npz = np.load(destpath)
+    except FileNotFoundError:
+        print(f"File {destpath} not found.", file=sys.stderr)
+        return
+
+    new_files, updated_segments = get_splits_arrays_and_segments(npz=npz)
+
+    array_dict = {**new_files, 'segments': updated_segments}
+    add_arrays_to_npz_and_store(npz, array_dict, destpath)
+
+
+def get_splits_arrays_and_segments(
+    npz: np.lib.npyio.NpzFile,
+) -> tuple[dict[str, np.ndarray], np.ndarray]:
+    '''
+    Processes segments in the given npz file, generating new arrays and segments
+    for walking intervals and paired walking splits based on segment properties.
+
+    Args:
+        npz (np.lib.npyio.NpzFile): NPZ file containing 'segments' and time series.
+
+    Returns:
+        tuple[dict[str, np.ndarray], np.ndarray]: A dictionary of new arrays keyed
+        by path, and an updated array of segments.
+    '''
+    new_files = {}
+    new_segments = []
+    for segment in npz['segments']:
+        is_shank = '_shank' in segment['position']
+        is_thigh = '_thigh' in segment['position']
+        is_euler = segment['stream'] == 'euler'
+
+        if is_shank and is_euler:
+            grouped_walking_intervals = get_grouped_walking_splits_as_array(
+                kinematic_time_series=npz[segment['path']],
+            )
+            path = f'{segment["device"]}_walking_intervals'
+            new_files[path] = grouped_walking_intervals
+
+            new_segment = np.zeros((), dtype=segment.dtype)
+            new_segment['path'] = path
+            new_segment['position'] = segment['position']
+            new_segment['device'] = segment['device']
+            new_segment['stream'] = 'intervals'
+            new_segments.append(new_segment)
+
+        if (is_shank or is_thigh) and is_euler:
+            paired_walking_splits = get_paired_walking_splits_as_array(
+                kinematic_time_series=npz[segment['path']],
+                component="x",
+                n_start_remove=0,
+                n_stop_remove=0,
+            )
+            path = f'{segment["device"]}_paired_walking_splits'
+            new_files[path] = paired_walking_splits
+
+            new_segment = np.zeros((), dtype=segment.dtype)
+            new_segment['path'] = path
+            new_segment['position'] = segment['position']
+            new_segment['device'] = segment['device']
+            new_segment['stream'] = 'intervals'
+            new_segments.append(new_segment)
+
+    updated_segments = np.concatenate(
+        [
+            npz_utils.change_segments_column_dtype(npz['segments']),
+            new_segments,
+        ]
+    )
+    return new_files, updated_segments
+
+
+def get_grouped_walking_splits_as_array(
+    kinematic_time_series: np.ndarray,
+    component: str = "x",
+    peak_kwargs: dict = None,
+) -> np.ndarray:
+    '''
+    Convert grouped walking splits from time series into a structured NumPy array.
+
+    Args:
+        kinematic_time_series (np.ndarray): Input time series data.
+        component (str): Component to analyze (default "x").
+        peak_kwargs (dict, optional): Arguments for peak detection.
+
+    Returns:
+        np.ndarray: Structured array with start, stop, and elapsed times.
+    '''
+    grouped_walking_splits = kinematics.get_grouped_walking_splits(
+        kinematic_time_series=kinematic_time_series,
+        component=component,
+        peak_kwargs=peak_kwargs,
+    )
+    grouped_walking_splits_array = np.array(
+        [
+            (group[0], group[-1], group[-1] - group[0])
+            for group in grouped_walking_splits
+        ],
+        dtype=np.dtype([('start_s', 'f8'), ('stop_s', 'f8'), ('elapsed_s', 'f8')]),
+    )
+    return grouped_walking_splits_array
+
+
+def get_paired_walking_splits_as_array(
+    kinematic_time_series: np.ndarray,
+    component: str = "x",
+    n_start_remove: int = 0,
+    n_stop_remove: int = 0,
+    peak_kwargs: dict = None,
+) -> np.ndarray:
+    '''
+    Convert paired walking splits from time series into a structured NumPy array.
+
+    Args:
+        kinematic_time_series (np.ndarray): Input time series data.
+        component (str): Component to analyze (default "x").
+        n_start_remove (int): Number of splits to remove from start.
+        n_stop_remove (int): Number of splits to remove from end.
+        peak_kwargs (dict, optional): Arguments for peak detection.
+
+    Returns:
+        np.ndarray: Structured array with start, stop, and elapsed times.
+    '''
+    paired_walking_splits = kinematics.get_paired_walking_splits(
+        kinematic_time_series=kinematic_time_series,
+        component=component,
+        n_start_remove=n_start_remove,
+        n_stop_remove=n_stop_remove,
+        peak_kwargs=peak_kwargs,
+    )
+    paired_walking_splits_array = np.array(
+        [(start, stop, stop - start) for start, stop in paired_walking_splits],
+        dtype=np.dtype([('start_s', 'f8'), ('stop_s', 'f8'), ('elapsed_s', 'f8')]),
+    )
+    return paired_walking_splits_array
 
 
 def list_files(directory, include=None, exclude=None):
