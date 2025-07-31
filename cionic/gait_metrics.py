@@ -555,21 +555,16 @@ class GaitMetricsCalculator:
         all_strides_metrics_list = []
         for stride in self.stride_splits:
             # Extract relevant data for the current stride
-            start_s = stride['start_s']
-            stop_s = stride['stop_s']
-
             stride_data = self.stream[
-                (self.stream['elapsed_s'] >= start_s)
-                & (self.stream['elapsed_s'] <= stop_s)
+                (self.stream['elapsed_s'] >= stride['start_s'])
+                & (self.stream['elapsed_s'] <= stride['stop_s'])
             ]
-
-            stride_metrics = {metric.value: None for metric in metrics}
-            stride_metrics = {
-                **{'start_s': start_s, 'stop_s': stop_s},
-                **stride_metrics,
-            }
-
             toe_off_time = self._get_toe_off_time(stride_data)
+
+            stride_metrics = {
+                **{'start_s': stride['start_s'], 'stop_s': stride['stop_s']},
+                **{metric.value: None for metric in metrics},
+            }
             for metric in metrics:
                 if metric == Metric.STRIDE_TIME:
                     stride_metrics[metric.value] = compute_stride_time(stride_data)
@@ -639,7 +634,6 @@ class GaitMetricsCalculator:
                     stride_metrics[metric.value] = compute_swing_std_value(
                         stride_data, toe_off_time, self.meta.component
                     )
-
             all_strides_metrics_list.append(stride_metrics)
         all_strides_metrics = pd.DataFrame(all_strides_metrics_list)
         if output_path is not None:
