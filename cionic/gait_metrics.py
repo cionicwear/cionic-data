@@ -11,8 +11,9 @@ Output:
     CSV file containing gait metrics for each stride. Each row is a stride with
     columns for start time, stop time, elapsed time, and the calculated metrics.
 
-Filename:
-    {study}_{collection_num}_{position}_{stream}_{component}_gait_metrics.csv
+Filename structure:
+    {output_path}/{study}_{collection_num}_{position}_
+    {stream}_{component}_gait_metrics.csv
 
 Metrics:
     - stride_time: Duration of the stride.
@@ -35,6 +36,8 @@ Metrics:
     - swing_std_value: Standard deviation of the component during the swing phase.
 """
 
+import os
+from dataclasses import dataclass
 from enum import Enum
 
 import numpy as np
@@ -140,7 +143,7 @@ def compute_stance_mean_value(stride_data, toe_off_time, component='x'):
     stance_data = stride_data[stride_data['elapsed_s'] <= toe_off_time]
     if stance_data.shape[0] == 0:
         return None
-    return stance_data[component].mean()
+    return compute_mean_value(stance_data, component)
 
 
 def compute_stance_median_value(stride_data, toe_off_time, component='x'):
@@ -149,7 +152,7 @@ def compute_stance_median_value(stride_data, toe_off_time, component='x'):
     stance_data = stride_data[stride_data['elapsed_s'] <= toe_off_time]
     if stance_data.shape[0] == 0:
         return None
-    return np.median(stance_data[component])
+    return compute_median_value(stance_data, component)
 
 
 def compute_stance_std_value(stride_data, toe_off_time, component='x'):
@@ -158,7 +161,7 @@ def compute_stance_std_value(stride_data, toe_off_time, component='x'):
     stance_data = stride_data[stride_data['elapsed_s'] <= toe_off_time]
     if stance_data.shape[0] == 0:
         return None
-    return stance_data[component].std()
+    return compute_std_value(stance_data, component)
 
 
 def compute_swing_time(stride_data, toe_off_time):
@@ -173,7 +176,7 @@ def compute_swing_mean_value(stride_data, toe_off_time, component='x'):
     swing_data = stride_data[stride_data['elapsed_s'] > toe_off_time]
     if swing_data.shape[0] == 0:
         return None
-    return swing_data[component].mean()
+    return compute_mean_value(swing_data, component)
 
 
 def compute_swing_median_value(stride_data, toe_off_time, component='x'):
@@ -182,7 +185,7 @@ def compute_swing_median_value(stride_data, toe_off_time, component='x'):
     swing_data = stride_data[stride_data['elapsed_s'] > toe_off_time]
     if swing_data.shape[0] == 0:
         return None
-    return np.median(swing_data[component])
+    return compute_median_value(swing_data, component)
 
 
 def compute_swing_std_value(stride_data, toe_off_time, component='x'):
@@ -191,7 +194,17 @@ def compute_swing_std_value(stride_data, toe_off_time, component='x'):
     swing_data = stride_data[stride_data['elapsed_s'] > toe_off_time]
     if swing_data.shape[0] == 0:
         return None
-    return swing_data[component].std()
+    return compute_std_value(swing_data, component)
+
+
+@dataclass
+class Metadata:
+    orgid: str
+    study: str
+    collection_num: int
+    position: int
+    stream_name: str
+    component: str
 
 
 class GaitMetricsCalculator:
@@ -199,15 +212,13 @@ class GaitMetricsCalculator:
         self,
         stream,
         stride_splits,
-        segment,
-        component='x',
+        meta,
         toe_off_times=None,
         shank_stream=None,
     ):
         self.stream = stream
         self.stride_splits = stride_splits
-        self.segment = segment
-        self.component = component
+        self.meta = meta
         if toe_off_times is not None:
             self.toe_off_times = toe_off_times
         elif shank_stream is not None:
@@ -236,6 +247,8 @@ class GaitMetricsCalculator:
         return None
 
     def calculate_metrics(self, metrics=None, output_path=None):
+        if metrics is None:
+            metrics = list(Metric)
 
         all_strides_metrics_list = []
         for stride in self.stride_splits:
@@ -247,9 +260,6 @@ class GaitMetricsCalculator:
                 (self.stream['elapsed_s'] >= start_s)
                 & (self.stream['elapsed_s'] <= stop_s)
             ]
-
-            if metrics is None:
-                metrics = list(Metric)
 
             stride_metrics = {
                 metric.value: None for metric in metrics
@@ -263,35 +273,35 @@ class GaitMetricsCalculator:
                     stride_metrics[metric.value] = compute_cadence(stride_data)
                 elif metric == Metric.PEAK_VALUE:
                     stride_metrics[metric.value] = compute_peak_value(
-                        stride_data, self.component
+                        stride_data, self.meta.component
                     )
                 elif metric == Metric.TROUGH_VALUE:
                     stride_metrics[metric.value] = compute_trough_value(
-                        stride_data, self.component
+                        stride_data, self.meta.component
                     )
                 elif metric == Metric.START_HEEL_STRIKE_VALUE:
                     stride_metrics[metric.value] = compute_start_heel_strike_value(
-                        stride_data, self.component
+                        stride_data, self.meta.component
                     )
                 elif metric == Metric.STOP_HEEL_STRIKE_VALUE:
                     stride_metrics[metric.value] = compute_stop_heel_strike_value(
-                        stride_data, self.component
+                        stride_data, self.meta.component
                     )
                 elif metric == Metric.MEAN_VALUE:
                     stride_metrics[metric.value] = compute_mean_value(
-                        stride_data, self.component
+                        stride_data, self.meta.component
                     )
                 elif metric == Metric.MEDIAN_VALUE:
                     stride_metrics[metric.value] = compute_median_value(
-                        stride_data, self.component
+                        stride_data, self.meta.component
                     )
                 elif metric == Metric.STD_VALUE:
                     stride_metrics[metric.value] = compute_std_value(
-                        stride_data, self.component
+                        stride_data, self.meta.component
                     )
                 elif metric == Metric.TOE_OFF_VALUE and toe_off_time is not None:
                     stride_metrics[metric.value] = compute_toe_off_value(
-                        stride_data, toe_off_time, self.component
+                        stride_data, toe_off_time, self.meta.component
                     )
                 elif metric == Metric.STANCE_TIME and toe_off_time is not None:
                     stride_metrics[metric.value] = compute_stance_time(
@@ -299,15 +309,15 @@ class GaitMetricsCalculator:
                     )
                 elif metric == Metric.STANCE_MEAN_VALUE and toe_off_time is not None:
                     stride_metrics[metric.value] = compute_stance_mean_value(
-                        stride_data, toe_off_time, self.component
+                        stride_data, toe_off_time, self.meta.component
                     )
                 elif metric == Metric.STANCE_MEDIAN_VALUE and toe_off_time is not None:
                     stride_metrics[metric.value] = compute_stance_median_value(
-                        stride_data, toe_off_time, self.component
+                        stride_data, toe_off_time, self.meta.component
                     )
                 elif metric == Metric.STANCE_STD_VALUE and toe_off_time is not None:
                     stride_metrics[metric.value] = compute_stance_std_value(
-                        stride_data, toe_off_time, self.component
+                        stride_data, toe_off_time, self.meta.component
                     )
                 elif metric == Metric.SWING_TIME and toe_off_time is not None:
                     stride_metrics[metric.value] = compute_swing_time(
@@ -315,19 +325,27 @@ class GaitMetricsCalculator:
                     )
                 elif metric == Metric.SWING_MEAN_VALUE and toe_off_time is not None:
                     stride_metrics[metric.value] = compute_swing_mean_value(
-                        stride_data, toe_off_time, self.component
+                        stride_data, toe_off_time, self.meta.component
                     )
                 elif metric == Metric.SWING_MEDIAN_VALUE and toe_off_time is not None:
                     stride_metrics[metric.value] = compute_swing_median_value(
-                        stride_data, toe_off_time, self.component
+                        stride_data, toe_off_time, self.meta.component
                     )
                 elif metric == Metric.SWING_STD_VALUE and toe_off_time is not None:
                     stride_metrics[metric.value] = compute_swing_std_value(
-                        stride_data, toe_off_time, self.component
+                        stride_data, toe_off_time, self.meta.component
                     )
 
             all_strides_metrics_list.append(stride_metrics)
         all_strides_metrics = pd.DataFrame(all_strides_metrics_list)
         if output_path is not None:
-            all_strides_metrics.to_csv(output_path, index=False)
+            if not os.path.exists(output_path):
+                os.makedirs(output_path)
+            file_path = (
+                f"{output_path}/{self.meta.orgid}_"
+                f"{self.meta.study}_{self.meta.collection_num}_"
+                f"{self.meta.position}_{self.meta.stream_name}_"
+                f"{self.meta.component}_gait_metrics.csv"
+            )
+            all_strides_metrics.to_csv(file_path, index=True)
         return all_strides_metrics
