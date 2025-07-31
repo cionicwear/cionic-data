@@ -12,7 +12,10 @@ optional metadata. The module extracts stride segments, computes metrics such as
 stride time, cadence, peak/trough values, and stance/swing phase statistics, and
 saves the results to disk for further analysis.
 
-Usage Example:
+Usage Example (CLI):
+    python3 tests/test_metrics_calculator.py
+
+Usage Example (Code):
 
     metrics_calculator = gait_metrics.GaitMetricsCalculator(
         stream=kinematic_data_stream,
@@ -635,6 +638,7 @@ class GaitMetricsCalculator:
                         stride_data, toe_off_time, self.meta.component
                     )
             all_strides_metrics_list.append(stride_metrics)
+            break
         all_strides_metrics = pd.DataFrame(all_strides_metrics_list)
         if output_path is not None:
             self._output_metrics_to_csv(all_strides_metrics, output_path)
