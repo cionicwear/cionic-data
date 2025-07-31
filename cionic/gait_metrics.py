@@ -638,7 +638,7 @@ class GaitMetricsCalculator:
                         stride_data, toe_off_time, self.meta.component
                     )
             all_strides_metrics_list.append(stride_metrics)
-            break
+
         all_strides_metrics = pd.DataFrame(all_strides_metrics_list)
         if output_path is not None:
             self._output_metrics_to_csv(all_strides_metrics, output_path)
