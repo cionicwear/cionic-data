@@ -68,13 +68,13 @@ class Metric(Enum):
     SWING_STD_VALUE = 'swing_std_value'
 
 
-def compute_stride_time(stride_data):
+def compute_stride_time(stride_data: np.ndarray) -> float:
     if stride_data.shape[0] == 0:
         return None
     return stride_data['elapsed_s'].max() - stride_data['elapsed_s'].min()
 
 
-def compute_cadence(stride_data):
+def compute_cadence(stride_data: np.ndarray) -> float:
     if stride_data.shape[0] == 0:
         return None
     duration = compute_stride_time(stride_data)
@@ -83,62 +83,72 @@ def compute_cadence(stride_data):
     return 60 / duration
 
 
-def compute_peak_value(stride_data, component='x'):
+def compute_peak_value(stride_data: np.ndarray, component: str = 'x') -> float:
     if stride_data.shape[0] == 0:
         return None
     return stride_data[component].max()
 
 
-def compute_trough_value(stride_data, component='x'):
+def compute_trough_value(stride_data: np.ndarray, component: str = 'x') -> float:
     if stride_data.shape[0] == 0:
         return None
     return stride_data[component].min()
 
 
-def compute_start_heel_strike_value(stride_data, component='x'):
+def compute_start_heel_strike_value(
+    stride_data: np.ndarray, component: str = 'x'
+) -> float:
     if stride_data.shape[0] == 0:
         return None
     return stride_data[0][component]
 
 
-def compute_stop_heel_strike_value(stride_data, component='x'):
+def compute_stop_heel_strike_value(
+    stride_data: np.ndarray, component: str = 'x'
+) -> float:
     if stride_data.shape[0] == 0:
         return None
     return stride_data[-1][component]
 
 
-def compute_mean_value(stride_data, component='x'):
+def compute_mean_value(stride_data: np.ndarray, component: str = 'x') -> float:
     if stride_data.shape[0] == 0:
         return None
     return stride_data[component].mean()
 
 
-def compute_median_value(stride_data, component='x'):
+def compute_median_value(stride_data: np.ndarray, component: str = 'x') -> float:
     if stride_data.shape[0] == 0:
         return None
     return np.median(stride_data[component])
 
 
-def compute_std_value(stride_data, component='x'):
+def compute_std_value(stride_data: np.ndarray, component: str = 'x') -> float:
     if stride_data.shape[0] == 0:
         return None
     return stride_data[component].std()
 
 
-def compute_toe_off_value(stride_data, toe_off_time, component='x'):
+def compute_toe_off_value(
+    stride_data: np.ndarray, toe_off_time: Optional[float], component: str = 'x'
+) -> float:
     if stride_data.shape[0] == 0 or toe_off_time is None:
         return None
     closest_index = np.abs(stride_data['elapsed_s'] - toe_off_time).argmin()
     return stride_data[closest_index][component]
 
 
-def compute_stance_time(stride_data, toe_off_time):
+def compute_stance_time(
+    stride_data: np.ndarray, toe_off_time: Optional[float]
+) -> float:
     if stride_data.shape[0] == 0 or toe_off_time is None:
         return None
     return toe_off_time - stride_data['elapsed_s'].min()
 
 
-def compute_stance_mean_value(stride_data, toe_off_time, component='x'):
+def compute_stance_mean_value(
+    stride_data: np.ndarray, toe_off_time: Optional[float], component: str = 'x'
+) -> float:
     if stride_data.shape[0] == 0 or toe_off_time is None:
         return None
     stance_data = stride_data[stride_data['elapsed_s'] <= toe_off_time]
@@ -147,7 +157,9 @@ def compute_stance_mean_value(stride_data, toe_off_time, component='x'):
     return compute_mean_value(stance_data, component)
 
 
-def compute_stance_median_value(stride_data, toe_off_time, component='x'):
+def compute_stance_median_value(
+    stride_data: np.ndarray, toe_off_time: Optional[float], component: str = 'x'
+) -> float:
     if stride_data.shape[0] == 0 or toe_off_time is None:
         return None
     stance_data = stride_data[stride_data['elapsed_s'] <= toe_off_time]
@@ -156,7 +168,9 @@ def compute_stance_median_value(stride_data, toe_off_time, component='x'):
     return compute_median_value(stance_data, component)
 
 
-def compute_stance_std_value(stride_data, toe_off_time, component='x'):
+def compute_stance_std_value(
+    stride_data: np.ndarray, toe_off_time: Optional[float], component: str = 'x'
+) -> float:
     if stride_data.shape[0] == 0 or toe_off_time is None:
         return None
     stance_data = stride_data[stride_data['elapsed_s'] <= toe_off_time]
@@ -165,13 +179,15 @@ def compute_stance_std_value(stride_data, toe_off_time, component='x'):
     return compute_std_value(stance_data, component)
 
 
-def compute_swing_time(stride_data, toe_off_time):
+def compute_swing_time(stride_data: np.ndarray, toe_off_time: Optional[float]) -> float:
     if stride_data.shape[0] == 0 or toe_off_time is None:
         return None
     return stride_data['elapsed_s'].max() - toe_off_time
 
 
-def compute_swing_mean_value(stride_data, toe_off_time, component='x'):
+def compute_swing_mean_value(
+    stride_data: np.ndarray, toe_off_time: Optional[float], component: str = 'x'
+) -> float:
     if stride_data.shape[0] == 0 or toe_off_time is None:
         return None
     swing_data = stride_data[stride_data['elapsed_s'] > toe_off_time]
@@ -180,7 +196,9 @@ def compute_swing_mean_value(stride_data, toe_off_time, component='x'):
     return compute_mean_value(swing_data, component)
 
 
-def compute_swing_median_value(stride_data, toe_off_time, component='x'):
+def compute_swing_median_value(
+    stride_data: np.ndarray, toe_off_time: Optional[float], component: str = 'x'
+) -> float:
     if stride_data.shape[0] == 0 or toe_off_time is None:
         return None
     swing_data = stride_data[stride_data['elapsed_s'] > toe_off_time]
@@ -189,7 +207,9 @@ def compute_swing_median_value(stride_data, toe_off_time, component='x'):
     return compute_median_value(swing_data, component)
 
 
-def compute_swing_std_value(stride_data, toe_off_time, component='x'):
+def compute_swing_std_value(
+    stride_data: np.ndarray, toe_off_time: Optional[float], component: str = 'x'
+) -> float:
     if stride_data.shape[0] == 0 or toe_off_time is None:
         return None
     swing_data = stride_data[stride_data['elapsed_s'] > toe_off_time]
@@ -211,12 +231,12 @@ class Metadata:
 class GaitMetricsCalculator:
     def __init__(
         self,
-        stream,
-        stride_splits,
-        meta,
-        toe_off_times=None,
-        shank_stream=None,
-    ):
+        stream: np.ndarray,
+        stride_splits: np.ndarray,
+        meta: Metadata,
+        toe_off_times: Optional[np.ndarray] = None,
+        shank_stream: Optional[np.ndarray] = None,
+    ) -> None:
         self.stream = stream
         self.stride_splits = stride_splits
         self.meta = meta
@@ -227,14 +247,14 @@ class GaitMetricsCalculator:
         else:
             self.toe_off_times = None
 
-    def compute_toe_offs(self, shank_stream):
+    def compute_toe_offs(self, shank_stream: np.ndarray) -> np.ndarray:
         grouped_toe_off_times = kinematics.get_grouped_walking_splits(
             shank_stream, factor=-1.0
         )
         toe_off_times = [item for sublist in grouped_toe_off_times for item in sublist]
         return np.array(toe_off_times)
 
-    def get_toe_off_time(self, stride_data):
+    def get_toe_off_time(self, stride_data: np.ndarray) -> Optional[float]:
         if self.toe_off_times is None:
             return None
         # Find the toe off time falling in the time range of the stride
@@ -247,7 +267,11 @@ class GaitMetricsCalculator:
                 return toe_off_time
         return None
 
-    def calculate_metrics(self, metrics=None, output_path=None):
+    def calculate_metrics(
+        self,
+        metrics: Optional[list[Metric]] = None,
+        output_path: Optional[str] = None,
+    ) -> pd.DataFrame:
         if metrics is None:
             metrics = list(Metric)
 
@@ -368,19 +392,19 @@ class GaitMetricsCalculator:
 
 
 def compute_gait_metrics(
-    stream,
-    stride_splits,
-    position,
-    stream_name,
-    component,
-    orgid=None,
-    study=None,
-    collection_num=None,
-    toe_off_times=None,
-    shank_stream=None,
-    metrics=None,
-    output_path=None,
-):
+    stream: np.ndarray,
+    stride_splits: np.ndarray,
+    position: int,
+    stream_name: str,
+    component: str,
+    orgid: Optional[str] = None,
+    study: Optional[str] = None,
+    collection_num: Optional[int] = None,
+    toe_off_times: Optional[np.ndarray] = None,
+    shank_stream: Optional[np.ndarray] = None,
+    metrics: Optional[list[Metric]] = None,
+    output_path: Optional[str] = None,
+) -> pd.DataFrame:
     metrics_calculator = GaitMetricsCalculator(
         stream=stream,
         stride_splits=stride_splits,
