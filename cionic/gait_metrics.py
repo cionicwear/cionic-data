@@ -262,9 +262,11 @@ class GaitMetricsCalculator:
                 & (self.stream['elapsed_s'] <= stop_s)
             ]
 
+            stride_metrics = {metric.value: None for metric in metrics}
             stride_metrics = {
-                metric.value: None for metric in metrics
-            }  # TODO: decide on this or initialize with {}
+                **{'start_s': start_s, 'stop_s': stop_s},
+                **stride_metrics,
+            }
 
             toe_off_time = self.get_toe_off_time(stride_data)
             for metric in metrics:
@@ -363,3 +365,36 @@ class GaitMetricsCalculator:
                 os.makedirs(output_path)
             all_strides_metrics.to_csv(file_path, index=True)
         return all_strides_metrics
+
+
+def compute_gait_metrics(
+    stream,
+    stride_splits,
+    position,
+    stream_name,
+    component,
+    orgid=None,
+    study=None,
+    collection_num=None,
+    toe_off_times=None,
+    shank_stream=None,
+    metrics=None,
+    output_path=None,
+):
+    metrics_calculator = GaitMetricsCalculator(
+        stream=stream,
+        stride_splits=stride_splits,
+        meta=Metadata(
+            position=position,
+            stream_name=stream_name,
+            component=component,
+            orgid=orgid,
+            study=study,
+            collection_num=collection_num,
+        ),
+        toe_off_times=toe_off_times,
+        shank_stream=shank_stream,
+    )
+    return metrics_calculator.calculate_metrics(
+        metrics=metrics, output_path=output_path
+    )
