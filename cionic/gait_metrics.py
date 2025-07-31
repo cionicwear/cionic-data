@@ -438,11 +438,11 @@ class GaitMetricsCalculator:
         if toe_off_times is not None:
             self.toe_off_times = toe_off_times
         elif shank_stream is not None:
-            self.toe_off_times = self.compute_toe_offs(shank_stream)
+            self.toe_off_times = self._compute_toe_offs(shank_stream)
         else:
             self.toe_off_times = None
 
-    def compute_toe_offs(self, shank_stream: np.ndarray) -> np.ndarray:
+    def _compute_toe_offs(self, shank_stream: np.ndarray) -> np.ndarray:
         """
         Compute toe off times from shank stream data.
 
@@ -458,7 +458,7 @@ class GaitMetricsCalculator:
         toe_off_times = [item for sublist in grouped_toe_off_times for item in sublist]
         return np.array(toe_off_times)
 
-    def get_toe_off_time(self, stride_data: np.ndarray) -> Optional[float]:
+    def _get_toe_off_time(self, stride_data: np.ndarray) -> Optional[float]:
         """
         Get the toe off time within the stride data range.
 
@@ -479,6 +479,38 @@ class GaitMetricsCalculator:
             ):
                 return toe_off_time
         return None
+
+    def _output_metrics_to_csv(
+        self, all_strides_metrics: pd.DataFrame, output_path: str
+    ) -> None:
+        """
+        Output the computed metrics DataFrame to a CSV file.
+
+        Args:
+            all_strides_metrics (pd.DataFrame): DataFrame containing the metrics.
+            output_path (str): Path to the output CSV file.
+        """
+        if self.meta.orgid and self.meta.study and self.meta.collection_num:
+            output_path = os.path.join(
+                output_path,
+                self.meta.orgid,
+                self.meta.study,
+                str(self.meta.collection_num),
+            )
+            file_path = (
+                f"{output_path}/{self.meta.orgid}_"
+                f"{self.meta.study}_{self.meta.collection_num}_"
+                f"{self.meta.position}_{self.meta.stream_name}_"
+                f"{self.meta.component}_gait_metrics.csv"
+            )
+        else:
+            file_path = (
+                f"{output_path}/{self.meta.position}_{self.meta.stream_name}_"
+                f"{self.meta.component}_gait_metrics.csv"
+            )
+        if not os.path.exists(output_path):
+            os.makedirs(output_path)
+        all_strides_metrics.to_csv(file_path, index=True)
 
     def calculate_metrics(
         self,
@@ -515,7 +547,7 @@ class GaitMetricsCalculator:
                 **stride_metrics,
             }
 
-            toe_off_time = self.get_toe_off_time(stride_data)
+            toe_off_time = self._get_toe_off_time(stride_data)
             for metric in metrics:
                 if metric == Metric.STRIDE_TIME:
                     stride_metrics[metric.value] = compute_stride_time(stride_data)
@@ -589,28 +621,8 @@ class GaitMetricsCalculator:
             all_strides_metrics_list.append(stride_metrics)
         all_strides_metrics = pd.DataFrame(all_strides_metrics_list)
         if output_path is not None:
+            self._output_metrics_to_csv(all_strides_metrics, output_path)
 
-            if self.meta.orgid and self.meta.study and self.meta.collection_num:
-                output_path = os.path.join(
-                    output_path,
-                    self.meta.orgid,
-                    self.meta.study,
-                    str(self.meta.collection_num),
-                )
-                file_path = (
-                    f"{output_path}/{self.meta.orgid}_"
-                    f"{self.meta.study}_{self.meta.collection_num}_"
-                    f"{self.meta.position}_{self.meta.stream_name}_"
-                    f"{self.meta.component}_gait_metrics.csv"
-                )
-            else:
-                file_path = (
-                    f"{output_path}/{self.meta.position}_{self.meta.stream_name}_"
-                    f"{self.meta.component}_gait_metrics.csv"
-                )
-            if not os.path.exists(output_path):
-                os.makedirs(output_path)
-            all_strides_metrics.to_csv(file_path, index=True)
         return all_strides_metrics
 
 
