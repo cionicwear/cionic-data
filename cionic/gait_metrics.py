@@ -1,39 +1,61 @@
 """
-Arguments:
-    stream: Kinematics input data for which gait metrics need to be calculated.
-    stride_splits: Array of stride splits, each containing start and stop times.
-    toe_off_times: [Optional] Array of toe off timestamps with shape (n_toe_offs,).
-        Compute inside class if not provided.
-    component: Component of the stream to analyze, e.g. 'x', 'knee_flexion'.
-    segment: Metadata segment to use for analysis.
+This module provides tools for calculating gait metrics from kinematic data streams.
+
+It processes stride-based movement data, computes a variety of temporal and spatial
+metrics for each stride, and outputs results in a structured CSV format. The module
+supports flexible metric selection, stride segmentation, and optional toe-off event
+detection. It is designed for use in gait analysis studies, biomechanics research,
+and clinical movement assessments.
+
+Typical usage involves providing a kinematic data stream, stride boundaries, and
+optional metadata. The module extracts stride segments, computes metrics such as
+stride time, cadence, peak/trough values, and stance/swing phase statistics, and
+saves the results to disk for further analysis.
+
+Usage Example:
+
+    metrics_calculator = gait_metrics.GaitMetricsCalculator(
+        stream=kinematic_data_stream,
+        stride_splits=stride_splits,
+        shank_stream=kinematic_shank_stream,
+        meta=gait_metrics.Metadata(
+            orgid=orgid,
+            study=study,
+            collection_num=collection_num,
+            position='r_shank',
+            stream_name='euler',
+            component='x',
+        ),
+    )
+    metrics_df = metrics_calculator.calculate_metrics(output_path="recordings")
 
 Output:
-    CSV file containing gait metrics for each stride. Each row is a stride with
-    columns for start time, stop time, elapsed time, and the calculated metrics.
+    CSV file containing gait metrics for each stride. Each row represents a stride
+    with columns for start time, stop time, elapsed time, and computed metrics.
 
 Filename structure:
     {output_path}/{study}_{collection_num}_{position}_
     {stream}_{component}_gait_metrics.csv
 
-Metrics:
+Available metrics include:
     - stride_time: Duration of the stride.
     - cadence: Steps per minute.
-    - peak_value: Peak value of the specified component during the stride.
-    - trough_value: Trough value of the specified component during the stride.
-    - start_heel_strike_value: Value of the component at the start of the stride.
-    - stop_heel_strike_value: Value of the component at the end of the stride.
-    - mean_value: Mean value of the component during the stride.
-    - median_value: Median value of the component during the stride.
-    - std_value: Standard deviation of the component during the stride.
-    - toe_off_value: Value of the component at the toe off time.
+    - peak_value: Maximum value of the component during the stride.
+    - trough_value: Minimum value of the component during the stride.
+    - start_heel_strike_value: Value at the start of the stride.
+    - stop_heel_strike_value: Value at the end of the stride.
+    - mean_value: Mean value during the stride.
+    - median_value: Median value during the stride.
+    - std_value: Standard deviation during the stride.
+    - toe_off_value: Value at the toe-off event.
     - stance_time: Duration of the stance phase.
-    - stance_mean_value: Mean value of the component during the stance phase.
-    - stance_median_value: Median value of the component during the stance phase.
-    - stance_std_value: Standard deviation of the component during the stance phase.
+    - stance_mean_value: Mean value during stance phase.
+    - stance_median_value: Median value during stance phase.
+    - stance_std_value: Standard deviation during stance phase.
     - swing_time: Duration of the swing phase.
-    - swing_mean_value: Mean value of the component during the swing phase.
-    - swing_median_value: Median value of the component during the swing phase.
-    - swing_std_value: Standard deviation of the component during the swing phase.
+    - swing_mean_value: Mean value during swing phase.
+    - swing_median_value: Median value during swing phase.
+    - swing_std_value: Standard deviation during swing phase.
 """
 
 import os
