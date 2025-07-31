@@ -69,12 +69,30 @@ class Metric(Enum):
 
 
 def compute_stride_time(stride_data: np.ndarray) -> float:
+    """
+    Compute the stride time for the given stride data.
+
+    Args:
+        stride_data (np.ndarray): Array of stride data.
+
+    Returns:
+        float: Duration of the stride, or None if data is empty.
+    """
     if stride_data.shape[0] == 0:
         return None
     return stride_data['elapsed_s'].max() - stride_data['elapsed_s'].min()
 
 
 def compute_cadence(stride_data: np.ndarray) -> float:
+    """
+    Compute cadence (steps per minute) for the stride data.
+
+    Args:
+        stride_data (np.ndarray): Array of stride data.
+
+    Returns:
+        float: Cadence value, or None if data is empty or duration is zero.
+    """
     if stride_data.shape[0] == 0:
         return None
     duration = compute_stride_time(stride_data)
@@ -84,12 +102,32 @@ def compute_cadence(stride_data: np.ndarray) -> float:
 
 
 def compute_peak_value(stride_data: np.ndarray, component: str = 'x') -> float:
+    """
+    Compute the peak value of a component during the stride.
+
+    Args:
+        stride_data (np.ndarray): Array of stride data.
+        component (str): Component name to analyze.
+
+    Returns:
+        float: Peak value, or None if data is empty.
+    """
     if stride_data.shape[0] == 0:
         return None
     return stride_data[component].max()
 
 
 def compute_trough_value(stride_data: np.ndarray, component: str = 'x') -> float:
+    """
+    Compute the trough value of a component during the stride.
+
+    Args:
+        stride_data (np.ndarray): Array of stride data.
+        component (str): Component name to analyze.
+
+    Returns:
+        float: Trough value, or None if data is empty.
+    """
     if stride_data.shape[0] == 0:
         return None
     return stride_data[component].min()
@@ -98,6 +136,16 @@ def compute_trough_value(stride_data: np.ndarray, component: str = 'x') -> float
 def compute_start_heel_strike_value(
     stride_data: np.ndarray, component: str = 'x'
 ) -> float:
+    """
+    Get the value of a component at the start of the stride.
+
+    Args:
+        stride_data (np.ndarray): Array of stride data.
+        component (str): Component name to analyze.
+
+    Returns:
+        float: Value at start, or None if data is empty.
+    """
     if stride_data.shape[0] == 0:
         return None
     return stride_data[0][component]
@@ -106,24 +154,64 @@ def compute_start_heel_strike_value(
 def compute_stop_heel_strike_value(
     stride_data: np.ndarray, component: str = 'x'
 ) -> float:
+    """
+    Get the value of a component at the end of the stride.
+
+    Args:
+        stride_data (np.ndarray): Array of stride data.
+        component (str): Component name to analyze.
+
+    Returns:
+        float: Value at end, or None if data is empty.
+    """
     if stride_data.shape[0] == 0:
         return None
     return stride_data[-1][component]
 
 
 def compute_mean_value(stride_data: np.ndarray, component: str = 'x') -> float:
+    """
+    Compute the mean value of a component during the stride.
+
+    Args:
+        stride_data (np.ndarray): Array of stride data.
+        component (str): Component name to analyze.
+
+    Returns:
+        float: Mean value, or None if data is empty.
+    """
     if stride_data.shape[0] == 0:
         return None
     return stride_data[component].mean()
 
 
 def compute_median_value(stride_data: np.ndarray, component: str = 'x') -> float:
+    """
+    Compute the median value of a component during the stride.
+
+    Args:
+        stride_data (np.ndarray): Array of stride data.
+        component (str): Component name to analyze.
+
+    Returns:
+        float: Median value, or None if data is empty.
+    """
     if stride_data.shape[0] == 0:
         return None
     return np.median(stride_data[component])
 
 
 def compute_std_value(stride_data: np.ndarray, component: str = 'x') -> float:
+    """
+    Compute the standard deviation of a component during the stride.
+
+    Args:
+        stride_data (np.ndarray): Array of stride data.
+        component (str): Component name to analyze.
+
+    Returns:
+        float: Standard deviation, or None if data is empty.
+    """
     if stride_data.shape[0] == 0:
         return None
     return stride_data[component].std()
@@ -132,6 +220,17 @@ def compute_std_value(stride_data: np.ndarray, component: str = 'x') -> float:
 def compute_toe_off_value(
     stride_data: np.ndarray, toe_off_time: Optional[float], component: str = 'x'
 ) -> float:
+    """
+    Get the value of a component at the toe off time.
+
+    Args:
+        stride_data (np.ndarray): Array of stride data.
+        toe_off_time (float): Toe off timestamp.
+        component (str): Component name to analyze.
+
+    Returns:
+        float: Value at toe off, or None if data is empty or time is None.
+    """
     if stride_data.shape[0] == 0 or toe_off_time is None:
         return None
     closest_index = np.abs(stride_data['elapsed_s'] - toe_off_time).argmin()
@@ -141,6 +240,16 @@ def compute_toe_off_value(
 def compute_stance_time(
     stride_data: np.ndarray, toe_off_time: Optional[float]
 ) -> float:
+    """
+    Compute the duration of the stance phase for the stride.
+
+    Args:
+        stride_data (np.ndarray): Array of stride data.
+        toe_off_time (float): Toe off timestamp.
+
+    Returns:
+        float: Stance duration, or None if data is empty or time is None.
+    """
     if stride_data.shape[0] == 0 or toe_off_time is None:
         return None
     return toe_off_time - stride_data['elapsed_s'].min()
@@ -149,6 +258,17 @@ def compute_stance_time(
 def compute_stance_mean_value(
     stride_data: np.ndarray, toe_off_time: Optional[float], component: str = 'x'
 ) -> float:
+    """
+    Compute mean value of a component during the stance phase.
+
+    Args:
+        stride_data (np.ndarray): Array of stride data.
+        toe_off_time (float): Toe off timestamp.
+        component (str): Component name to analyze.
+
+    Returns:
+        float: Mean value, or None if data is empty or time is None.
+    """
     if stride_data.shape[0] == 0 or toe_off_time is None:
         return None
     stance_data = stride_data[stride_data['elapsed_s'] <= toe_off_time]
@@ -160,6 +280,17 @@ def compute_stance_mean_value(
 def compute_stance_median_value(
     stride_data: np.ndarray, toe_off_time: Optional[float], component: str = 'x'
 ) -> float:
+    """
+    Compute median value of a component during the stance phase.
+
+    Args:
+        stride_data (np.ndarray): Array of stride data.
+        toe_off_time (float): Toe off timestamp.
+        component (str): Component name to analyze.
+
+    Returns:
+        float: Median value, or None if data is empty or time is None.
+    """
     if stride_data.shape[0] == 0 or toe_off_time is None:
         return None
     stance_data = stride_data[stride_data['elapsed_s'] <= toe_off_time]
@@ -171,6 +302,17 @@ def compute_stance_median_value(
 def compute_stance_std_value(
     stride_data: np.ndarray, toe_off_time: Optional[float], component: str = 'x'
 ) -> float:
+    """
+    Compute standard deviation of a component during the stance phase.
+
+    Args:
+        stride_data (np.ndarray): Array of stride data.
+        toe_off_time (float): Toe off timestamp.
+        component (str): Component name to analyze.
+
+    Returns:
+        float: Standard deviation, or None if data is empty or time is None.
+    """
     if stride_data.shape[0] == 0 or toe_off_time is None:
         return None
     stance_data = stride_data[stride_data['elapsed_s'] <= toe_off_time]
@@ -180,6 +322,16 @@ def compute_stance_std_value(
 
 
 def compute_swing_time(stride_data: np.ndarray, toe_off_time: Optional[float]) -> float:
+    """
+    Compute the duration of the swing phase for the stride.
+
+    Args:
+        stride_data (np.ndarray): Array of stride data.
+        toe_off_time (float): Toe off timestamp.
+
+    Returns:
+        float: Swing duration, or None if data is empty or time is None.
+    """
     if stride_data.shape[0] == 0 or toe_off_time is None:
         return None
     return stride_data['elapsed_s'].max() - toe_off_time
@@ -188,6 +340,17 @@ def compute_swing_time(stride_data: np.ndarray, toe_off_time: Optional[float]) -
 def compute_swing_mean_value(
     stride_data: np.ndarray, toe_off_time: Optional[float], component: str = 'x'
 ) -> float:
+    """
+    Compute mean value of a component during the swing phase.
+
+    Args:
+        stride_data (np.ndarray): Array of stride data.
+        toe_off_time (float): Toe off timestamp.
+        component (str): Component name to analyze.
+
+    Returns:
+        float: Mean value, or None if data is empty or time is None.
+    """
     if stride_data.shape[0] == 0 or toe_off_time is None:
         return None
     swing_data = stride_data[stride_data['elapsed_s'] > toe_off_time]
@@ -199,6 +362,17 @@ def compute_swing_mean_value(
 def compute_swing_median_value(
     stride_data: np.ndarray, toe_off_time: Optional[float], component: str = 'x'
 ) -> float:
+    """
+    Compute median value of a component during the swing phase.
+
+    Args:
+        stride_data (np.ndarray): Array of stride data.
+        toe_off_time (float): Toe off timestamp.
+        component (str): Component name to analyze.
+
+    Returns:
+        float: Median value, or None if data is empty or time is None.
+    """
     if stride_data.shape[0] == 0 or toe_off_time is None:
         return None
     swing_data = stride_data[stride_data['elapsed_s'] > toe_off_time]
@@ -210,6 +384,17 @@ def compute_swing_median_value(
 def compute_swing_std_value(
     stride_data: np.ndarray, toe_off_time: Optional[float], component: str = 'x'
 ) -> float:
+    """
+    Compute standard deviation of a component during the swing phase.
+
+    Args:
+        stride_data (np.ndarray): Array of stride data.
+        toe_off_time (float): Toe off timestamp.
+        component (str): Component name to analyze.
+
+    Returns:
+        float: Standard deviation, or None if data is empty or time is None.
+    """
     if stride_data.shape[0] == 0 or toe_off_time is None:
         return None
     swing_data = stride_data[stride_data['elapsed_s'] > toe_off_time]
@@ -237,6 +422,16 @@ class GaitMetricsCalculator:
         toe_off_times: Optional[np.ndarray] = None,
         shank_stream: Optional[np.ndarray] = None,
     ) -> None:
+        """
+        Initialize the GaitMetricsCalculator with input data and metadata.
+
+        Args:
+            stream (np.ndarray): Kinematics input data.
+            stride_splits (np.ndarray): Array of stride splits.
+            meta (Metadata): Metadata for analysis.
+            toe_off_times (np.ndarray, optional): Toe off timestamps.
+            shank_stream (np.ndarray, optional): Shank stream data.
+        """
         self.stream = stream
         self.stride_splits = stride_splits
         self.meta = meta
@@ -248,6 +443,15 @@ class GaitMetricsCalculator:
             self.toe_off_times = None
 
     def compute_toe_offs(self, shank_stream: np.ndarray) -> np.ndarray:
+        """
+        Compute toe off times from shank stream data.
+
+        Args:
+            shank_stream (np.ndarray): Shank stream data.
+
+        Returns:
+            np.ndarray: Array of toe off timestamps.
+        """
         grouped_toe_off_times = kinematics.get_grouped_walking_splits(
             shank_stream, factor=-1.0
         )
@@ -255,6 +459,15 @@ class GaitMetricsCalculator:
         return np.array(toe_off_times)
 
     def get_toe_off_time(self, stride_data: np.ndarray) -> Optional[float]:
+        """
+        Get the toe off time within the stride data range.
+
+        Args:
+            stride_data (np.ndarray): Array of stride data.
+
+        Returns:
+            float: Toe off timestamp, or None if not found.
+        """
         if self.toe_off_times is None:
             return None
         # Find the toe off time falling in the time range of the stride
@@ -272,6 +485,16 @@ class GaitMetricsCalculator:
         metrics: Optional[list[Metric]] = None,
         output_path: Optional[str] = None,
     ) -> pd.DataFrame:
+        """
+        Calculate selected gait metrics for all strides and save to CSV if needed.
+
+        Args:
+            metrics (list[Metric], optional): Metrics to compute.
+            output_path (str, optional): Output directory path.
+
+        Returns:
+            pd.DataFrame: DataFrame of computed metrics for all strides.
+        """
         if metrics is None:
             metrics = list(Metric)
 
@@ -405,6 +628,26 @@ def compute_gait_metrics(
     metrics: Optional[list[Metric]] = None,
     output_path: Optional[str] = None,
 ) -> pd.DataFrame:
+    """
+    Compute gait metrics for all strides and save to CSV if output_path is given.
+
+    Args:
+        stream (np.ndarray): Kinematics input data.
+        stride_splits (np.ndarray): Array of stride splits.
+        position (int): Position identifier, e.g. 'r_shank'
+        stream_name (str): Name of the stream.
+        component (str): Component to analyze, e.g. 'x', 'knee_flexion'.
+        orgid (str, optional): Organization ID.
+        study (str, optional): Study name.
+        collection_num (int, optional): Collection number.
+        toe_off_times (np.ndarray, optional): Toe off timestamps.
+        shank_stream (np.ndarray, optional): Shank stream data.
+        metrics (list[Metric], optional): Metrics to compute.
+        output_path (str, optional): Output directory path.
+
+    Returns:
+        pd.DataFrame: DataFrame of computed metrics for all strides.
+    """
     metrics_calculator = GaitMetricsCalculator(
         stream=stream,
         stride_splits=stride_splits,
