@@ -39,6 +39,7 @@ Metrics:
 import os
 from dataclasses import dataclass
 from enum import Enum
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -199,12 +200,12 @@ def compute_swing_std_value(stride_data, toe_off_time, component='x'):
 
 @dataclass
 class Metadata:
-    orgid: str
-    study: str
-    collection_num: int
     position: int
     stream_name: str
     component: str
+    orgid: Optional[str] = None
+    study: Optional[str] = None
+    collection_num: Optional[int] = None
 
 
 class GaitMetricsCalculator:
@@ -339,13 +340,26 @@ class GaitMetricsCalculator:
             all_strides_metrics_list.append(stride_metrics)
         all_strides_metrics = pd.DataFrame(all_strides_metrics_list)
         if output_path is not None:
+
+            if self.meta.orgid and self.meta.study and self.meta.collection_num:
+                output_path = os.path.join(
+                    output_path,
+                    self.meta.orgid,
+                    self.meta.study,
+                    str(self.meta.collection_num),
+                )
+                file_path = (
+                    f"{output_path}/{self.meta.orgid}_"
+                    f"{self.meta.study}_{self.meta.collection_num}_"
+                    f"{self.meta.position}_{self.meta.stream_name}_"
+                    f"{self.meta.component}_gait_metrics.csv"
+                )
+            else:
+                file_path = (
+                    f"{output_path}/{self.meta.position}_{self.meta.stream_name}_"
+                    f"{self.meta.component}_gait_metrics.csv"
+                )
             if not os.path.exists(output_path):
                 os.makedirs(output_path)
-            file_path = (
-                f"{output_path}/{self.meta.orgid}_"
-                f"{self.meta.study}_{self.meta.collection_num}_"
-                f"{self.meta.position}_{self.meta.stream_name}_"
-                f"{self.meta.component}_gait_metrics.csv"
-            )
             all_strides_metrics.to_csv(file_path, index=True)
         return all_strides_metrics
