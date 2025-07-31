@@ -6,6 +6,9 @@ and computes gait metrics using various configurations. It saves results to CSV
 files for inspection and visualizes stride and toe-off events using matplotlib.
 The examples cover direct class usage, wrapper function calls, and metric subset
 selection, providing practical reference for gait analysis workflows.
+
+Example usage:
+    python tests/test_metrics_calculator.py
 """
 
 import os
