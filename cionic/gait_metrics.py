@@ -430,7 +430,7 @@ def compute_swing_std_value(
 
 @dataclass
 class Metadata:
-    position: int
+    position: str
     stream_name: str
     component: str
     orgid: Optional[str] = None
