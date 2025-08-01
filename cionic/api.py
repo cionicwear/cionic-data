@@ -345,7 +345,9 @@ def package_npz(segments, npzdir, npzpath, segsuffix=''):
         print("study package complete", file=sys.stderr)
 
 
-def download_file(destpath: str, url: str, headers: dict = None) -> bool:
+def download_file(
+    destpath: str, url: str, overwrite: bool = False, headers: dict = None
+) -> bool:
     """
     Download the content from the given URL and save it to the destination path.
 
@@ -361,7 +363,7 @@ def download_file(destpath: str, url: str, headers: dict = None) -> bool:
         headers = {}
     destpath = ensure_parent(destpath)
 
-    if destpath.exists():
+    if destpath.exists() and not overwrite:
         print(f"already exists {destpath}", file=sys.stderr)
         return False
 
@@ -374,8 +376,70 @@ def download_file(destpath: str, url: str, headers: dict = None) -> bool:
     return True
 
 
+def download_npz_from_metadata(
+    orgid: str,
+    studyid: str,
+    collection_num: int,
+    outdir: str = '.',
+    overwrite: bool = False,
+    segmented: bool = False,
+    include_eulers: bool = True,
+    include_gait_splits: bool = True,
+    tokenpath: str = None,
+) -> np.lib.npyio.NpzFile:
+    if tokenpath is None:
+        raise ValueError("tokenpath must be specified to download NPZ from metadata.")
+
+    auth(tokenpath=tokenpath)
+    studies = get_cionic(f"{orgid}/studies")
+
+    for _, s in enumerate(studies):
+        if studyid == s['shortname']:
+            sxid = s['xid']
+
+    if sxid is None:
+        raise ValueError(f"Study [{studyid}] not found for org [{orgid}]")
+
+    collections = get_cionic(f"{orgid}/collections?sxid={sxid}")
+    collection_found = False
+    for collection in collections:
+        if collection['num'] == collection_num:
+            collection_found = True
+            break
+
+    if not collection_found:
+        raise ValueError(
+            f"Collection number [{collection_num}] not found for study [{studyid}]"
+        )
+
+    urlpath = f"{orgid}/collections/{collection['xid']}/streams/npz"
+    destpath = (
+        f"{outdir}/{orgid}/{studyid}/{collection_num}/"
+        f"{orgid}_{studyid}_{collection_num}.npz"
+    )
+
+    pathlib.Path(destpath).parent.mkdir(parents=True, exist_ok=True)
+
+    download_npz(
+        destpath=destpath,
+        urlpath=urlpath,
+        overwrite=overwrite,
+        include_eulers=include_eulers,
+        include_gait_splits=include_gait_splits,
+    )
+
+    if segmented:
+        return segmenter.load_segmented(destpath)
+    else:
+        return np.load(destpath)
+
+
 def download_npz(
-    destpath: str, urlpath: str, include_eulers=True, include_gait_splits=True
+    destpath: str,
+    urlpath: str,
+    overwrite: bool = False,
+    include_eulers: bool = True,
+    include_gait_splits: bool = True,
 ) -> None:
     """
     Downloads a .npz file from a specified URL path and saves it to the destpath.
@@ -387,8 +451,9 @@ def download_npz(
     Returns:
         None
     """
-    npz = get_cionic(urlpath)
-    status = download_file(destpath, npz['streams.npz'])
+    npz_dict = get_cionic(urlpath)
+
+    status = download_file(destpath, npz_dict['streams.npz'], overwrite=overwrite)
     if status is False:
         return
     if include_eulers:
