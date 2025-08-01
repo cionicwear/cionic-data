@@ -439,7 +439,6 @@ def download_npz_from_metadata(
         f"{orgid}_{studyid}_{collection_num}.npz"
     )
 
-    pathlib.Path(destpath).parent.mkdir(parents=True, exist_ok=True)
 
     download_npz(
         destpath=destpath,
