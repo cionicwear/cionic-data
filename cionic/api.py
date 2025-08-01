@@ -378,8 +378,8 @@ def download_file(
 
 
 def download_npz_from_metadata(
-    orgid: str,
-    studyid: str,
+    org_shortname: str,
+    study_shortname: str,
     collection_num: int,
     tokenpath: str,
     outdir: str = '.',
@@ -393,8 +393,8 @@ def download_npz_from_metadata(
     loads it. User friendly version.
 
     Args:
-        orgid (str): Organization ID.
-        studyid (str): Short name of the study.
+        org_shortname (str): Organization ID.
+        study_shortname (str): Short name of the study.
         collection_num (int): Collection number within the study.
         tokenpath (str): Path to the authentication token file. Must be specified.
         outdir (str, optional): Output directory for the downloaded file.
@@ -411,13 +411,13 @@ def download_npz_from_metadata(
         raise ValueError("tokenpath must be specified to download NPZ from metadata.")
 
     auth(tokenpath=tokenpath)
-    kwargs = {"study": studyid, "num": collection_num}
-    (collection,) = get_cionic(f'{orgid}/collections', **kwargs)
+    kwargs = {"study": study_shortname, "num": collection_num}
+    (collection,) = get_cionic(f'{org_shortname}/collections', **kwargs)
 
-    urlpath = f"{orgid}/collections/{collection['xid']}/streams/npz"
+    urlpath = f"{org_shortname}/collections/{collection['xid']}/streams/npz"
     destpath = (
-        f"{outdir}/{orgid}/{studyid}/{collection_num}/"
-        f"{orgid}_{studyid}_{collection_num}.npz"
+        f"{outdir}/{org_shortname}/{study_shortname}/{collection_num}/"
+        f"{org_shortname}_{study_shortname}_{collection_num}.npz"
     )
 
     download_npz(
