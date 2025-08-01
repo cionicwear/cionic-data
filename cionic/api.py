@@ -345,12 +345,15 @@ def package_npz(segments, npzdir, npzpath, segsuffix=''):
         print("study package complete", file=sys.stderr)
 
 
-def download_file(destpath: str, url: str, headers: dict = None) -> bool:
+def download_file(
+    destpath: str, url: str, overwrite: bool = False, headers: dict = None
+) -> bool:
     """
     Download the content from the given URL and save it to the destination path.
 
     Args:
         destpath (str): The local file path where the downloaded content will be saved.
+        overwrite (bool): If True, overwrite the file if it already exists.
         url (str): The URL to download the content from.
         headers (dict, optional): Optional HTTP headers to include in the request.
 
@@ -361,7 +364,7 @@ def download_file(destpath: str, url: str, headers: dict = None) -> bool:
         headers = {}
     destpath = ensure_parent(destpath)
 
-    if destpath.exists():
+    if destpath.exists() and not overwrite:
         print(f"already exists {destpath}", file=sys.stderr)
         return False
 
@@ -374,8 +377,69 @@ def download_file(destpath: str, url: str, headers: dict = None) -> bool:
     return True
 
 
+def download_npz_from_metadata(
+    org_shortname: str,
+    study_shortname: str,
+    collection_num: int,
+    tokenpath: str,
+    outdir: str = '.',
+    overwrite: bool = False,
+    segmented: bool = False,
+    include_eulers: bool = True,
+    include_gait_splits: bool = True,
+) -> np.lib.npyio.NpzFile:
+    """
+    Downloads a .npz file associated with a specific org, study, and collection and
+    loads it. User friendly version.
+
+    Args:
+        org_shortname (str): Organization ID.
+        study_shortname (str): Short name of the study.
+        collection_num (int): Collection number within the study.
+        tokenpath (str): Path to the authentication token file. Must be specified.
+        outdir (str, optional): Output directory for the downloaded file.
+        overwrite (bool, optional): Whether to overwrite the file if it exists.
+        segmented (bool, optional): If True, loads and returns segmented data.
+        include_eulers (bool, optional): Whether to include Eulers in the download.
+        include_gait_splits (bool, optional): Whether to include gait splits in
+            the download.
+
+    Returns:
+        np.lib.npyio.NpzFile: Loaded .npz file.
+    """
+    if tokenpath is None:
+        raise ValueError("tokenpath must be specified to download NPZ from metadata.")
+
+    auth(tokenpath=tokenpath)
+    kwargs = {"study": study_shortname, "num": collection_num}
+    (collection,) = get_cionic(f'{org_shortname}/collections', **kwargs)
+
+    urlpath = f"{org_shortname}/collections/{collection['xid']}/streams/npz"
+    destpath = (
+        f"{outdir}/{org_shortname}/{study_shortname}/{collection_num}/"
+        f"{org_shortname}_{study_shortname}_{collection_num}.npz"
+    )
+
+    download_npz(
+        destpath=destpath,
+        urlpath=urlpath,
+        overwrite=overwrite,
+        include_eulers=include_eulers,
+        include_gait_splits=include_gait_splits,
+    )
+
+    if segmented:
+        return segmenter.load_segmented(destpath)
+    else:
+        return np.load(destpath)
+
+
 def download_npz(
-    destpath: str, urlpath: str, include_eulers=True, include_gait_splits=True
+    destpath: str,
+    urlpath: str,
+    overwrite: bool = False,
+    include_eulers: bool = True,
+    include_gait_splits: bool = True,
 ) -> None:
     """
     Downloads a .npz file from a specified URL path and saves it to the destpath.
@@ -383,12 +447,16 @@ def download_npz(
     Args:
         destpath (str): The local file path where the .npz file will be saved.
         urlpath (str): The URL or identifier used to locate the .npz file.
+        overwrite (bool): If True, overwrite the file if it already exists.
+        include_eulers (bool): Whether to include Eulers in the download.
+        include_gait_splits (bool): Whether to include gait splits in the download.
 
     Returns:
         None
     """
-    npz = get_cionic(urlpath)
-    status = download_file(destpath, npz['streams.npz'])
+    npz_dict = get_cionic(urlpath)
+
+    status = download_file(destpath, npz_dict['streams.npz'], overwrite=overwrite)
     if status is False:
         return
     if include_eulers:
