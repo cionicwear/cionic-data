@@ -413,6 +413,7 @@ def download_npz_from_metadata(
     auth(tokenpath=tokenpath)
     studies = get_cionic(f"{orgid}/studies")
 
+    sxid = None
     for _, s in enumerate(studies):
         if studyid == s['shortname']:
             sxid = s['xid']
