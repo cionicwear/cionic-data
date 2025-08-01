@@ -411,34 +411,14 @@ def download_npz_from_metadata(
         raise ValueError("tokenpath must be specified to download NPZ from metadata.")
 
     auth(tokenpath=tokenpath)
-    studies = get_cionic(f"{orgid}/studies")
-
-    sxid = None
-    for _, s in enumerate(studies):
-        if studyid == s['shortname']:
-            sxid = s['xid']
-
-    if sxid is None:
-        raise ValueError(f"Study [{studyid}] not found for org [{orgid}]")
-
-    collections = get_cionic(f"{orgid}/collections?sxid={sxid}")
-    collection_found = False
-    for collection in collections:
-        if collection['num'] == collection_num:
-            collection_found = True
-            break
-
-    if not collection_found:
-        raise ValueError(
-            f"Collection number [{collection_num}] not found for study [{studyid}]"
-        )
+    kwargs = {"study": studyid, "num": collection_num}
+    (collection,) = get_cionic(f'{orgid}/collections', **kwargs)
 
     urlpath = f"{orgid}/collections/{collection['xid']}/streams/npz"
     destpath = (
         f"{outdir}/{orgid}/{studyid}/{collection_num}/"
         f"{orgid}_{studyid}_{collection_num}.npz"
     )
-
 
     download_npz(
         destpath=destpath,
