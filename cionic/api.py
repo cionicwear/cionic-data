@@ -353,6 +353,7 @@ def download_file(
 
     Args:
         destpath (str): The local file path where the downloaded content will be saved.
+        overwrite (bool): If True, overwrite the file if it already exists.
         url (str): The URL to download the content from.
         headers (dict, optional): Optional HTTP headers to include in the request.
 
@@ -380,13 +381,32 @@ def download_npz_from_metadata(
     orgid: str,
     studyid: str,
     collection_num: int,
+    tokenpath: str,
     outdir: str = '.',
     overwrite: bool = False,
     segmented: bool = False,
     include_eulers: bool = True,
     include_gait_splits: bool = True,
-    tokenpath: str = None,
 ) -> np.lib.npyio.NpzFile:
+    """
+    Downloads a .npz file associated with a specific org, study, and collection and
+    loads it. User friendly version.
+
+    Args:
+        orgid (str): Organization ID.
+        studyid (str): Short name of the study.
+        collection_num (int): Collection number within the study.
+        tokenpath (str): Path to the authentication token file. Must be specified.
+        outdir (str, optional): Output directory for the downloaded file.
+        overwrite (bool, optional): Whether to overwrite the file if it exists.
+        segmented (bool, optional): If True, loads and returns segmented data.
+        include_eulers (bool, optional): Whether to include Eulers in the download.
+        include_gait_splits (bool, optional): Whether to include gait splits in
+            the download.
+
+    Returns:
+        np.lib.npyio.NpzFile: Loaded .npz file.
+    """
     if tokenpath is None:
         raise ValueError("tokenpath must be specified to download NPZ from metadata.")
 
@@ -447,6 +467,9 @@ def download_npz(
     Args:
         destpath (str): The local file path where the .npz file will be saved.
         urlpath (str): The URL or identifier used to locate the .npz file.
+        overwrite (bool): If True, overwrite the file if it already exists.
+        include_eulers (bool): Whether to include Eulers in the download.
+        include_gait_splits (bool): Whether to include gait splits in the download.
 
     Returns:
         None
