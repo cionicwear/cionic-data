@@ -649,7 +649,7 @@ class GaitMetricsCalculator:
 def compute_gait_metrics(
     stream: np.ndarray,
     stride_splits: np.ndarray,
-    position: int,
+    position: str,
     stream_name: str,
     component: str,
     orgid: Optional[str] = None,
@@ -666,7 +666,7 @@ def compute_gait_metrics(
     Args:
         stream (np.ndarray): Kinematics input data.
         stride_splits (np.ndarray): Array of stride splits.
-        position (int): Position identifier, e.g. 'r_shank'
+        position (str): Position identifier, e.g. 'r_shank'
         stream_name (str): Name of the stream.
         component (str): Component to analyze, e.g. 'x', 'knee_flexion'.
         orgid (str, optional): Organization ID.
