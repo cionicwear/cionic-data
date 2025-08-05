@@ -1,0 +1,14 @@
+{
+  "name": "Jupyter + Cionic",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "jupyter",
+  "workspaceFolder": "/home/jovyan/work",
+  "settings": {
+    "terminal.integrated.defaultProfile.linux": "bash"
+  },
+  "extensions": [
+    "ms-python.python",
+    "ms-toolsai.jupyter"
+  ],
+  "postCreateCommand": "echo 'VS Code container ready.'"
+}
