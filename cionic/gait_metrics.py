@@ -486,7 +486,7 @@ class GaitMetricsCalculator:
         toe_off_times = [item for sublist in grouped_toe_off_times for item in sublist]
         return np.array(toe_off_times)
 
-    def _get_toe_off_time(self, stride_data: np.ndarray) -> Optional[float]:
+    def _get_toe_off_time_in_stride(self, stride_data: np.ndarray) -> Optional[float]:
         """
         Get the toe off time within the stride data range.
 
@@ -498,15 +498,22 @@ class GaitMetricsCalculator:
         """
         if self.toe_off_times is None:
             return None
-        # Find the toe off time falling in the time range of the stride
-        for toe_off_time in self.toe_off_times:
-            if (
-                stride_data['elapsed_s'].min()
-                <= toe_off_time
-                <= stride_data['elapsed_s'].max()
-            ):
-                return toe_off_time
-        return None
+        start = stride_data['elapsed_s'].min()
+        stop = stride_data['elapsed_s'].max()
+
+        # Vectorized selection of toe_off_times within stride range
+        valid_toe_offs = self.toe_off_times[
+            (self.toe_off_times >= start) & (self.toe_off_times <= stop)
+        ]
+        if valid_toe_offs.shape[0] == 0:
+            print(f"No toe_off_time found in stride range ({start}, {stop}).")
+            return None
+        if valid_toe_offs.shape[0] > 1:
+            print(
+                f"Multiple toe_off_times ({valid_toe_offs}) found in stride range "
+                f"({start}, {stop}). Using the first."
+            )
+        return valid_toe_offs[0]
 
     def _output_metrics_to_csv(
         self, all_strides_metrics: pd.DataFrame, output_path: str
@@ -569,7 +576,7 @@ class GaitMetricsCalculator:
                 (self.stream['elapsed_s'] >= stride['start_s'])
                 & (self.stream['elapsed_s'] <= stride['stop_s'])
             ]
-            toe_off_time = self._get_toe_off_time(stride_data)
+            toe_off_time = self._get_toe_off_time_in_stride(stride_data)
 
             stride_metrics = {
                 **{'start_s': stride['start_s'], 'stop_s': stride['stop_s']},
