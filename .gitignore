@@ -76,7 +76,7 @@ instance/
 docs/_build/
 
 # token file
-token.json
+token*.json
 
 # private yml files
 private-*.yml
