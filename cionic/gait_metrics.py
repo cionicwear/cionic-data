@@ -22,8 +22,8 @@ Usage Example (Code):
         stride_splits=stride_splits,
         shank_stream=kinematic_shank_stream,
         meta=gait_metrics.Metadata(
-            orgid=orgid,
-            study=study,
+            org_shortname=org_shortname,
+            study_shortname=study_shortname,
             collection_num=collection_num,
             position='r_shank',
             stream_name='euler',
@@ -37,7 +37,7 @@ Output:
     with columns for start time, stop time, elapsed time, and computed metrics.
 
 Filename structure:
-    {output_path}/{study}_{collection_num}_{position}_
+    {output_path}/{study_shortname}_{collection_num}_{position}_
     {stream}_{component}_gait_metrics.csv
 
 Available metrics include:
@@ -433,8 +433,8 @@ class Metadata:
     position: str
     stream_name: str
     component: str
-    orgid: Optional[str] = None
-    study: Optional[str] = None
+    org_shortname: Optional[str] = None
+    study_shortname: Optional[str] = None
     collection_num: Optional[int] = None
 
 
@@ -515,16 +515,20 @@ class GaitMetricsCalculator:
             all_strides_metrics (pd.DataFrame): DataFrame containing the metrics.
             output_path (str): Path to the output CSV file.
         """
-        if self.meta.orgid and self.meta.study and self.meta.collection_num:
+        if (
+            self.meta.org_shortname
+            and self.meta.study_shortname
+            and self.meta.collection_num
+        ):
             output_path = os.path.join(
                 output_path,
-                self.meta.orgid,
-                self.meta.study,
+                self.meta.org_shortname,
+                self.meta.study_shortname,
                 str(self.meta.collection_num),
             )
             file_path = (
-                f"{output_path}/{self.meta.orgid}_"
-                f"{self.meta.study}_{self.meta.collection_num}_"
+                f"{output_path}/{self.meta.org_shortname}_"
+                f"{self.meta.study_shortname}_{self.meta.collection_num}_"
                 f"{self.meta.position}_{self.meta.stream_name}_"
                 f"{self.meta.component}_gait_metrics.csv"
             )
@@ -652,8 +656,8 @@ def compute_gait_metrics(
     position: str,
     stream_name: str,
     component: str,
-    orgid: Optional[str] = None,
-    study: Optional[str] = None,
+    org_shortname: Optional[str] = None,
+    study_shortname: Optional[str] = None,
     collection_num: Optional[int] = None,
     toe_off_times: Optional[np.ndarray] = None,
     shank_stream: Optional[np.ndarray] = None,
@@ -669,8 +673,8 @@ def compute_gait_metrics(
         position (str): Position identifier, e.g. 'r_shank'
         stream_name (str): Name of the stream.
         component (str): Component to analyze, e.g. 'x', 'knee_flexion'.
-        orgid (str, optional): Organization ID.
-        study (str, optional): Study name.
+        org_shortname (str, optional): Organization ID.
+        study_shortname (str, optional): Study name.
         collection_num (int, optional): Collection number.
         toe_off_times (np.ndarray, optional): Toe off timestamps.
         shank_stream (np.ndarray, optional): Shank stream data.
@@ -687,8 +691,8 @@ def compute_gait_metrics(
             position=position,
             stream_name=stream_name,
             component=component,
-            orgid=orgid,
-            study=study,
+            org_shortname=org_shortname,
+            study_shortname=study_shortname,
             collection_num=collection_num,
         ),
         toe_off_times=toe_off_times,
