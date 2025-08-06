@@ -450,6 +450,9 @@ class GaitMetricsCalculator:
         """
         Initialize the GaitMetricsCalculator with input data and metadata.
 
+        If toe_off_times are not provided, they will be computed from the shank_stream
+        if available.
+
         Args:
             stream (np.ndarray): Kinematics input data.
             stride_splits (np.ndarray): Array of stride splits.
