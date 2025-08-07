@@ -22,8 +22,8 @@ Usage Example (Code):
         stride_splits=stride_splits,
         shank_stream=kinematic_shank_stream,
         meta=gait_metrics.Metadata(
-            orgid=orgid,
-            study=study,
+            org_shortname=org_shortname,
+            study_shortname=study_shortname,
             collection_num=collection_num,
             position='r_shank',
             stream_name='euler',
@@ -37,7 +37,7 @@ Output:
     with columns for start time, stop time, elapsed time, and computed metrics.
 
 Filename structure:
-    {output_path}/{study}_{collection_num}_{position}_
+    {output_path}/{study_shortname}_{collection_num}_{position}_
     {stream}_{component}_gait_metrics.csv
 
 Available metrics include:
@@ -433,8 +433,8 @@ class Metadata:
     position: str
     stream_name: str
     component: str
-    orgid: Optional[str] = None
-    study: Optional[str] = None
+    org_shortname: Optional[str] = None
+    study_shortname: Optional[str] = None
     collection_num: Optional[int] = None
 
 
@@ -449,6 +449,9 @@ class GaitMetricsCalculator:
     ) -> None:
         """
         Initialize the GaitMetricsCalculator with input data and metadata.
+
+        If toe_off_times are not provided, they will be computed from the shank_stream
+        if available.
 
         Args:
             stream (np.ndarray): Kinematics input data.
@@ -483,7 +486,7 @@ class GaitMetricsCalculator:
         toe_off_times = [item for sublist in grouped_toe_off_times for item in sublist]
         return np.array(toe_off_times)
 
-    def _get_toe_off_time(self, stride_data: np.ndarray) -> Optional[float]:
+    def _get_toe_off_time_in_stride(self, stride_data: np.ndarray) -> Optional[float]:
         """
         Get the toe off time within the stride data range.
 
@@ -495,15 +498,22 @@ class GaitMetricsCalculator:
         """
         if self.toe_off_times is None:
             return None
-        # Find the toe off time falling in the time range of the stride
-        for toe_off_time in self.toe_off_times:
-            if (
-                stride_data['elapsed_s'].min()
-                <= toe_off_time
-                <= stride_data['elapsed_s'].max()
-            ):
-                return toe_off_time
-        return None
+        start = stride_data['elapsed_s'].min()
+        stop = stride_data['elapsed_s'].max()
+
+        # Vectorized selection of toe_off_times within stride range
+        valid_toe_offs = self.toe_off_times[
+            (self.toe_off_times >= start) & (self.toe_off_times <= stop)
+        ]
+        if valid_toe_offs.shape[0] == 0:
+            print(f"No toe_off_time found in stride range ({start}, {stop}).")
+            return None
+        if valid_toe_offs.shape[0] > 1:
+            print(
+                f"Multiple toe_off_times ({valid_toe_offs}) found in stride range "
+                f"({start}, {stop}). Using the first."
+            )
+        return valid_toe_offs[0]
 
     def _output_metrics_to_csv(
         self, all_strides_metrics: pd.DataFrame, output_path: str
@@ -515,16 +525,20 @@ class GaitMetricsCalculator:
             all_strides_metrics (pd.DataFrame): DataFrame containing the metrics.
             output_path (str): Path to the output CSV file.
         """
-        if self.meta.orgid and self.meta.study and self.meta.collection_num:
+        if (
+            self.meta.org_shortname
+            and self.meta.study_shortname
+            and self.meta.collection_num
+        ):
             output_path = os.path.join(
                 output_path,
-                self.meta.orgid,
-                self.meta.study,
+                self.meta.org_shortname,
+                self.meta.study_shortname,
                 str(self.meta.collection_num),
             )
             file_path = (
-                f"{output_path}/{self.meta.orgid}_"
-                f"{self.meta.study}_{self.meta.collection_num}_"
+                f"{output_path}/{self.meta.org_shortname}_"
+                f"{self.meta.study_shortname}_{self.meta.collection_num}_"
                 f"{self.meta.position}_{self.meta.stream_name}_"
                 f"{self.meta.component}_gait_metrics.csv"
             )
@@ -562,7 +576,7 @@ class GaitMetricsCalculator:
                 (self.stream['elapsed_s'] >= stride['start_s'])
                 & (self.stream['elapsed_s'] <= stride['stop_s'])
             ]
-            toe_off_time = self._get_toe_off_time(stride_data)
+            toe_off_time = self._get_toe_off_time_in_stride(stride_data)
 
             stride_metrics = {
                 **{'start_s': stride['start_s'], 'stop_s': stride['stop_s']},
@@ -652,8 +666,8 @@ def compute_gait_metrics(
     position: str,
     stream_name: str,
     component: str,
-    orgid: Optional[str] = None,
-    study: Optional[str] = None,
+    org_shortname: Optional[str] = None,
+    study_shortname: Optional[str] = None,
     collection_num: Optional[int] = None,
     toe_off_times: Optional[np.ndarray] = None,
     shank_stream: Optional[np.ndarray] = None,
@@ -669,8 +683,8 @@ def compute_gait_metrics(
         position (str): Position identifier, e.g. 'r_shank'
         stream_name (str): Name of the stream.
         component (str): Component to analyze, e.g. 'x', 'knee_flexion'.
-        orgid (str, optional): Organization ID.
-        study (str, optional): Study name.
+        org_shortname (str, optional): Organization ID.
+        study_shortname (str, optional): Study name.
         collection_num (int, optional): Collection number.
         toe_off_times (np.ndarray, optional): Toe off timestamps.
         shank_stream (np.ndarray, optional): Shank stream data.
@@ -687,8 +701,8 @@ def compute_gait_metrics(
             position=position,
             stream_name=stream_name,
             component=component,
-            orgid=orgid,
-            study=study,
+            org_shortname=org_shortname,
+            study_shortname=study_shortname,
             collection_num=collection_num,
         ),
         toe_off_times=toe_off_times,

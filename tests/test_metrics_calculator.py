@@ -43,16 +43,25 @@ def get_npz():
 def main():
     npz = get_npz()
 
-    for seg in npz['segments']:
-        is_euler = seg['stream'] == 'euler'
-        is_shank = seg['position'].endswith('_shank')
-        is_intervals = seg['stream'] == 'intervals'
-        if is_euler and is_shank:
-            print(f"Kinematics segment: {seg['path']}")
-            stream_seg = seg
-        if is_intervals and is_shank:
-            print(f"Strides segment: {seg['path']}")
-            stride_splits_seg = seg
+    segs = npz['segments']
+    euler_shank_mask = (segs['stream'] == 'euler') & np.char.endswith(
+        segs['position'], '_shank'
+    )
+    intervals_shank_mask = np.char.endswith(
+        segs['position'], '_shank'
+    ) & np.char.endswith(segs['path'], '_paired_stride_splits')
+
+    stream_seg = segs[euler_shank_mask]
+    stride_splits_seg = segs[intervals_shank_mask]
+
+    assert stream_seg.shape[0] == 1, f"Expected 1 stream_seg, got {stream_seg.shape[0]}"
+    assert (
+        stride_splits_seg.shape[0] == 1
+    ), f"Expected 1 stride_splits_seg, got {stride_splits_seg.shape[0]}"
+
+    stream_seg = stream_seg[0]
+    stride_splits_seg = stride_splits_seg[0]
+    print(f"Strides segment: {stride_splits_seg['path']}")
 
     # Call the class directly.
     # Results CSV in tests/test_metrics_output/cionic/khe/3/
@@ -61,8 +70,8 @@ def main():
         stride_splits=npz[stride_splits_seg['path']],
         shank_stream=npz[stream_seg['path']],
         meta=gait_metrics.Metadata(
-            orgid="cionic",
-            study="khe",
+            org_shortname="cionic",
+            study_shortname="khe",
             collection_num="3",
             position=stream_seg['position'],
             stream_name=stream_seg['stream'],
@@ -71,7 +80,8 @@ def main():
     )
     _ = metrics_calculator.calculate_metrics(output_path="tests/test_metrics_output")
 
-    # Call the class directly, leaving out orgid, study, collection_num from Metadata.
+    # Call the class directly, leaving out org_shortname, study_shortname,
+    # and collection_num from Metadata.
     # Results CSV in tests/test_metrics_output/
     metrics_calculator = gait_metrics.GaitMetricsCalculator(
         stream=npz[stream_seg['path']],
@@ -93,15 +103,15 @@ def main():
         position=stream_seg['position'],
         stream_name=stream_seg['stream'],
         component='x',
-        orgid="cionic",
-        study="khe",
+        org_shortname="cionic",
+        study_shortname="khe",
         collection_num="3",
         shank_stream=npz[stream_seg['path']],
         output_path="tests/test_metrics_output/wrapper",
     )
 
     # Call the class from compute_gait_metrics() wrapper,
-    # leaving out orgid, study, collection_num from Metadata.
+    # leaving out org_shortname, study_shortname, collection_num from Metadata.
     # Results CSV in tests/test_metrics_output/wrapper/
     _ = gait_metrics.compute_gait_metrics(
         stream=npz[stream_seg['path']],
