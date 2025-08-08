@@ -2,12 +2,23 @@
   "name": "Jupyter + Cionic",
   "dockerComposeFile": "../docker-compose.yml",
   "service": "jupyter",
-  "settings": {
-    "terminal.integrated.defaultProfile.linux": "bash"
+  "workspaceFolder": "/home/jovyan/work",
+  "remoteUser": "jovyan",
+  "overrideCommand": false,
+
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "jupyter.widgetScriptSources": ["jsdelivr", "unpkg", "cdnjs", "npm"]
+      },
+      "extensions": [
+        "ms-python.python",
+        "ms-toolsai.jupyter",
+        "ms-toolsai.jupyter-renderers"
+      ]
+    }
   },
-  "extensions": [
-    "ms-python.python",
-    "ms-toolsai.jupyter"
-  ],
+
   "postCreateCommand": "echo 'VS Code container ready.'"
 }
