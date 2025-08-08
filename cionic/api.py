@@ -491,7 +491,12 @@ def download_files_from_metadata(
 
     """
     auth(tokenpath=tokenpath)
-    (collection,) = get_cionic(f'{org_shortname}/collections', study=study_shortname, num=collection_num)
+    collections = get_cionic(f'{org_shortname}/collections', study=study_shortname, num=collection_num)
+    if not isinstance(collections, (list, tuple)):
+        raise ValueError(f"Expected get_cionic to return a list or tuple, got {type(collections).__name__}")
+    if len(collections) != 1:
+        raise ValueError(f"Expected exactly one collection, got {len(collections)}. Collections: {collections}")
+    collection = collections[0]
     urlpath = f'{org_shortname}/collections/{collection["xid"]}/files'
     destpath = f'{outdir}/{org_shortname}/{study_shortname}/{collection_num}/'
 
