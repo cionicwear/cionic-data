@@ -489,8 +489,6 @@ def download_files_from_metadata(
     Returns:
         tuple[str, str]: Tuple of (API urlpath, local destination path) used for the download.
 
-    Raises:
-        FileNotFoundError: If the token file doesn't exist.
     """
     auth(tokenpath=tokenpath)
     (collection,) = get_cionic(f'{org_shortname}/collections', study=study_shortname, num=collection_num)
