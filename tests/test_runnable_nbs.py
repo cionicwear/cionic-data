@@ -248,5 +248,10 @@ def main():
     if (nb_differ or csv_differ) and not args.diff:
         print("\nUse --diff to see unified diffs.")
 
+    assert not nb_differ, "Differences found in notebooks. See above for details."
+    assert not csv_differ, "Differences found in CSVs. See above for details."
+
+    print("All tests passed!")
+
 if __name__ == "__main__":
     main()
