@@ -501,6 +501,42 @@ def download_npz(
         include_gait_splits_to_npz(destpath)
 
 
+def download_files_from_metadata(
+    org_shortname: str,
+    study_shortname: str,
+    collection_num: int,
+    tokenpath: str,
+    outdir: str = '.',
+    include: list = None,
+    exclude: list = None,
+) -> tuple[str, str]:
+    """
+    Downloads files from a collection using metadata, with optional file filtering.
+
+    Args:
+        org_shortname (str): Organization ID.
+        study_shortname (str): Short name of the study.
+        collection_num (int): Collection number within the study.
+        tokenpath (str): Path to the authentication token file.
+        outdir (str, optional): Base output directory for downloaded files. Defaults to current directory.
+        include (list, optional): List of file extensions to include (e.g., ['.npz', '.json']).
+        exclude (list, optional): List of file extensions to exclude.
+
+    Returns:
+        tuple[str, str]: Tuple of (API urlpath, local destination path) used for the download.
+
+    Raises:
+        FileNotFoundError: If the token file doesn't exist.
+    """
+    auth(tokenpath=tokenpath)
+    (collection,) = get_cionic(f'{org_shortname}/collections', study=study_shortname, num=collection_num)
+    urlpath = f'{org_shortname}/collections/{collection["xid"]}/files'
+    destpath = f'{outdir}/{org_shortname}/{study_shortname}/{collection_num}/'
+
+    download_files(urlpath, destpath, include=include, exclude=exclude)
+    return urlpath, destpath
+
+
 def download_files(urlpath, directory, include=None, exclude=None, ver=apiver):
     results = []
     files = get_cionic(urlpath)
