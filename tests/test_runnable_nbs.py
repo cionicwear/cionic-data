@@ -214,7 +214,7 @@ def main():
     # Compare CSVs
     for rel in csv_both:
         a_path, b_path = dir_a / rel, dir_b / rel
-        same, diff = compare_csv(a_path, b_path, args.diff, args["csv_unordered"] if isinstance(args, dict) else args.csv_unordered)
+        same, diff = compare_csv(a_path, b_path, args.diff, args.csv_unordered)
         if not same:
             csv_differ.append(rel)
             print(f"CSV DIFF: {rel}")
