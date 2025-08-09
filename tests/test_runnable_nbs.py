@@ -143,6 +143,7 @@ def compare_csv(a_path: Path, b_path: Path, show_diff: bool, unordered: bool):
         b_rows_cmp = b_rows
 
     if a_rows_cmp == b_rows_cmp:
+        # Just return if perfect match
         return True, None
 
     if show_diff:
