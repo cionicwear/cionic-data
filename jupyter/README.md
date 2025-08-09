@@ -10,12 +10,22 @@ You will first need to download an authorization token from the web portal.
 4. save `token.json` file to the root of `cionic-data`
 
 
-## Local Setup
+## Local Setup (JupyterLab or VSCode)
 1. Install docker: [https://docs.docker.com/engine/install/](https://docs.docker.com/engine/install/)
 2. cd into the jupyter directory: `cd <path-to-cionic-data>/jupyter`
-3. Use docker to bring up jupyter: `docker compose up`
-4. Once jupyter is running, you'll see a link in the docker output that looks like: `http://127.0.0.1:8888/lab?token=2492c32c2d9fd7e7330c184f276549391d911ee94b81eb2b`
-5. Copy that link and paste will open jupyter in your browser
+3. Use docker to bring up jupyter: `docker-compose -f docker-compose.yml -f private-volumes.yml up`
+4. Option 1 - JupyterLab (Browser-based, recommended for quick analysis):
+
+Once jupyter is running, you'll see a link in the docker output that looks like: `http://127.0.0.1:8888/lab?token=2492c32c2d9fd7e7330c184f276549391d911ee94b81eb2b`. Copy that link and paste will open jupyter in your browser
+
+5. Option 2 - VSCode (Recommended for development): Once the container is built...
+
+Download VSCode if you haven't already: [https://code.visualstudio.com/Download](https://code.visualstudio.com/Download)
+
+Install the following extensions from the Extensions Marketplace: Remote - Containers (ms-vscode-remote.remote-containers), Python (ms-python.python), Jupyter (ms-toolsai.jupyter)
+
+Open the project folder in VSCode, and when prompted, click: “Reopen in Container”
+
 
 ## Runner Notebook
 1. Click on the folder icon in the top left of jupyter
