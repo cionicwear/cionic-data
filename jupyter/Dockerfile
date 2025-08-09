@@ -8,17 +8,6 @@ RUN apk add --no-cache ffmpeg python3 python3-dev gcc gfortran musl-dev
 FROM jupyter/tensorflow-notebook:lab-4.0.2
 
 #
-# Required for VSCode Dev Containers
-#
-USER root
-
-RUN apt-get update && apt-get install -y openssh-server sudo \
-    && mkdir /var/run/sshd \
-    && echo 'jovyan:password' | chpasswd \
-    && usermod -aG sudo jovyan \
-    && echo "jovyan ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
-
-#
 # VSCode connects as non-root
 #
 USER jovyan
