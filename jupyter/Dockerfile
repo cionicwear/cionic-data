@@ -8,6 +8,11 @@ RUN apk add --no-cache ffmpeg python3 python3-dev gcc gfortran musl-dev
 FROM jupyter/tensorflow-notebook:lab-4.0.2
 
 #
+# VSCode connects as non-root
+#
+USER jovyan
+
+#
 # Install any necessary dependencies
 #
 ADD ../requirements.txt .
