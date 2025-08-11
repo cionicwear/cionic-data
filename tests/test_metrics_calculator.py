@@ -74,6 +74,13 @@ def main():
         ),
     )
     _ = metrics_calculator.calculate_metrics(output_path="tests/test_metrics_output")
+    expected_path = (
+        "tests/test_metrics_output/cionic/khe/3/"
+        "cionic_khe_3_r_shank_euler_x_gait_metrics.csv"
+    )
+    assert os.path.exists(
+        expected_path
+    ), f"Expected output file not found: {expected_path}"
 
     # Call the class directly, leaving out org_shortname, study_shortname,
     # and collection_num from Metadata.
@@ -89,6 +96,10 @@ def main():
         ),
     )
     _ = metrics_calculator.calculate_metrics(output_path="tests/test_metrics_output")
+    expected_path = "tests/test_metrics_output/r_shank_euler_x_gait_metrics.csv"
+    assert os.path.exists(
+        expected_path
+    ), f"Expected output file not found: {expected_path}"
 
     # Call the class from compute_gait_metrics() wrapper.
     # Results CSV in tests/test_metrics_output/wrapper/cionic/khe/3/
@@ -104,6 +115,13 @@ def main():
         shank_stream=npz[stream_seg['path']],
         output_path="tests/test_metrics_output/wrapper",
     )
+    expected_path = (
+        "tests/test_metrics_output/wrapper/cionic/khe/3/"
+        "cionic_khe_3_r_shank_euler_x_gait_metrics.csv"
+    )
+    assert os.path.exists(
+        expected_path
+    ), f"Expected output file not found: {expected_path}"
 
     # Call the class from compute_gait_metrics() wrapper,
     # leaving out org_shortname, study_shortname, collection_num from Metadata.
@@ -117,6 +135,10 @@ def main():
         shank_stream=npz[stream_seg['path']],
         output_path="tests/test_metrics_output/wrapper",
     )
+    expected_path = "tests/test_metrics_output/wrapper/r_shank_euler_x_gait_metrics.csv"
+    assert os.path.exists(
+        expected_path
+    ), f"Expected output file not found: {expected_path}"
 
     # Call the class from compute_gait_metrics() wrapper,
     # using a subset of metrics.
@@ -135,6 +157,12 @@ def main():
         metrics=metrics,
         output_path="tests/test_metrics_output/metrics_subset",
     )
+    expected_path = (
+        "tests/test_metrics_output/metrics_subset/r_shank_euler_x_gait_metrics.csv"
+    )
+    assert os.path.exists(
+        expected_path
+    ), f"Expected output file not found: {expected_path}"
 
     _, ax = plt.subplots(figsize=(10, 5))
     ax.plot("elapsed_s", "x", "", data=npz[stream_seg['path']])
