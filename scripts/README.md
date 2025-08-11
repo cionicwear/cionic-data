@@ -66,23 +66,39 @@ First, make sure you are in the `cionic-data` directory.
 
 Use a Virtual Environment:
 
-`python3 -m venv venv`
+```bash
+python3 -m venv venv
+```
 
 Activate the virtual environment:
 
-`source venv/bin/activate`
+```bash
+source venv/bin/activate
+```
 
 Update package manager:
 
-`python3 -m pip install --upgrade pip`
+```bash
+python3 -m pip install --upgrade pip
+```
 
 Install packages:
 
-`pip3 install -r scripts/requirements.txt`
+```bash
+pip3 install -r requirements.txt
+```
+
+Add root as a package, so we can import `cionic`:
+
+```bash
+pip3 install -e .
+```
 
 Set up pre-commit hooks:
 
-`pre-commit install`
+```bash
+pre-commit install
+```
 
 ## download.py
 
@@ -96,8 +112,8 @@ Common usage examples:
 ./scripts/download.py                               (interactive org and study - default limit = 20)
 ./scripts/download.py -f -l 5                       (interactive org and study - download last 5 collections including collection files)
 ./scripts/download.py -c emg fquat                  (interactive org and study - create csv files for emg and fquat streams)
-./scripts/download.py cionic sample -p quad-assist  (download from cionic org, sample study and quad-assist protocol)
-./scripts/download.py cionic sample -n 253 254      (download collections 253 & 254 from cionic org, sample study)
+./scripts/download.py cionic Apollo_Adult -p dorsi-plantar-a  (download from cionic org, Apollo_Adult study and dorsi-plantar-a protocol, these are likely to have NPZs uploaded and won't have a 404 response)
+./scripts/download.py cionic Apollo_Adult -n 892 894      (download collections 892 & 894 from cionic org, Apollo_Adult study, these are known to have NPZs and not have a 404 response)
 
 positional arguments:
   orgid               organization shortname
