@@ -77,7 +77,7 @@ def compute_stride_time(stride_data: np.ndarray) -> float:
     Compute the stride time for the given stride data.
 
     Args:
-        stride_data (np.ndarray): Array of stride data.
+        stride_data (np.ndarray): Stride data, NumPy record with 'elapsed_s' field.
 
     Returns:
         float: Duration of the stride, or None if data is empty.
@@ -92,7 +92,7 @@ def compute_cadence(stride_data: np.ndarray) -> float:
     Compute cadence (steps per minute) for the stride data.
 
     Args:
-        stride_data (np.ndarray): Array of stride data.
+        stride_data (np.ndarray): Stride data, NumPy record with 'elapsed_s' field.
 
     Returns:
         float: Cadence value, or None if data is empty or duration is zero.
@@ -110,7 +110,7 @@ def compute_peak_value(stride_data: np.ndarray, component: str = 'x') -> float:
     Compute the peak value of a component during the stride.
 
     Args:
-        stride_data (np.ndarray): Array of stride data.
+        stride_data (np.ndarray): Stride data, NumPy record with 'elapsed_s' field.
         component (str): Component name to analyze.
 
     Returns:
@@ -126,7 +126,7 @@ def compute_trough_value(stride_data: np.ndarray, component: str = 'x') -> float
     Compute the trough value of a component during the stride.
 
     Args:
-        stride_data (np.ndarray): Array of stride data.
+        stride_data (np.ndarray): Stride data, NumPy record with 'elapsed_s' field.
         component (str): Component name to analyze.
 
     Returns:
@@ -144,7 +144,7 @@ def compute_start_heel_strike_value(
     Get the value of a component at the start of the stride.
 
     Args:
-        stride_data (np.ndarray): Array of stride data.
+        stride_data (np.ndarray): Stride data, NumPy record with 'elapsed_s' field.
         component (str): Component name to analyze.
 
     Returns:
@@ -162,7 +162,7 @@ def compute_stop_heel_strike_value(
     Get the value of a component at the end of the stride.
 
     Args:
-        stride_data (np.ndarray): Array of stride data.
+        stride_data (np.ndarray): Stride data, NumPy record with 'elapsed_s' field.
         component (str): Component name to analyze.
 
     Returns:
@@ -178,7 +178,7 @@ def compute_mean_value(stride_data: np.ndarray, component: str = 'x') -> float:
     Compute the mean value of a component during the stride.
 
     Args:
-        stride_data (np.ndarray): Array of stride data.
+        stride_data (np.ndarray): Stride data, NumPy record with 'elapsed_s' field.
         component (str): Component name to analyze.
 
     Returns:
@@ -194,7 +194,7 @@ def compute_median_value(stride_data: np.ndarray, component: str = 'x') -> float
     Compute the median value of a component during the stride.
 
     Args:
-        stride_data (np.ndarray): Array of stride data.
+        stride_data (np.ndarray): Stride data, NumPy record with 'elapsed_s' field.
         component (str): Component name to analyze.
 
     Returns:
@@ -210,7 +210,7 @@ def compute_std_value(stride_data: np.ndarray, component: str = 'x') -> float:
     Compute the standard deviation of a component during the stride.
 
     Args:
-        stride_data (np.ndarray): Array of stride data.
+        stride_data (np.ndarray): Stride data, NumPy record with 'elapsed_s' field.
         component (str): Component name to analyze.
 
     Returns:
@@ -228,7 +228,7 @@ def compute_toe_off_value(
     Get the value of a component at the toe off time.
 
     Args:
-        stride_data (np.ndarray): Array of stride data.
+        stride_data (np.ndarray): Stride data, NumPy record with 'elapsed_s' field.
         toe_off_time (float): Toe off timestamp.
         component (str): Component name to analyze.
 
@@ -248,7 +248,7 @@ def compute_stance_time(
     Compute the duration of the stance phase for the stride.
 
     Args:
-        stride_data (np.ndarray): Array of stride data.
+        stride_data (np.ndarray): Stride data, NumPy record with 'elapsed_s' field.
         toe_off_time (float): Toe off timestamp.
 
     Returns:
@@ -266,7 +266,7 @@ def compute_stance_mean_value(
     Compute mean value of a component during the stance phase.
 
     Args:
-        stride_data (np.ndarray): Array of stride data.
+        stride_data (np.ndarray): Stride data, NumPy record with 'elapsed_s' field.
         toe_off_time (float): Toe off timestamp.
         component (str): Component name to analyze.
 
@@ -288,7 +288,7 @@ def compute_stance_median_value(
     Compute median value of a component during the stance phase.
 
     Args:
-        stride_data (np.ndarray): Array of stride data.
+        stride_data (np.ndarray): Stride data, NumPy record with 'elapsed_s' field.
         toe_off_time (float): Toe off timestamp.
         component (str): Component name to analyze.
 
@@ -310,7 +310,7 @@ def compute_stance_std_value(
     Compute standard deviation of a component during the stance phase.
 
     Args:
-        stride_data (np.ndarray): Array of stride data.
+        stride_data (np.ndarray): Stride data, NumPy record with 'elapsed_s' field.
         toe_off_time (float): Toe off timestamp.
         component (str): Component name to analyze.
 
@@ -330,7 +330,7 @@ def compute_swing_time(stride_data: np.ndarray, toe_off_time: Optional[float]) -
     Compute the duration of the swing phase for the stride.
 
     Args:
-        stride_data (np.ndarray): Array of stride data.
+        stride_data (np.ndarray): Stride data, NumPy record with 'elapsed_s' field.
         toe_off_time (float): Toe off timestamp.
 
     Returns:
@@ -348,7 +348,7 @@ def compute_swing_mean_value(
     Compute mean value of a component during the swing phase.
 
     Args:
-        stride_data (np.ndarray): Array of stride data.
+        stride_data (np.ndarray): Stride data, NumPy record with 'elapsed_s' field.
         toe_off_time (float): Toe off timestamp.
         component (str): Component name to analyze.
 
@@ -370,7 +370,7 @@ def compute_swing_median_value(
     Compute median value of a component during the swing phase.
 
     Args:
-        stride_data (np.ndarray): Array of stride data.
+        stride_data (np.ndarray): Stride data, NumPy record with 'elapsed_s' field.
         toe_off_time (float): Toe off timestamp.
         component (str): Component name to analyze.
 
@@ -392,7 +392,7 @@ def compute_swing_std_value(
     Compute standard deviation of a component during the swing phase.
 
     Args:
-        stride_data (np.ndarray): Array of stride data.
+        stride_data (np.ndarray): Stride data, NumPy record with 'elapsed_s' field.
         toe_off_time (float): Toe off timestamp.
         component (str): Component name to analyze.
 
@@ -489,11 +489,14 @@ class GaitMetricsCalculator:
         if available.
 
         Args:
-            stream (np.ndarray): Kinematics input data.
-            stride_splits (np.ndarray): Array of stride splits.
+            stream (np.ndarray): Kinematics input data. Numpy record array with fields
+                including 'elapsed_s' and the component to analyze.
+            stride_splits (np.ndarray): Array of stride splits. Numpy record array with
+                fields 'start_s' and 'stop_s'.
             meta (Metadata): Metadata for analysis.
             toe_off_times (np.ndarray, optional): Toe off timestamps.
-            shank_stream (np.ndarray, optional): Shank stream data.
+            shank_stream (np.ndarray, optional): Shank stream data. Numpy record array
+                with 'elapsed_s' field, used to compute toe_off_times if not provided.
         """
         self.stream = stream
         self.stride_splits = stride_splits
@@ -510,7 +513,8 @@ class GaitMetricsCalculator:
         Compute toe off times from shank stream data.
 
         Args:
-            shank_stream (np.ndarray): Shank stream data.
+            shank_stream (np.ndarray): Shank stream data, NumPy record with 'elapsed_s'
+                field.
 
         Returns:
             np.ndarray: Array of toe off timestamps.
@@ -526,7 +530,7 @@ class GaitMetricsCalculator:
         Get the toe off time within the stride data range.
 
         Args:
-            stride_data (np.ndarray): Array of stride data.
+            stride_data (np.ndarray): Stride data, NumPy record with 'elapsed_s' field.
 
         Returns:
             float: Toe off timestamp, or None if not found.
@@ -664,8 +668,10 @@ def compute_gait_metrics(
     Compute gait metrics for all strides and save to CSV if output_path is given.
 
     Args:
-        stream (np.ndarray): Kinematics input data.
-        stride_splits (np.ndarray): Array of stride splits.
+        stream (np.ndarray): Kinematics input data, NumPy record array with fields
+            including 'elapsed_s' and the component to analyze.
+        stride_splits (np.ndarray): Array of stride splits, NumPy record array with
+            fields 'start_s' and 'stop_s'.
         position (str): Position identifier, e.g. 'r_shank'
         stream_name (str): Name of the stream.
         component (str): Component to analyze, e.g. 'x', 'knee_flexion'.
