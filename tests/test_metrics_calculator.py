@@ -26,11 +26,6 @@ def get_npz():
     npzpath = "/tmp/cionic_khe_13.npz"
     tokenpath = "token.json"
 
-    # download = (
-    #     "cionic/collections/sjqW785pPLuWF-JxsD60r7WNmDS3Xy18p01Nzj7OVRI/streams/npz"
-    # )
-    # npzpath = "cionic_Apollo_Adult_897.npz"
-
     if os.path.exists(npzpath):
         os.remove(npzpath)
 
