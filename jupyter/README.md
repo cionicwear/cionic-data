@@ -11,14 +11,46 @@ You will first need to download an authorization token from the web portal.
 
 
 ## Local Setup
-1. Install docker: [https://docs.docker.com/engine/install/](https://docs.docker.com/engine/install/)
-2. cd into the jupyter directory: `cd <path-to-cionic-data>/jupyter`
-3. Use docker to bring up jupyter: `docker compose up`
-4. Once jupyter is running, you'll see a link in the docker output that looks like: `http://127.0.0.1:8888/lab?token=2492c32c2d9fd7e7330c184f276549391d911ee94b81eb2b`
-5. Copy that link and paste will open jupyter in your browser
+
+### Prerequisites
+1. Install Docker: [https://docs.docker.com/engine/install/](https://docs.docker.com/engine/install/)
+2. Navigate to jupyter directory:
+   ```bash
+   cd <path-to-cionic-data>/jupyter
+   ```
+3. Start the Docker container:
+   ```bash
+   docker compose -f docker-compose.yml -f private-volumes.yml up
+   ```
+
+### Option 1: JupyterLab (Browser-based)
+*Recommended for quick analysis*
+
+1. Once Jupyter is running, look for a URL in the Docker output that looks like:
+   ```
+   http://127.0.0.1:8888/lab?token=2492c32c2d9fd7e7330c184f276549391d911ee94b81eb2b
+   ```
+2. Copy and paste this URL into your browser
+
+### Option 2: VS Code
+*Recommended for development*
+
+1. Download VS Code: [https://code.visualstudio.com/Download](https://code.visualstudio.com/Download)
+
+2. Install required extensions:
+   - Remote - Containers (ms-vscode-remote.remote-containers)
+   - Python (ms-python.python)
+   - Jupyter (ms-toolsai.jupyter)
+
+3. Open the project:
+   - File → Open Folder → Select cionic-data directory
+   - When prompted, click "Reopen in Container"
+   - If not prompted, press `Cmd+Shift+P` (Mac) or `Ctrl+Shift+P` (Windows/Linux) and select "Remote-Containers: Reopen in Container"
+   - Select working directory
+  
 
 ## Runner Notebook
-1. Click on the folder icon in the top left of jupyter
+1. (JupyterLab only) Click on the folder icon in the top left of jupyter
 2. Open `analysis/runner.ipynb`
 3. Execute the notebook
 4. Select options for org / study / notebook
