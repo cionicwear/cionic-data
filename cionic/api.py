@@ -377,6 +377,30 @@ def download_file(
     return True
 
 
+def upload_file(filepath, urlpath):
+    """
+    Upload a file to a specified URL path.
+
+    Args:
+        filepath (str): The local file path to upload.
+        urlpath (str): The URL path to upload the file to.
+
+    Returns:
+        bool: True if the file was uploaded successfully, False otherwise.
+    """
+    try:
+        with open(filepath, 'rb') as file:
+            # file can be any type, octet stream is generic
+            response = requests.put(urlpath, data=file, headers={'Content-Type': 'application/octet-stream'})
+        response.raise_for_status()
+        
+        return response.json()
+    
+    except requests.exceptions.RequestException as e:
+        print(f"Error uploading file: {e}", file=sys.stderr)
+        return None
+
+
 def download_npz_from_metadata(
     org_shortname: str,
     study_shortname: str,
