@@ -10,7 +10,7 @@ FROM jupyter/tensorflow-notebook:lab-4.0.2
 #
 # Install any necessary dependencies
 #
-ADD requirements.txt .
+ADD ../requirements.txt .
 RUN pip3 install -r requirements.txt
 
 #

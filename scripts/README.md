@@ -11,19 +11,58 @@ You will first need to download an authorization token from the web portal.
 3. select * Download Token *
 4. save `token.json` file to the root of `cionic-data`
 
-## Setup
+## Python Installation
+
+### Windows
+1. Download the latest Python installer from [python.org](https://www.python.org/downloads/)
+2. Run the installer
+   - Check "Add Python to PATH"
+   - Click "Install Now"
+3. Verify installation in Command Prompt:
+```cmd
+python --version
+```
+
+### Linux (Ubuntu/Debian)
+```bash
+# Update package list
+sudo apt update
+
+# Install Python
+sudo apt install python3 python3-pip
+
+# Verify version
+python3 --version
+```
+
+### MacOS
+Next, make sure you have the most up-to-date Python version. If you don't already have Homebrew for MacOS package management, install it with:
+
+`/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`
+
+Install the latest Python version with:
+
+`brew install python`
+
+Verify version is >3.13:
+
+`python3 --version`
+
+## Dependencies
 
 The scripts depend on the following third party python packages:
 
 ```
-numpy==1.23.4
-requests==2.25.1
-pandas==1.5.1
-scipy==1.9.3
-matplotlib==3.3.4
+numpy==2.3.2
+requests==2.32.4
+pandas==2.3.1
+scipy==1.16.1
+matplotlib==3.10.5
 ```
 
-These packages can be installed into your environment with the following commands
+These packages can be installed into your environment with the following commands:
+
+First, make sure you are in the `cionic-data` directory.
 
 Use a Virtual Environment:
 
@@ -33,14 +72,13 @@ Activate the virtual environment:
 
 `source venv/bin/activate`
 
+Update package manager:
+
+`python3 -m pip install --upgrade pip`
+
 Install packages:
 
 `pip3 install -r scripts/requirements.txt`
-
-Creates a local package from source code:
-
-`python3 -m pip install --upgrade pip`
-`pip install -e .`
 
 Set up pre-commit hooks:
 
