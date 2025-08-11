@@ -32,6 +32,15 @@ Usage Example (Code):
     )
     metrics_df = metrics_calculator.calculate_metrics(output_path="recordings")
 
+Note on stream data types:
+    The input streams (stream, stride_splits, shank_stream) are expected to be NumPy
+    record arrays with specific fields. For example, the stream should have an
+    'elapsed_s' field and fields for the components being analyzed (e.g., 'x', 'y',
+    'z', 'knee_flexion', etc.). The stride_splits should have 'start_s' and 'stop_s'
+    fields indicating the time boundaries of each stride. Record arrays share many of
+    the same properties as Pandas DataFrames, but are more memory efficient for large
+    datasets.
+
 Output:
     CSV file containing gait metrics for each stride. Each row represents a stride
     with columns for start time, stop time, elapsed time, and computed metrics.
