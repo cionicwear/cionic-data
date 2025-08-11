@@ -407,6 +407,16 @@ def download_npz_from_metadata(
     Returns:
         np.lib.npyio.NpzFile: Loaded .npz file.
     """
+    destpath = (
+        f"{outdir}/{org_shortname}/{study_shortname}/{collection_num}/"
+        f"{org_shortname}_{study_shortname}_{collection_num}.npz"
+    )
+    if os.path.exists(destpath) and not overwrite:
+        print(f"already exists {destpath}", file=sys.stderr)
+        if segmented:
+            return segmenter.load_segmented(destpath)
+        else:
+            return np.load(destpath)
     if tokenpath is None:
         raise ValueError("tokenpath must be specified to download NPZ from metadata.")
 
@@ -415,10 +425,6 @@ def download_npz_from_metadata(
     (collection,) = get_cionic(f'{org_shortname}/collections', **kwargs)
 
     urlpath = f"{org_shortname}/collections/{collection['xid']}/streams/npz"
-    destpath = (
-        f"{outdir}/{org_shortname}/{study_shortname}/{collection_num}/"
-        f"{org_shortname}_{study_shortname}_{collection_num}.npz"
-    )
 
     download_npz(
         destpath=destpath,
