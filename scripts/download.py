@@ -34,11 +34,11 @@ Interactive org and study - download last 5 collections including collection fil
 Interactive org and study - create csv files for emg and fquat streams
 ./scripts/download.py -c emg fquat
 
-Download from cionic org, sample study and quad-assist protocol
-./scripts/download.py cionic sample -p quad-assist
+Download from cionic org, Apollo_Adult study and dorsi-plantar-a protocol
+./scripts/download.py cionic Apollo_Adult -p dorsi-plantar-a
 
-Download collections 253 & 254 from cionic org, sample study
-./scripts/download.py cionic sample -n 253 254
+Download collections 892 & 894 from cionic org, Apollo_Adult study
+./scripts/download.py cionic Apollo_Adult -n 892 894
 '''
 
 
