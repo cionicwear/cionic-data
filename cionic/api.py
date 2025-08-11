@@ -482,20 +482,27 @@ def download_files_from_metadata(
         study_shortname (str): Short name of the study.
         collection_num (int): Collection number within the study.
         tokenpath (str): Path to the authentication token file.
-        outdir (str, optional): Base output directory for downloaded files. Defaults to current directory.
-        include (list, optional): List of file extensions to include (e.g., ['.npz', '.json']).
+        outdir (str, optional): Base output directory for downloaded files.
+            Defaults to current directory.
+        include (list, optional): List of file extensions to include
+            (e.g., ['.npz', '.json']).
         exclude (list, optional): List of file extensions to exclude.
 
     Returns:
-        tuple[str, str]: Tuple of (API urlpath, local destination path) used for the download.
+        tuple[str, str]: Tuple of (API urlpath, local destination path) used
+            for the download.
 
     """
     auth(tokenpath=tokenpath)
-    collections = get_cionic(f'{org_shortname}/collections', study=study_shortname, num=collection_num)
+    collections = get_cionic(
+        f'{org_shortname}/collections', study=study_shortname, num=collection_num
+    )
     if not isinstance(collections, (list, tuple)):
-        raise ValueError(f"Expected get_cionic to return a list or tuple, got {type(collections).__name__}")
+        raise ValueError(f"Expected a list or tuple, got {type(collections).__name__}")
     if len(collections) != 1:
-        raise ValueError(f"Expected exactly one collection, got {len(collections)}. Collections: {collections}")
+        raise ValueError(
+            f"Expected 1 collection, got {len(collections)}. Got: {collections}"
+        )
     collection = collections[0]
     urlpath = f'{org_shortname}/collections/{collection["xid"]}/files'
     destpath = f'{outdir}/{org_shortname}/{study_shortname}/{collection_num}/'
