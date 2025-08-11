@@ -529,17 +529,13 @@ def download_files_from_metadata(
             for the download.
 
     """
+    if tokenpath is None:
+        raise ValueError("tokenpath must be specified to download NPZ from metadata.")
+
     auth(tokenpath=tokenpath)
-    collections = get_cionic(
-        f'{org_shortname}/collections', study=study_shortname, num=collection_num
-    )
-    if not isinstance(collections, (list, tuple)):
-        raise ValueError(f"Expected a list or tuple, got {type(collections).__name__}")
-    if len(collections) != 1:
-        raise ValueError(
-            f"Expected 1 collection, got {len(collections)}. Got: {collections}"
-        )
-    collection = collections[0]
+    kwargs = {"study": study_shortname, "num": collection_num}
+    (collection,) = get_cionic(f'{org_shortname}/collections', **kwargs)
+
     urlpath = f'{org_shortname}/collections/{collection["xid"]}/files'
     destpath = f'{outdir}/{org_shortname}/{study_shortname}/{collection_num}/'
 
