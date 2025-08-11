@@ -72,27 +72,6 @@ import pandas as pd
 from cionic import kinematics
 
 
-class Metric(Enum):
-    STRIDE_TIME = 'stride_time'
-    CADENCE = 'cadence'
-    PEAK_VALUE = 'peak_value'
-    TROUGH_VALUE = 'trough_value'
-    START_HEEL_STRIKE_VALUE = 'start_heel_strike_value'
-    STOP_HEEL_STRIKE_VALUE = 'stop_heel_strike_value'
-    MEAN_VALUE = 'mean_value'
-    MEDIAN_VALUE = 'median_value'
-    STD_VALUE = 'std_value'
-    TOE_OFF_VALUE = 'toe_off_value'
-    STANCE_TIME = 'stance_time'
-    STANCE_MEAN_VALUE = 'stance_mean_value'
-    STANCE_MEDIAN_VALUE = 'stance_median_value'
-    STANCE_STD_VALUE = 'stance_std_value'
-    SWING_TIME = 'swing_time'
-    SWING_MEAN_VALUE = 'swing_mean_value'
-    SWING_MEDIAN_VALUE = 'swing_median_value'
-    SWING_STD_VALUE = 'swing_std_value'
-
-
 def compute_stride_time(stride_data: np.ndarray) -> float:
     """
     Compute the stride time for the given stride data.
@@ -428,6 +407,62 @@ def compute_swing_std_value(
     return compute_std_value(swing_data, component)
 
 
+class Metric(Enum):
+    STRIDE_TIME = 'stride_time'
+    CADENCE = 'cadence'
+    PEAK_VALUE = 'peak_value'
+    TROUGH_VALUE = 'trough_value'
+    START_HEEL_STRIKE_VALUE = 'start_heel_strike_value'
+    STOP_HEEL_STRIKE_VALUE = 'stop_heel_strike_value'
+    MEAN_VALUE = 'mean_value'
+    MEDIAN_VALUE = 'median_value'
+    STD_VALUE = 'std_value'
+    STANCE_TIME = 'stance_time'
+    SWING_TIME = 'swing_time'
+    TOE_OFF_VALUE = 'toe_off_value'
+    STANCE_MEAN_VALUE = 'stance_mean_value'
+    STANCE_MEDIAN_VALUE = 'stance_median_value'
+    STANCE_STD_VALUE = 'stance_std_value'
+    SWING_MEAN_VALUE = 'swing_mean_value'
+    SWING_MEDIAN_VALUE = 'swing_median_value'
+    SWING_STD_VALUE = 'swing_std_value'
+
+
+# Metrics that require only stride_data (no component or toe_off_time)
+METRIC_FUNCTION_MAP_TIME = {
+    Metric.STRIDE_TIME: compute_stride_time,
+    Metric.CADENCE: compute_cadence,
+}
+
+# Metrics that require stride_data and component
+METRIC_FUNCTION_MAP_COMPONENT = {
+    Metric.PEAK_VALUE: compute_peak_value,
+    Metric.TROUGH_VALUE: compute_trough_value,
+    Metric.START_HEEL_STRIKE_VALUE: compute_start_heel_strike_value,
+    Metric.STOP_HEEL_STRIKE_VALUE: compute_stop_heel_strike_value,
+    Metric.MEAN_VALUE: compute_mean_value,
+    Metric.MEDIAN_VALUE: compute_median_value,
+    Metric.STD_VALUE: compute_std_value,
+}
+
+# Metrics that require stride_data and toe_off_time
+METRIC_FUNCTION_MAP_PHASE_TIME = {
+    Metric.STANCE_TIME: compute_stance_time,
+    Metric.SWING_TIME: compute_swing_time,
+}
+
+# Metrics that require stride_data, toe_off_time, and component
+METRIC_FUNCTION_MAP_PHASE_COMPONENT = {
+    Metric.TOE_OFF_VALUE: compute_toe_off_value,
+    Metric.STANCE_MEAN_VALUE: compute_stance_mean_value,
+    Metric.STANCE_MEDIAN_VALUE: compute_stance_median_value,
+    Metric.STANCE_STD_VALUE: compute_stance_std_value,
+    Metric.SWING_MEAN_VALUE: compute_swing_mean_value,
+    Metric.SWING_MEDIAN_VALUE: compute_swing_median_value,
+    Metric.SWING_STD_VALUE: compute_swing_std_value,
+}
+
+
 @dataclass
 class Metadata:
     position: str
@@ -583,74 +618,25 @@ class GaitMetricsCalculator:
                 **{metric.value: None for metric in metrics},
             }
             for metric in metrics:
-                if metric == Metric.STRIDE_TIME:
-                    stride_metrics[metric.value] = compute_stride_time(stride_data)
-                elif metric == Metric.CADENCE:
-                    stride_metrics[metric.value] = compute_cadence(stride_data)
-                elif metric == Metric.PEAK_VALUE:
-                    stride_metrics[metric.value] = compute_peak_value(
+                if metric in METRIC_FUNCTION_MAP_TIME.keys():
+                    func = METRIC_FUNCTION_MAP_TIME[metric]
+                    stride_metrics[metric.value] = func(stride_data)
+                elif metric in METRIC_FUNCTION_MAP_COMPONENT.keys():
+                    func = METRIC_FUNCTION_MAP_COMPONENT[metric]
+                    stride_metrics[metric.value] = func(
                         stride_data, self.meta.component
                     )
-                elif metric == Metric.TROUGH_VALUE:
-                    stride_metrics[metric.value] = compute_trough_value(
-                        stride_data, self.meta.component
-                    )
-                elif metric == Metric.START_HEEL_STRIKE_VALUE:
-                    stride_metrics[metric.value] = compute_start_heel_strike_value(
-                        stride_data, self.meta.component
-                    )
-                elif metric == Metric.STOP_HEEL_STRIKE_VALUE:
-                    stride_metrics[metric.value] = compute_stop_heel_strike_value(
-                        stride_data, self.meta.component
-                    )
-                elif metric == Metric.MEAN_VALUE:
-                    stride_metrics[metric.value] = compute_mean_value(
-                        stride_data, self.meta.component
-                    )
-                elif metric == Metric.MEDIAN_VALUE:
-                    stride_metrics[metric.value] = compute_median_value(
-                        stride_data, self.meta.component
-                    )
-                elif metric == Metric.STD_VALUE:
-                    stride_metrics[metric.value] = compute_std_value(
-                        stride_data, self.meta.component
-                    )
-                elif metric == Metric.TOE_OFF_VALUE and toe_off_time is not None:
-                    stride_metrics[metric.value] = compute_toe_off_value(
+                elif metric in METRIC_FUNCTION_MAP_PHASE_TIME.keys():
+                    func = METRIC_FUNCTION_MAP_PHASE_TIME[metric]
+                    stride_metrics[metric.value] = func(stride_data, toe_off_time)
+                elif metric in METRIC_FUNCTION_MAP_PHASE_COMPONENT.keys():
+                    func = METRIC_FUNCTION_MAP_PHASE_COMPONENT[metric]
+                    stride_metrics[metric.value] = func(
                         stride_data, toe_off_time, self.meta.component
                     )
-                elif metric == Metric.STANCE_TIME and toe_off_time is not None:
-                    stride_metrics[metric.value] = compute_stance_time(
-                        stride_data, toe_off_time
-                    )
-                elif metric == Metric.STANCE_MEAN_VALUE and toe_off_time is not None:
-                    stride_metrics[metric.value] = compute_stance_mean_value(
-                        stride_data, toe_off_time, self.meta.component
-                    )
-                elif metric == Metric.STANCE_MEDIAN_VALUE and toe_off_time is not None:
-                    stride_metrics[metric.value] = compute_stance_median_value(
-                        stride_data, toe_off_time, self.meta.component
-                    )
-                elif metric == Metric.STANCE_STD_VALUE and toe_off_time is not None:
-                    stride_metrics[metric.value] = compute_stance_std_value(
-                        stride_data, toe_off_time, self.meta.component
-                    )
-                elif metric == Metric.SWING_TIME and toe_off_time is not None:
-                    stride_metrics[metric.value] = compute_swing_time(
-                        stride_data, toe_off_time
-                    )
-                elif metric == Metric.SWING_MEAN_VALUE and toe_off_time is not None:
-                    stride_metrics[metric.value] = compute_swing_mean_value(
-                        stride_data, toe_off_time, self.meta.component
-                    )
-                elif metric == Metric.SWING_MEDIAN_VALUE and toe_off_time is not None:
-                    stride_metrics[metric.value] = compute_swing_median_value(
-                        stride_data, toe_off_time, self.meta.component
-                    )
-                elif metric == Metric.SWING_STD_VALUE and toe_off_time is not None:
-                    stride_metrics[metric.value] = compute_swing_std_value(
-                        stride_data, toe_off_time, self.meta.component
-                    )
+                else:
+                    print(f"Metric {metric} not recognized. Skipping.")
+
             all_strides_metrics_list.append(stride_metrics)
 
         all_strides_metrics = pd.DataFrame(all_strides_metrics_list)
