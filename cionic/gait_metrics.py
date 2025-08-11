@@ -231,7 +231,7 @@ def compute_std_value(stride_data: np.ndarray, component: str = 'x') -> float:
 
 
 def compute_toe_off_value(
-    stride_data: np.ndarray, toe_off_time: Optional[float], component: str = 'x'
+    stride_data: np.ndarray, toe_off_time: float, component: str = 'x'
 ) -> float:
     """
     Get the value of a component at the toe off time.
@@ -250,9 +250,7 @@ def compute_toe_off_value(
     return stride_data[closest_index][component]
 
 
-def compute_stance_time(
-    stride_data: np.ndarray, toe_off_time: Optional[float]
-) -> float:
+def compute_stance_time(stride_data: np.ndarray, toe_off_time: float) -> float:
     """
     Compute the duration of the stance phase for the stride.
 
@@ -269,7 +267,7 @@ def compute_stance_time(
 
 
 def compute_stance_mean_value(
-    stride_data: np.ndarray, toe_off_time: Optional[float], component: str = 'x'
+    stride_data: np.ndarray, toe_off_time: float, component: str = 'x'
 ) -> float:
     """
     Compute mean value of a component during the stance phase.
@@ -291,7 +289,7 @@ def compute_stance_mean_value(
 
 
 def compute_stance_median_value(
-    stride_data: np.ndarray, toe_off_time: Optional[float], component: str = 'x'
+    stride_data: np.ndarray, toe_off_time: float, component: str = 'x'
 ) -> float:
     """
     Compute median value of a component during the stance phase.
@@ -313,7 +311,7 @@ def compute_stance_median_value(
 
 
 def compute_stance_std_value(
-    stride_data: np.ndarray, toe_off_time: Optional[float], component: str = 'x'
+    stride_data: np.ndarray, toe_off_time: float, component: str = 'x'
 ) -> float:
     """
     Compute standard deviation of a component during the stance phase.
@@ -334,7 +332,7 @@ def compute_stance_std_value(
     return compute_std_value(stance_data, component)
 
 
-def compute_swing_time(stride_data: np.ndarray, toe_off_time: Optional[float]) -> float:
+def compute_swing_time(stride_data: np.ndarray, toe_off_time: float) -> float:
     """
     Compute the duration of the swing phase for the stride.
 
@@ -351,7 +349,7 @@ def compute_swing_time(stride_data: np.ndarray, toe_off_time: Optional[float]) -
 
 
 def compute_swing_mean_value(
-    stride_data: np.ndarray, toe_off_time: Optional[float], component: str = 'x'
+    stride_data: np.ndarray, toe_off_time: float, component: str = 'x'
 ) -> float:
     """
     Compute mean value of a component during the swing phase.
@@ -373,7 +371,7 @@ def compute_swing_mean_value(
 
 
 def compute_swing_median_value(
-    stride_data: np.ndarray, toe_off_time: Optional[float], component: str = 'x'
+    stride_data: np.ndarray, toe_off_time: float, component: str = 'x'
 ) -> float:
     """
     Compute median value of a component during the swing phase.
@@ -395,7 +393,7 @@ def compute_swing_median_value(
 
 
 def compute_swing_std_value(
-    stride_data: np.ndarray, toe_off_time: Optional[float], component: str = 'x'
+    stride_data: np.ndarray, toe_off_time: float, component: str = 'x'
 ) -> float:
     """
     Compute standard deviation of a component during the swing phase.
