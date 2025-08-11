@@ -46,7 +46,7 @@ You will first need to download an authorization token from the web portal.
    - File → Open Folder → Select cionic-data directory
    - When prompted, click "Reopen in Container"
    - If not prompted, press `Cmd+Shift+P` (Mac) or `Ctrl+Shift+P` (Windows/Linux) and select "Remote-Containers: Reopen in Container"
-   - Select working directory
+   - Press `Open Folder` and select working directory (`/home/jovyan/`)
   
 
 ## Runner Notebook
