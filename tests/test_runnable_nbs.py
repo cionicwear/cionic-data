@@ -46,24 +46,27 @@ import re
 from pathlib import Path
 
 import nbformat
-
-# ---------------- Notebook handling ----------------
+import numpy as np
 
 DEFAULT_IGNORED_VARS = ["datapath", "download", "files_url"]
-
 COLLECTION_ID_RE = re.compile(r"(cionic/collections/)[A-Za-z0-9_\-]+")
 
 
 def mask_collection_ids(text: str) -> str:
+    # Just auto-normalizes the collection IDs
+    # (we don't care about diffs here, we care about output cells)
     return COLLECTION_ID_RE.sub(r"\1<ID>", text)
 
 
 def make_var_assign_re(ignored_vars):
+    # regex to match variable assignments
     pattern = r"^\s*(" + "|".join(map(re.escape, ignored_vars)) + r")\s*=\s*.*$"
     return re.compile(pattern)
 
 
 def mask_ignored_assignments(text: str, ignored_vars):
+    # Auto-normalizes variable assignments in ignored
+    # (we don't care about diffs here)
     assign_re = make_var_assign_re(ignored_vars) if ignored_vars else None
     out_lines = []
     for line in text.splitlines():
@@ -78,6 +81,7 @@ def mask_ignored_assignments(text: str, ignored_vars):
 
 
 def list_files(root: Path, patterns):
+    # Finds all the files in the paths
     out = set()
     for pat in patterns:
         out |= {
@@ -89,11 +93,13 @@ def list_files(root: Path, patterns):
 
 
 def load_notebook(path: Path):
+    # Loads a Jupyter notebook from a file
     with path.open("r", encoding="utf-8") as f:
         return nbformat.read(f, as_version=4)
 
 
 def normalize_notebook_content(nb, ignored_vars):
+    # Normalizes the content of a Jupyter notebook, so we only consider important info
     blocks = []
     for i, cell in enumerate(nb.get("cells", [])):
         ctype = cell.get("cell_type", "")
@@ -108,6 +114,7 @@ def normalize_notebook_content(nb, ignored_vars):
 
 
 def compare_notebooks(a_path: Path, b_path: Path, show_diff: bool, ignored_vars):
+    # Compares two Jupyter notebooks for differences
     nb_a = load_notebook(a_path)
     nb_b = load_notebook(b_path)
     a_blocks = normalize_notebook_content(nb_a, ignored_vars)
@@ -124,19 +131,29 @@ def compare_notebooks(a_path: Path, b_path: Path, show_diff: bool, ignored_vars)
     return False, None
 
 
-# ---------------- CSV handling ----------------
-
-
 def read_csv_normalized(path: Path):
     """
     Read CSV as rows of trimmed strings; normalize newlines & strip BOM.
+    For numeric values, converts to float for approximate comparison (diff
+    dependencies have slight insignificant mismatches, on the order of 10^-10).
+
     Returns (header_list, rows_list_of_tuples).
     """
     with path.open("r", encoding="utf-8-sig", newline="") as f:
         reader = csv.reader(f)
-        rows = [
-            [(c.strip() if isinstance(c, str) else c) for c in row] for row in reader
-        ]
+        rows = []
+        for row in reader:
+            normalized = []
+            for c in row:
+                c = c.strip() if isinstance(c, str) else c
+                # Try to convert to float for numeric comparison
+                try:
+                    c = float(c)
+                except (ValueError, TypeError):
+                    pass
+                normalized.append(c)
+            rows.append(normalized)
+
     if not rows:
         return [], []
     header = rows[0]
@@ -144,15 +161,18 @@ def read_csv_normalized(path: Path):
     return header, data
 
 
-def compare_csv(a_path: Path, b_path: Path, show_diff: bool, unordered: bool):
+def compare_csv(
+    a_path: Path, b_path: Path, show_diff: bool, unordered: bool, rtol=1e-6, atol=1e-6
+):
+    # Compares two CSV files for differences
     a_header, a_rows = read_csv_normalized(a_path)
     b_header, b_rows = read_csv_normalized(b_path)
 
     if a_header != b_header:
         if show_diff:
             diff = difflib.unified_diff(
-                [",".join(a_header)],
-                [",".join(b_header)],
+                [",".join(str(x) for x in a_header)],
+                [",".join(str(x) for x in b_header)],
                 fromfile=str(a_path) + " (header)",
                 tofile=str(b_path) + " (header)",
                 lineterm="",
@@ -167,16 +187,28 @@ def compare_csv(a_path: Path, b_path: Path, show_diff: bool, unordered: bool):
         a_rows_cmp = a_rows
         b_rows_cmp = b_rows
 
-    if a_rows_cmp == b_rows_cmp:
-        # Just return if perfect match
+    # Compare rows allowing for floating point tolerance
+    for a_row, b_row in zip(a_rows_cmp, b_rows_cmp):
+        for a_val, b_val in zip(a_row, b_row):
+            if isinstance(a_val, float) and isinstance(b_val, float):
+                if not np.isclose(a_val, b_val, rtol=rtol, atol=atol):
+                    break
+            elif a_val != b_val:
+                break
+        else:
+            continue
+        # If we get here, the rows differ
+        break
+    else:
+        # If we get here, all rows match within tolerance
         return True, None
 
     if show_diff:
         # Create diff-friendly string representations
         def to_lines(header, rows):
-            yield ",".join(header)
+            yield ",".join(str(x) for x in header)
             for r in rows:
-                yield ",".join(r)
+                yield ",".join(str(x) for x in r)
 
         a_lines = list(to_lines(a_header, a_rows_cmp))
         b_lines = list(to_lines(b_header, b_rows_cmp))
@@ -185,9 +217,6 @@ def compare_csv(a_path: Path, b_path: Path, show_diff: bool, unordered: bool):
         )
         return False, "\n".join(diff)
     return False, None
-
-
-# ---------------- Main ----------------
 
 
 def main():
