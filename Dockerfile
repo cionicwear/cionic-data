@@ -15,11 +15,11 @@ USER jovyan
 #
 # Install any necessary dependencies
 #
-ADD ../requirements.txt .
+ADD ./requirements.txt .
 RUN pip3 install -r requirements.txt
 
 #
 # Add config to the container and update the paths
 #
-ADD jupyter_notebook_config.py /opt/conda/etc/jupyter/.
+ADD ./jupyter/jupyter_notebook_config.py /opt/conda/etc/jupyter/.
 
