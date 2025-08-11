@@ -167,7 +167,7 @@ def get_grouped_walking_splits(
     peaks, _ = find_peaks(factor * kinematic_time_series[component], **peak_kwargs)
     splits_timestamps = kinematic_time_series["elapsed_s"][peaks]
     if splits_timestamps.shape[0] < 2:
-        return [()]
+        return [[]]
     median_time_interval = np.median(np.diff(splits_timestamps))
 
     all_grouped_splits = []
@@ -179,9 +179,13 @@ def get_grouped_walking_splits(
             # a split can be no longer than twice the median of splits
             this_group_splits += [this_split, next_split]
         else:
-            all_grouped_splits.append(sorted(list(set(this_group_splits))))
+            group = sorted(list(set(this_group_splits)))
+            if group:
+                all_grouped_splits.append(group)
             this_group_splits = []
-    all_grouped_splits.append(sorted(list(set(this_group_splits))))
+    group = sorted(list(set(this_group_splits)))
+    if group:
+        all_grouped_splits.append(group)
     return all_grouped_splits
 
 
