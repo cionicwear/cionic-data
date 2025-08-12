@@ -141,6 +141,7 @@ def costri(a, b, C):
 def get_grouped_walking_splits(
     kinematic_time_series,
     component="x",
+    factor=1.0,
     peak_kwargs=None,
 ):
     '''
@@ -151,6 +152,7 @@ def get_grouped_walking_splits(
         kinematic_time_series (numpy.ndarray): Kinematic time series data with
             column-accessible components (e.g., 'x', 'y', 'z') and an 'elapsed_s'.
         component (str): The component to analyze for peak detection. Defaults to 'x'.
+        factor (float): Factor to scale the component values for peak detection.
         peak_kwargs (dict, optional): Optional dictionary of arguments to customize
             peak detection behavior.
 
@@ -158,12 +160,14 @@ def get_grouped_walking_splits(
         list[list[float]]: A list of groups, a group is a list of split timestamps
         that occur close together and likely represent a single walking sequence.
     '''
+    if factor != 1.0 and factor != -1.0:
+        raise ValueError(f"factor must be 1.0 or -1.0, got {factor}")
     if not peak_kwargs:
         peak_kwargs = PEAK_KWARGS
-    peaks, _ = find_peaks(kinematic_time_series[component], **peak_kwargs)
+    peaks, _ = find_peaks(factor * kinematic_time_series[component], **peak_kwargs)
     splits_timestamps = kinematic_time_series["elapsed_s"][peaks]
     if splits_timestamps.shape[0] < 2:
-        return [()]
+        return [[]]
     median_time_interval = np.median(np.diff(splits_timestamps))
 
     all_grouped_splits = []
@@ -175,9 +179,13 @@ def get_grouped_walking_splits(
             # a split can be no longer than twice the median of splits
             this_group_splits += [this_split, next_split]
         else:
-            all_grouped_splits.append(sorted(list(set(this_group_splits))))
+            group = sorted(list(set(this_group_splits)))
+            if group:
+                all_grouped_splits.append(group)
             this_group_splits = []
-    all_grouped_splits.append(sorted(list(set(this_group_splits))))
+    group = sorted(list(set(this_group_splits)))
+    if group:
+        all_grouped_splits.append(group)
     return all_grouped_splits
 
 
