@@ -108,8 +108,9 @@ def post_cionic(
 
     if r.status_code not in [
         200,
-        201,
-    ]:  # 201 is standard response for resource creation
+        201,  # 201 is standard response for resource creation (for getting gcs urls)
+        202,  # 202 for accepted request (update collection files after upload)
+    ]:
         print(r, file=sys.stderr)
         return None
 
@@ -403,7 +404,7 @@ def _get_upload_url(org_shortname: str, collection_xid: str, filename: str) -> s
         RuntimeError: If unable to get an upload URL.
     """
     urlpath = f"{org_shortname}/collections/{collection_xid}/files"
-    response = post_cionic(urlpath, ver="1.18", json={'files': [filename]})
+    response = post_cionic(urlpath, json={'files': [filename]})
 
     if not response:
         raise RuntimeError(f"Failed to get upload URL for file: {filename}")
@@ -437,6 +438,30 @@ def _upload_file(filepath, gcs_url):
     except Exception as e:
         print(f"Error uploading file: {e}", file=sys.stderr)
         return False
+
+
+def _update_collection_files(
+    orgname, collection_xid, uploaded_files, participant_xid=None
+):
+    """
+    Updates a collection by marking files as uploaded after verifying they exist
+    in the storage bucket. Required after uploading files to get the collection
+    out of "in progress" state.
+
+    Args:
+        orgname (str): Organization name
+        collection_xid (str): Collection ID to update
+        uploaded_files (list[str]): List of filenames that have been uploaded
+        participant_xid (str, optional): Participant ID if updating participant
+
+    Returns:
+        dict: Updated collection data if successful, None otherwise
+    """
+    data = {"uploaded_files": uploaded_files}
+    if participant_xid:
+        data["participant_xid"] = participant_xid
+
+    return post_cionic(f"{orgname}/collections/{collection_xid}", json=data)
 
 
 def upload_file_from_metadata(
@@ -488,7 +513,14 @@ def upload_file_from_metadata(
 
         # Get upload URL and perform upload
         gcs_url = _get_upload_url(org_shortname, collection_xid, filename)
-        return _upload_file(filepath, gcs_url)
+        success = _upload_file(filepath, gcs_url)
+        if success:
+            _update_collection_files(
+                orgname=org_shortname,
+                collection_xid=collection_xid,
+                uploaded_files=[filename],
+            )
+            return True
 
     except RuntimeError as e:
         print(str(e), file=sys.stderr)
