@@ -377,6 +377,16 @@ def download_file(
     return True
 
 
+def get_gcs_urls(org_shortname):
+    """
+    Get the Google Cloud Storage (GCS) URLs for the specified organization.
+    """
+    urlpath = f"{org_shortname}/collections/files"
+    response = requests.post(urlpath, headers={'x-cionic-user': authtoken})
+    print(response)
+    return response.json().get('urls', [])
+
+
 def upload_file(filepath, urlpath):
     """
     Upload a file to a specified URL path.
@@ -391,11 +401,13 @@ def upload_file(filepath, urlpath):
     try:
         with open(filepath, 'rb') as file:
             # file can be any type, octet stream is generic
-            response = requests.put(urlpath, data=file, headers={'Content-Type': 'application/octet-stream'})
+            response = requests.put(
+                urlpath, data=file, headers={'Content-Type': 'application/octet-stream'}
+            )
         response.raise_for_status()
-        
+
         return response.json()
-    
+
     except requests.exceptions.RequestException as e:
         print(f"Error uploading file: {e}", file=sys.stderr)
         return None
