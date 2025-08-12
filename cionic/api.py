@@ -106,7 +106,10 @@ def post_cionic(
     if ret_status:
         return r.status_code
 
-    if r.status_code not in [200]:
+    if r.status_code not in [
+        200,
+        201,
+    ]:  # 201 is standard response for resource creation
         print(r, file=sys.stderr)
         return None
 
@@ -345,6 +348,156 @@ def package_npz(segments, npzdir, npzpath, segsuffix=''):
         print("study package complete", file=sys.stderr)
 
 
+def _get_collection_xid(
+    org_shortname: str, study_shortname: str, collection_num: str
+) -> str:
+    """
+    Get the collection XID from the collection metadata.
+
+    Args:
+        org_shortname (str): The organization shortname.
+        study_shortname (str): The study shortname.
+        collection_num (str): The collection number.
+
+    Returns:
+        str: The collection XID.
+
+    Raises:
+        RuntimeError: If the collection cannot be found.
+    """
+    kwargs = {"study": study_shortname, "num": collection_num}
+    (collection,) = get_cionic(f'{org_shortname}/collections', **kwargs)
+    return collection['xid']
+
+
+def _check_file_exists(org_shortname: str, collection_xid: str, filename: str) -> bool:
+    """
+    Check if a file already exists in a collection.
+
+    Args:
+        org_shortname (str): The organization shortname.
+        collection_xid (str): The collection XID.
+        filename (str): The name of the file to check.
+
+    Returns:
+        bool: True if the file exists, False otherwise.
+    """
+    urlpath = f"{org_shortname}/collections/{collection_xid}/files"
+    existing_files = get_cionic(urlpath)
+    return existing_files is not None and filename in existing_files
+
+
+def _get_upload_url(org_shortname: str, collection_xid: str, filename: str) -> str:
+    """
+    Get the upload URL for a file.
+
+    Args:
+        org_shortname (str): The organization shortname.
+        collection_xid (str): The collection XID.
+        filename (str): The name of the file to upload.
+
+    Returns:
+        str: The upload URL for the file.
+
+    Raises:
+        RuntimeError: If unable to get an upload URL.
+    """
+    urlpath = f"{org_shortname}/collections/{collection_xid}/files"
+    response = post_cionic(urlpath, ver="1.18", json={'files': [filename]})
+
+    if not response:
+        raise RuntimeError(f"Failed to get upload URL for file: {filename}")
+
+    gcs_url = response.get(filename)
+    if not gcs_url:
+        raise RuntimeError(f"No upload URL found for file: {filename}")
+
+    return gcs_url
+
+
+def _upload_file(filepath, gcs_url):
+    """
+    Upload a file to a specified GCS URL.
+
+    Args:
+        filepath (str): The local file path to upload.
+        gcs_url (str): The GCS URL to upload the file to.
+
+    Returns:
+        bool: True if the file was uploaded successfully, False otherwise.
+    """
+    try:
+        with open(filepath, 'rb') as file:
+            # file can be any type, octet stream is generic
+            response = requests.put(
+                gcs_url, data=file, headers={'Content-Type': 'application/octet-stream'}
+            )
+        response.raise_for_status()
+        return True
+    except Exception as e:
+        print(f"Error uploading file: {e}", file=sys.stderr)
+        return False
+
+
+def upload_file_from_metadata(
+    tokenpath: str,
+    org_shortname: str,
+    study_shortname: str,
+    collection_num: str,
+    filepath: str,
+    overwrite: bool = False,
+) -> bool:
+    """
+    Upload a file to a specific collection in the Cionic platform using metadata.
+
+    Args:
+        tokenpath (str): Path to the authentication token file.
+        org_shortname (str): The organization shortname.
+        study_shortname (str): The study shortname.
+        collection_num (str): The collection number.
+        filepath (str): The local file path to upload.
+        overwrite (bool, optional): Whether to overwrite the file if it already exists.
+            Defaults to False.
+
+    Returns:
+        bool: True if the file was uploaded successfully, False otherwise.
+    """
+    if not os.path.exists(filepath):
+        print(f"File not found: {filepath}", file=sys.stderr)
+        return False
+
+    # Initialize authentication
+    auth(tokenpath=tokenpath)
+    filename = os.path.basename(filepath)
+
+    try:
+        # Get collection ID and check file existence
+        collection_xid = _get_collection_xid(
+            org_shortname, study_shortname, collection_num
+        )
+
+        if _check_file_exists(org_shortname, collection_xid, filename):
+            if not overwrite:
+                print(
+                    f"File {filename} already exists in collection. \
+                     Use overwrite=True to replace.",
+                    file=sys.stderr,
+                )
+                return False
+            print(f"File {filename} exists, overwriting...", file=sys.stderr)
+
+        # Get upload URL and perform upload
+        gcs_url = _get_upload_url(org_shortname, collection_xid, filename)
+        return _upload_file(filepath, gcs_url)
+
+    except RuntimeError as e:
+        print(str(e), file=sys.stderr)
+        return False
+    except Exception as e:
+        print(f"Unexpected error: {str(e)}", file=sys.stderr)
+        return False
+
+
 def download_file(
     destpath: str, url: str, overwrite: bool = False, headers: dict = None
 ) -> bool:
@@ -375,42 +528,6 @@ def download_file(
         for chunk in r.iter_content(chunk_size=512 * 1024):
             fp.write(chunk)
     return True
-
-
-def get_gcs_urls(org_shortname):
-    """
-    Get the Google Cloud Storage (GCS) URLs for the specified organization.
-    """
-    urlpath = f"{org_shortname}/collections/files"
-    response = requests.post(urlpath, headers={'x-cionic-user': authtoken})
-    print(response)
-    return response.json().get('urls', [])
-
-
-def upload_file(filepath, urlpath):
-    """
-    Upload a file to a specified URL path.
-
-    Args:
-        filepath (str): The local file path to upload.
-        urlpath (str): The URL path to upload the file to.
-
-    Returns:
-        bool: True if the file was uploaded successfully, False otherwise.
-    """
-    try:
-        with open(filepath, 'rb') as file:
-            # file can be any type, octet stream is generic
-            response = requests.put(
-                urlpath, data=file, headers={'Content-Type': 'application/octet-stream'}
-            )
-        response.raise_for_status()
-
-        return response.json()
-
-    except requests.exceptions.RequestException as e:
-        print(f"Error uploading file: {e}", file=sys.stderr)
-        return None
 
 
 def download_npz_from_metadata(
