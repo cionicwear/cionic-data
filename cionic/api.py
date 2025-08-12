@@ -407,6 +407,16 @@ def download_npz_from_metadata(
     Returns:
         np.lib.npyio.NpzFile: Loaded .npz file.
     """
+    destpath = (
+        f"{outdir}/{org_shortname}/{study_shortname}/{collection_num}/"
+        f"{org_shortname}_{study_shortname}_{collection_num}.npz"
+    )
+    if os.path.exists(destpath) and not overwrite:
+        print(f"already exists {destpath}", file=sys.stderr)
+        if segmented:
+            return segmenter.load_segmented(destpath)
+        else:
+            return np.load(destpath)
     if tokenpath is None:
         raise ValueError("tokenpath must be specified to download NPZ from metadata.")
 
@@ -415,10 +425,6 @@ def download_npz_from_metadata(
     (collection,) = get_cionic(f'{org_shortname}/collections', **kwargs)
 
     urlpath = f"{org_shortname}/collections/{collection['xid']}/streams/npz"
-    destpath = (
-        f"{outdir}/{org_shortname}/{study_shortname}/{collection_num}/"
-        f"{org_shortname}_{study_shortname}_{collection_num}.npz"
-    )
 
     download_npz(
         destpath=destpath,
@@ -463,6 +469,48 @@ def download_npz(
         include_eulers_to_npz(destpath)
     if include_gait_splits:
         include_gait_splits_to_npz(destpath)
+
+
+def download_files_from_metadata(
+    org_shortname: str,
+    study_shortname: str,
+    collection_num: int,
+    tokenpath: str,
+    outdir: str = '.',
+    include: list = None,
+    exclude: list = None,
+) -> tuple[str, str]:
+    """
+    Downloads files from a collection using metadata, with optional file filtering.
+
+    Args:
+        org_shortname (str): Organization ID.
+        study_shortname (str): Short name of the study.
+        collection_num (int): Collection number within the study.
+        tokenpath (str): Path to the authentication token file.
+        outdir (str, optional): Base output directory for downloaded files.
+            Defaults to current directory.
+        include (list, optional): List of file extensions to include
+            (e.g., ['.npz', '.json']).
+        exclude (list, optional): List of file extensions to exclude.
+
+    Returns:
+        tuple[str, str]: Tuple of (API urlpath, local destination path) used
+            for the download.
+
+    """
+    if tokenpath is None:
+        raise ValueError("tokenpath must be specified to download NPZ from metadata.")
+
+    auth(tokenpath=tokenpath)
+    kwargs = {"study": study_shortname, "num": collection_num}
+    (collection,) = get_cionic(f'{org_shortname}/collections', **kwargs)
+
+    urlpath = f'{org_shortname}/collections/{collection["xid"]}/files'
+    destpath = f'{outdir}/{org_shortname}/{study_shortname}/{collection_num}/'
+
+    download_files(urlpath, destpath, include=include, exclude=exclude)
+    return urlpath, destpath
 
 
 def download_files(urlpath, directory, include=None, exclude=None, ver=apiver):
