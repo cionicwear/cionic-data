@@ -869,7 +869,7 @@ def pandas_to_recarray(df: pd.DataFrame) -> np.recarray:
         df (pandas.DataFrame): The DataFrame to convert.
 
     Returns:
-        np.recarray: The converted ndarray.
+        np.recarray: The converted recarray.
     """
     array = np.array(
         list(df.itertuples(index=False)),
