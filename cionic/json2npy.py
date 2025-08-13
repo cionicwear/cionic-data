@@ -13,11 +13,11 @@ def to_jsonl(objs):
     return '\n'.join(json.dumps(obj) for obj in objs) + '\n'
 
 
-def structured_array_to_jsonl_bytes(array: np.ndarray) -> bytes:
+def structured_array_to_jsonl_bytes(array: np.recarray) -> bytes:
     '''
     Converts a NumPy structured array to JSON Lines (JSONL) formatted bytes.
     Args:
-        array (np.ndarray): A NumPy structured array with named fields.
+        array (np.recarray): A NumPy structured array with named fields.
 
     Returns:
         bytes: The JSONL representation of the structured array, encoded as UTF-8 bytes.

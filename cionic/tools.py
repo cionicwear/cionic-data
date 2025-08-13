@@ -793,7 +793,7 @@ def get_joint_streams(
 
 def get_limb_eulers(
     npz: np.lib.npyio.NpzFile, degrees: bool = True
-) -> tuple[dict[str, np.ndarray], np.ndarray]:
+) -> tuple[dict[str, np.recarray], np.recarray]:
     """
     Extract Euler angles from quaternion segments in a .npz file.
 
@@ -803,8 +803,8 @@ def get_limb_eulers(
 
     Returns:
         tuple:
-            - dict[str, np.ndarray]: Dict of euler_path names to Euler arrays.
-            - np.ndarray: Array of new segment metadata dicts for the Euler streams.
+            - dict[str, np.recarray]: Dict of euler_path names to Euler arrays.
+            - np.recarray: Array of new segment metadata dicts for the Euler streams.
     """
     print("getting limb eulers from npz", file=sys.stderr)
     limb_eulers = {}
@@ -829,7 +829,7 @@ def get_limb_eulers(
 
 def get_joint_eulers(
     npz: np.lib.npyio.NpzFile,
-) -> tuple[dict[str, np.ndarray], list[np.ndarray]]:
+) -> tuple[dict[str, np.recarray], list[np.recarray]]:
     '''
     Extracts joint Euler angle data and corresponding segment information from NPZ.
 
@@ -850,7 +850,7 @@ def get_joint_eulers(
 
     for stream_data in streams_data_packet:
         data_stream = stream_data['data_stream']
-        joint_eulers[stream_data['path']] = pandas_to_ndarray(data_stream)
+        joint_eulers[stream_data['path']] = pandas_to_recarray(data_stream)
 
         seg_dtype = segments.dtype
         values = tuple(stream_data.get(name, '') for name in seg_dtype.names)
@@ -861,7 +861,7 @@ def get_joint_eulers(
     return joint_eulers, new_joint_segments
 
 
-def pandas_to_ndarray(df: pd.DataFrame) -> np.ndarray:
+def pandas_to_recarray(df: pd.DataFrame) -> np.recarray:
     """
     Convert a pandas DataFrame to a NumPy ndarray.
 
@@ -869,7 +869,7 @@ def pandas_to_ndarray(df: pd.DataFrame) -> np.ndarray:
         df (pandas.DataFrame): The DataFrame to convert.
 
     Returns:
-        np.ndarray: The converted ndarray.
+        np.recarray: The converted ndarray.
     """
     array = np.array(
         list(df.itertuples(index=False)),
