@@ -863,7 +863,7 @@ def get_joint_eulers(
 
 def pandas_to_recarray(df: pd.DataFrame) -> np.recarray:
     """
-    Convert a pandas DataFrame to a NumPy ndarray.
+    Convert a pandas DataFrame to a NumPy record array.
 
     Args:
         df (pandas.DataFrame): The DataFrame to convert.
