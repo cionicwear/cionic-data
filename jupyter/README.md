@@ -68,7 +68,7 @@ You will first need to download an authorization token from the web portal.
 
 6. You will be prompted to select a kernel. Select the kernel named `Jupyter + Python` and select the `base` environment.
 
-7. Note that the first time running runner.ipynb, the notebook may stall, improperly render the UI or otherwise file. In this case, restart the kernel, close the notebook tab and try again.
+Note: the first time running runner.ipynb, the notebook may stall, improperly render the UI or otherwise fail. In this case, restart the kernel, close the notebook tab and try again.
 
 ## Private volumes
 A common pattern of use is to have notebooks/code that you do not intend to share publicly.
