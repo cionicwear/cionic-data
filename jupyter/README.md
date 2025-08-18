@@ -20,6 +20,10 @@ You will first need to download an authorization token from the web portal.
    ```
 3. Start the Docker container:
    ```bash
+   docker compose -f docker-compose.yml up
+   ```
+4. (Optional) If you want to use private volumes, skip step 3 and add the private-volumes.yml file to the docker compose command instead:
+   ```bash
    docker compose -f docker-compose.yml -f private-volumes.yml up
    ```
 
@@ -32,30 +36,39 @@ You will first need to download an authorization token from the web portal.
    ```
 2. Copy and paste this URL into your browser
 
+3. Click on the folder icon in the top left of jupyter
+
+4. Open `analysis/runner.ipynb`
+
+5. Execute the notebook
+
+6. Select options for org / study / notebook
+
+7. Hit run
+
 ### Option 2: VS Code
 *Recommended for development*
 
 1. Download VS Code: [https://code.visualstudio.com/Download](https://code.visualstudio.com/Download)
 
-2. Install required extensions:
-   - Remote - Containers (ms-vscode-remote.remote-containers)
+2. Install required extensions by clicking the Extensions icon in the left sidebar. Search for and install:
+   - Dev Containers (ms-vscode-remote.remote-containers)
    - Python (ms-python.python)
    - Jupyter (ms-toolsai.jupyter)
 
 3. Open the project:
-   - File → Open Folder → Select cionic-data directory
-   - When prompted, click "Reopen in Container"
-   - If not prompted, press `Cmd+Shift+P` (Mac) or `Ctrl+Shift+P` (Windows/Linux) and select "Remote-Containers: Reopen in Container"
-   - Press `Open Folder` and select working directory (`/home/jovyan/`)
+   - Click the blue icon in the bottom left corner of the window. If you hover over it, it should say "Open a Remote Window."
+   - Click "Attach to Running Container..." in the Command Palette in the top center of the window.
+   - Select the container named `cionic-data`. If it does not appear, the container may not be running.
+   - Click "Open Folder" and select the working directory (`/home/jovyan/`)
   
+4. Open `analysis/runner.ipynb`
 
-## Runner Notebook
-1. (JupyterLab only) Click on the folder icon in the top left of jupyter
-2. Open `analysis/runner.ipynb`
-3. Execute the notebook
-4. Select options for org / study / notebook
-5. Hit run
+5. Try to execute the notebook (you can press the "Run All" button in the top of the `runner.ipynb` tab or press `Shift+Enter` on each cell)
 
+6. You will be prompted to select a kernel. Select the kernel named `Jupyter + Python` and select the `base` environment.
+
+7. Note that the first time running runner.ipynb, the notebook may stall, improperly render the UI or otherwise file. In this case, restart the kernel, close the notebook tab and try again.
 
 ## Private volumes
 A common pattern of use is to have notebooks/code that you do not intend to share publicly.
