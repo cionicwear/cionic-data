@@ -33,7 +33,11 @@ def download_electrode_configs(org_id, study_name, token_path=None):
         token_path = os.path.abspath('../token.json')
     d = api.auth(tokenpath=token_path)
     if not d:
-        raise ValueError("Authentication failed")
+    if not os.path.isfile(token_path):
+        raise ValueError(f"Token file not found at '{token_path}'")
+    d = api.auth(tokenpath=token_path)
+    if not d:
+        raise ValueError(f"Authentication failed using token file '{token_path}'. The token may be invalid or expired.")
 
     # Validate org exists
     orgs = [org['shortname'] for org in d]
