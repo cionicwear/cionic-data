@@ -34,6 +34,18 @@ from cionic import api
 def upload_electrode_config(
     org_id, study_name, config_name, json_path, token_path, new=False
 ):
+    """
+    Upload electrode configuration to Cionic API.
+
+    Args:
+        org_id (str): The organization ID
+        study_name (str): The study name
+        config_name (str): The name of the configuration
+        json_path (str): The path to the JSON configuration file
+        token_path (str): The path to the token file
+        new (bool): Whether to create a new config (default: False)
+    """
+
     # Authenticate
     d = api.auth(tokenpath=token_path)
 

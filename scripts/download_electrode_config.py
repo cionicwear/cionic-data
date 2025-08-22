@@ -19,7 +19,15 @@ import os
 from cionic import api
 
 
-def download_electrode_configs(org_id, study_name=None, token_path=None):
+def download_electrode_configs(org_id, study_name, token_path=None):
+    """
+    Download electrode configurations from Cionic API.
+
+    Args:
+        org_id (str): The organization ID
+        study_name (str): The study name
+        token_path (str): The path to the token file (default: ../token.json)
+    """
     # Authenticate
     if token_path is None:
         token_path = os.path.abspath('../token.json')
@@ -40,11 +48,9 @@ def download_electrode_configs(org_id, study_name=None, token_path=None):
         raise ValueError(f"No studies found for organization {org_id}")
 
     # Filter studies if study_name is provided
-    if study_name:
-        print(studies)
-        studies = [s for s in studies if s['shortname'] == study_name]
-        if not studies:
-            raise ValueError(f"Study {study_name} not found in org {org_id}")
+    studies = [s for s in studies if s['shortname'] == study_name]
+    if not studies:
+        raise ValueError(f"Study {study_name} not found in org {org_id}")
 
     base_dir = os.path.join('recordings', org_id)
 
@@ -89,9 +95,7 @@ def main():
         description='Download electrode configurations from Cionic API'
     )
     parser.add_argument('--org', required=True, help='Organization ID')
-    parser.add_argument(
-        '--study', help='Study name (optional, downloads all studies if not specified)'
-    )
+    parser.add_argument('--study', required=True, help='Study name')
     parser.add_argument(
         '--token-path', help='Path to token file (default: ../token.json)'
     )
