@@ -1,4 +1,17 @@
-#!/usr/bin/env python3
+"""
+Download electrode configurations from Cionic API.
+
+Requires a token.json file.
+
+Example usage:
+
+python download_electrode_config.py \
+    --org cionic \
+    --study demo-develop \
+    --token-path "../token.json"
+
+"""
+
 import argparse
 import json
 import os

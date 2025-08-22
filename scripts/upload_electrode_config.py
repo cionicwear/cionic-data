@@ -1,4 +1,29 @@
-#!/usr/bin/env python3
+"""
+Upload electrode configuration to Cionic API. Use the --new flag to make a new config.
+
+Requires a token.json file and a config json file to upload.
+
+Example usage:
+
+For a new config:
+python upload_electrode_config.py \
+    --org cionic \
+    --study demo-develop \
+    --config-name "EXAMPLE_CONFIG" \
+    --json-path "recordings/cionic/artemis/EXAMPLE_CONFIG.json" \
+    --token-path "../token.json" \
+    --new
+
+For an existing config:
+python upload_electrode_config.py \
+    --org cionic \
+    --study demo-develop \
+    --config-name "EXAMPLE_CONFIG" \
+    --json-path "recordings/cionic/artemis/EXAMPLE_CONFIG.json" \
+    --token-path "../token.json"
+
+"""
+
 import argparse
 import json
 import os
@@ -7,7 +32,7 @@ from cionic import api
 
 
 def upload_electrode_config(
-    org_id, study_name, config_name, json_path, token_path, update=False
+    org_id, study_name, config_name, json_path, token_path, new=False
 ):
     # Authenticate
     d = api.auth(tokenpath=token_path)
@@ -43,7 +68,16 @@ def upload_electrode_config(
     # Prepare payload
     payload = {'config_name': config_name, 'config': config_data}
 
-    if update:
+    if new:
+        # Create new config
+        response = api.post_cionic(
+            f"{org_id}/studies/{study_xid}/deviceconfig/", json=payload, ver='1.16'
+        )
+        print(
+            f"Successfully created new config '{config_name}' "
+            f"in study '{study_name}' in org '{org_id}'"
+        )
+    else:
         # Get existing configs to find the config_id
         configs = api.get_cionic(
             f"{org_id}/studies/{study_xid}/deviceconfig", ver='1.16'
@@ -69,15 +103,6 @@ def upload_electrode_config(
             f"Successfully updated config '{config_name}' "
             f"in study '{study_name}' in org '{org_id}'"
         )
-    else:
-        # Create new config
-        response = api.post_cionic(
-            f"{org_id}/studies/{study_xid}/deviceconfig/", json=payload, ver='1.16'
-        )
-        print(
-            f"Successfully created new config '{config_name}' "
-            f"in study '{study_name}' in org '{org_id}'"
-        )
 
     return response
 
@@ -100,9 +125,9 @@ def main():
         help='Path to token file (default: ../token.json)',
     )
     parser.add_argument(
-        '--update',
+        '--new',
         action='store_true',
-        help='Update existing config instead of creating new one',
+        help='Create new config instead of updating existing one',
     )
 
     args = parser.parse_args()
@@ -114,7 +139,7 @@ def main():
             args.config_name,
             args.json_path,
             os.path.abspath(args.token_path),
-            update=args.update,
+            new=args.new,
         )
     except Exception as e:
         print(f"Error: {str(e)}")
