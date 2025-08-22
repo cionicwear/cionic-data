@@ -5,7 +5,6 @@ services:
     build: .
     ports: 
       - '8888:8888'
-      - '22:22'  # For VSCode SSH
     environment:
       - JUPYTER_ENABLE_LAB=yes
       - PYTHONPATH=/home/jovyan/

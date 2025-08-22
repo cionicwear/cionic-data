@@ -54,7 +54,7 @@ def retrieve_stream(
     position: str,
     stream: str,
     segment_num: Union[int, bool] = False,
-) -> Union[np.ndarray, None]:
+) -> Union[np.recarray, None]:
     '''
     Retrieve a specific data stream segment from an NPZ archive.
 
@@ -66,7 +66,7 @@ def retrieve_stream(
             or False to ignore.
 
     Returns:
-        np.ndarray or None: The matched data segment if found, otherwise None.
+        np.recarray or None: The matched data segment if found, otherwise None.
     '''
     for line in npz['segments.jsonl'].split(b'\n'):
         if line:
@@ -113,16 +113,16 @@ def retrieve_segment_field(
     return None
 
 
-def change_segments_column_dtype(segments: np.ndarray, dtype_dict=None) -> np.ndarray:
+def change_segments_column_dtype(segments: np.recarray, dtype_dict=None) -> np.recarray:
     '''
     Change dtype of specified columns in a structured numpy array.
 
     Args:
-        segments (np.ndarray): Structured numpy array (like pandas DataFrame).
+        segments (np.recarray): Structured numpy array (like pandas DataFrame).
         dtype_dict (dict): Dictionary mapping field names to new dtypes.)
 
     Returns:
-        np.ndarray: New array with updated dtypes.
+        np.recarray: New array with updated dtypes.
     '''
     if dtype_dict is None:
         dtype_dict = {

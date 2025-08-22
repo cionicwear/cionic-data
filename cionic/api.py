@@ -716,7 +716,7 @@ def download_files(urlpath, directory, include=None, exclude=None, ver=apiver):
 
 def add_arrays_to_npz_and_store(
     npz: np.lib.npyio.NpzFile,
-    array_dict: dict[str, np.ndarray],
+    array_dict: dict[str, np.recarray],
     destpath: str,
 ) -> None:
     """
@@ -843,7 +843,7 @@ def create_new_segment_helper(
 
 def get_splits_arrays_and_segments(
     npz: np.lib.npyio.NpzFile,
-) -> tuple[dict[str, np.ndarray], np.ndarray]:
+) -> tuple[dict[str, np.recarray], np.recarray]:
     '''
     Processes segments in the given npz file, generating new arrays and segments
     for walking intervals and paired walking splits based on segment properties.
@@ -852,7 +852,7 @@ def get_splits_arrays_and_segments(
         npz (np.lib.npyio.NpzFile): NPZ file containing 'segments' and time series.
 
     Returns:
-        tuple[dict[str, np.ndarray], np.ndarray]: A dictionary of new arrays keyed
+        tuple[dict[str, np.recarray], np.recarray]: A dictionary of new arrays keyed
         by path, and an updated array of segments.
     '''
     new_files = {}
@@ -901,20 +901,20 @@ def get_splits_arrays_and_segments(
 
 
 def get_grouped_walking_periods_as_array(
-    kinematic_time_series: np.ndarray,
+    kinematic_time_series: np.recarray,
     component: str = "x",
     peak_kwargs: dict = None,
-) -> np.ndarray:
+) -> np.recarray:
     '''
     Convert grouped walking splits from time series into a structured NumPy array.
 
     Args:
-        kinematic_time_series (np.ndarray): Input time series data.
+        kinematic_time_series (np.recarray): Input time series data.
         component (str): Component to analyze (default "x").
         peak_kwargs (dict, optional): Arguments for peak detection.
 
     Returns:
-        np.ndarray: Structured array with start, stop, and elapsed times.
+        np.recarray: Structured array with start, stop, and elapsed times.
     '''
     grouped_walking_periods = kinematics.get_grouped_walking_splits(
         kinematic_time_series=kinematic_time_series,
@@ -932,24 +932,24 @@ def get_grouped_walking_periods_as_array(
 
 
 def get_paired_stride_splits_as_array(
-    kinematic_time_series: np.ndarray,
+    kinematic_time_series: np.recarray,
     component: str = "x",
     n_start_remove: int = 0,
     n_stop_remove: int = 0,
     peak_kwargs: dict = None,
-) -> np.ndarray:
+) -> np.recarray:
     '''
     Convert paired walking splits from time series into a structured NumPy array.
 
     Args:
-        kinematic_time_series (np.ndarray): Input time series data.
+        kinematic_time_series (np.recarray): Input time series data.
         component (str): Component to analyze (default "x").
         n_start_remove (int): Number of splits to remove from start.
         n_stop_remove (int): Number of splits to remove from end.
         peak_kwargs (dict, optional): Arguments for peak detection.
 
     Returns:
-        np.ndarray: Structured array with start, stop, and elapsed times.
+        np.recarray: Structured array with start, stop, and elapsed times.
     '''
     paired_stride_splits = kinematics.get_paired_walking_splits(
         kinematic_time_series=kinematic_time_series,

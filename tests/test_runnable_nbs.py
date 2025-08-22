@@ -16,13 +16,22 @@ CSV compare:
 - Optional --csv-unordered will sort rows (header kept first) to ignore row ordering
 
 Usage:
-  First, use a working branch containing these runnable scripts on a study of your choice (i.e. study 'khe', collection '13')
-  From this branch, use runner.ipynb to run all of the scripts on this study, with 'Execute' checked and 'Overwrite' unchecked.
-  Save a copy of the results to a new directory (i.e. copy recordings/cionic/khe/13 to recordings/cionic/khe/13 copy)
+  First, use a working branch containing these runnable scripts on a study of your
+  choice (i.e. study 'khe', collection '13')
+
+  From this branch, use runner.ipynb to run all of the scripts on this study, with
+  'Execute' checked and 'Overwrite' unchecked.
+
+  Save a copy of the results to a new directory (i.e. copy recordings/cionic/khe/13
+  to recordings/cionic/khe/13 copy)
+
   Next, run the new branch containing these scripts on the same study.
 
   Finally, run this script from cionic-data using a command like:
-  python tests/test_runnable_nbs.py "recordings/cionic/khe/13" "recordings/cionic/khe/13 copy" --diff
+    python tests/test_runnable_nbs.py
+        "recordings/cionic/khe/13"
+        "recordings/cionic/khe/13 copy"
+        --diff
 
   It will show any differences between the old and new output notebooks / csvs.
 
@@ -31,10 +40,11 @@ Requires:
 """
 
 import argparse
-import difflib
 import csv
-from pathlib import Path
+import difflib
 import re
+from pathlib import Path
+
 import nbformat
 
 # ---------------- Notebook handling ----------------
@@ -43,12 +53,15 @@ DEFAULT_IGNORED_VARS = ["datapath", "download", "files_url"]
 
 COLLECTION_ID_RE = re.compile(r"(cionic/collections/)[A-Za-z0-9_\-]+")
 
+
 def mask_collection_ids(text: str) -> str:
     return COLLECTION_ID_RE.sub(r"\1<ID>", text)
+
 
 def make_var_assign_re(ignored_vars):
     pattern = r"^\s*(" + "|".join(map(re.escape, ignored_vars)) + r")\s*=\s*.*$"
     return re.compile(pattern)
+
 
 def mask_ignored_assignments(text: str, ignored_vars):
     assign_re = make_var_assign_re(ignored_vars) if ignored_vars else None
@@ -63,6 +76,7 @@ def mask_ignored_assignments(text: str, ignored_vars):
         out_lines.append(line)
     return "\n".join(out_lines)
 
+
 def list_files(root: Path, patterns):
     out = set()
     for pat in patterns:
@@ -73,9 +87,11 @@ def list_files(root: Path, patterns):
         }
     return out
 
+
 def load_notebook(path: Path):
     with path.open("r", encoding="utf-8") as f:
         return nbformat.read(f, as_version=4)
+
 
 def normalize_notebook_content(nb, ignored_vars):
     blocks = []
@@ -89,6 +105,7 @@ def normalize_notebook_content(nb, ignored_vars):
         source = mask_ignored_assignments(source, ignored_vars)
         blocks.append(f"### cell {i} [{ctype}] ###\n{source}\n")
     return blocks
+
 
 def compare_notebooks(a_path: Path, b_path: Path, show_diff: bool, ignored_vars):
     nb_a = load_notebook(a_path)
@@ -106,7 +123,9 @@ def compare_notebooks(a_path: Path, b_path: Path, show_diff: bool, ignored_vars)
         return False, "\n".join(diff)
     return False, None
 
+
 # ---------------- CSV handling ----------------
+
 
 def read_csv_normalized(path: Path):
     """
@@ -115,12 +134,15 @@ def read_csv_normalized(path: Path):
     """
     with path.open("r", encoding="utf-8-sig", newline="") as f:
         reader = csv.reader(f)
-        rows = [[(c.strip() if isinstance(c, str) else c) for c in row] for row in reader]
+        rows = [
+            [(c.strip() if isinstance(c, str) else c) for c in row] for row in reader
+        ]
     if not rows:
         return [], []
     header = rows[0]
     data = [tuple(r) for r in rows[1:]]
     return header, data
+
 
 def compare_csv(a_path: Path, b_path: Path, show_diff: bool, unordered: bool):
     a_header, a_rows = read_csv_normalized(a_path)
@@ -129,8 +151,11 @@ def compare_csv(a_path: Path, b_path: Path, show_diff: bool, unordered: bool):
     if a_header != b_header:
         if show_diff:
             diff = difflib.unified_diff(
-                [",".join(a_header)], [",".join(b_header)],
-                fromfile=str(a_path) + " (header)", tofile=str(b_path) + " (header)", lineterm=""
+                [",".join(a_header)],
+                [",".join(b_header)],
+                fromfile=str(a_path) + " (header)",
+                tofile=str(b_path) + " (header)",
+                lineterm="",
             )
             return False, "\n".join(diff)
         return False, None
@@ -152,6 +177,7 @@ def compare_csv(a_path: Path, b_path: Path, show_diff: bool, unordered: bool):
             yield ",".join(header)
             for r in rows:
                 yield ",".join(r)
+
         a_lines = list(to_lines(a_header, a_rows_cmp))
         b_lines = list(to_lines(b_header, b_rows_cmp))
         diff = difflib.unified_diff(
@@ -160,7 +186,9 @@ def compare_csv(a_path: Path, b_path: Path, show_diff: bool, unordered: bool):
         return False, "\n".join(diff)
     return False, None
 
+
 # ---------------- Main ----------------
+
 
 def main():
     ap = argparse.ArgumentParser(
@@ -169,10 +197,17 @@ def main():
     ap.add_argument("dir_a", type=Path, help="Left directory")
     ap.add_argument("dir_b", type=Path, help="Right directory")
     ap.add_argument("--diff", action="store_true", help="Show unified diffs")
-    ap.add_argument("--csv-unordered", action="store_true", help="Ignore CSV row order (sort rows)")
     ap.add_argument(
-        "--ignore-var", action="append", default=[],
-        help="Variable name to ignore in notebook assignments (repeatable). Defaults: datapath, download, files_url",
+        "--csv-unordered", action="store_true", help="Ignore CSV row order (sort rows)"
+    )
+    ap.add_argument(
+        "--ignore-var",
+        action="append",
+        default=[],
+        help=(
+            "Variable name to ignore in notebook assignments (repeatable)."
+            "Defaults: datapath, download, files_url"
+        ),
     )
     args = ap.parse_args()
 
@@ -192,12 +227,12 @@ def main():
     # Notebooks
     nb_only_a = sorted(ipynb_a - ipynb_b)
     nb_only_b = sorted(ipynb_b - ipynb_a)
-    nb_both   = sorted(ipynb_a & ipynb_b)
+    nb_both = sorted(ipynb_a & ipynb_b)
 
     # CSVs
     csv_only_a = sorted(csv_a - csv_b)
     csv_only_b = sorted(csv_b - csv_a)
-    csv_both   = sorted(csv_a & csv_b)
+    csv_both = sorted(csv_a & csv_b)
 
     nb_differ = []
     csv_differ = []
@@ -225,27 +260,33 @@ def main():
     # Reports
     if nb_only_a:
         print(f"\nNotebooks only in LEFT ({dir_a}):")
-        for r in nb_only_a: print(f"  {r}")
+        for r in nb_only_a:
+            print(f"  {r}")
     if nb_only_b:
         print(f"\nNotebooks only in RIGHT ({dir_b}):")
-        for r in nb_only_b: print(f"  {r}")
+        for r in nb_only_b:
+            print(f"  {r}")
 
     if csv_only_a:
         print(f"\nCSVs only in LEFT ({dir_a}):")
-        for r in csv_only_a: print(f"  {r}")
+        for r in csv_only_a:
+            print(f"  {r}")
     if csv_only_b:
         print(f"\nCSVs only in RIGHT ({dir_b}):")
-        for r in csv_only_b: print(f"  {r}")
+        for r in csv_only_b:
+            print(f"  {r}")
 
     print("\nSummary:")
     print(f"  Notebooks compared: {len(nb_both)} | differing: {len(nb_differ)}")
     print(f"  CSVs compared:      {len(csv_both)} | differing: {len(csv_differ)}")
     if nb_differ:
         print("  Notebook files differing:")
-        for r in nb_differ: print(f"    {r}")
+        for r in nb_differ:
+            print(f"    {r}")
     if csv_differ:
         print("  CSV files differing:")
-        for r in csv_differ: print(f"    {r}")
+        for r in csv_differ:
+            print(f"    {r}")
     if (nb_differ or csv_differ) and not args.diff:
         print("\nUse --diff to see unified diffs.")
 
@@ -253,6 +294,7 @@ def main():
     assert not csv_differ, "Differences found in CSVs. See above for details."
 
     print("All tests passed!")
+
 
 if __name__ == "__main__":
     main()
