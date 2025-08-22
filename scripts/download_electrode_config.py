@@ -30,7 +30,6 @@ def download_electrode_configs(org_id, study_name, token_path=None):
     """
     # Authenticate
     if token_path is None:
-        token_path = os.path.abspath('../token.json')
     d = api.auth(tokenpath=token_path)
     if not d:
     if not os.path.isfile(token_path):

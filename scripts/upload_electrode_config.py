@@ -150,7 +150,7 @@ def main():
             args.study,
             args.config_name,
             args.json_path,
-            os.path.abspath(args.token_path),
+            args.token_path,
             new=args.new,
         )
     except Exception as e:
