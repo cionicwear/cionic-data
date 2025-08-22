@@ -104,6 +104,41 @@ optional arguments:
   -t TOKEN          path to auth credentials json file
 ```
 
+## upload_electrode_config.py
+
+```
+usage: upload_electrode_config.py [-h] --org ORG --study STUDY --config-name CONFIG_NAME --json-path JSON_PATH [--token-path TOKEN_PATH] [--new]
+
+positional arguments:
+  org                 organization shortname
+  study               study shortname
+  config_name         name of the configuration
+  json_path           path to the JSON configuration file
+
+optional arguments:
+  -h, --help          show this help message and exit
+  --new               create a new config
+  --token-path TOKEN_PATH
+                      path to the token file (default: ../token.json)
+```
+
+## download_electrode_config.py
+
+```
+usage: download_electrode_config.py [-h] --org ORG --study STUDY [--token-path TOKEN_PATH]
+
+positional arguments:
+  org                 organization shortname
+  study               study shortname
+
+optional arguments:
+
+  -h, --help          show this help message and exit
+  --token-path TOKEN_PATH
+                      path to the token file (default: ../token.json)
+```
+
+
 ## Committing changes with pre-commit hooks
 
 Pushing changes requires passing formatting and linting standards integrated into pre-commit hooks. These will automatically run when you try to commit, and the commit will be blocked if any tests fail. It is convenient to check if changes will pass prior to committing with:
