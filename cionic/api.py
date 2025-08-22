@@ -416,7 +416,7 @@ def _get_upload_url(org_shortname: str, collection_xid: str, filename: str) -> s
     return gcs_url
 
 
-def _upload_file(filepath, gcs_url):
+def _upload_file(filepath: str, gcs_url: str):
     """
     Upload a file to a specified GCS URL.
 
@@ -441,7 +441,7 @@ def _upload_file(filepath, gcs_url):
 
 
 def _update_collection_files(
-    orgname, collection_xid, uploaded_files, participant_xid=None
+    orgname: str, collection_xid: str, uploaded_files: list[str], participant_xid: 'Optional[str]' = None
 ):
     """
     Updates a collection by marking files as uploaded after verifying they exist
@@ -505,7 +505,10 @@ def upload_file_from_metadata(
             if not overwrite:
                 print(
                     f"File {filename} already exists in collection. \
-                     Use overwrite=True to replace.",
+                    (
+                        f"File {filename} already exists in collection. "
+                        "Use overwrite=True to replace."
+                    ),
                     file=sys.stderr,
                 )
                 return False
