@@ -351,7 +351,7 @@ def package_npz(segments, npzdir, npzpath, segsuffix=''):
 
 
 def _get_collection_xid(
-    org_shortname: str, study_shortname: str, collection_num: str
+    org_shortname: str, study_shortname: str, collection_num: int
 ) -> str:
     """
     Get the collection XID from the collection metadata.
@@ -359,17 +359,14 @@ def _get_collection_xid(
     Args:
         org_shortname (str): The organization shortname.
         study_shortname (str): The study shortname.
-        collection_num (str): The collection number.
+        collection_num (int): The collection number.
 
     Returns:
-        str: The collection XID.
-
-    Raises:
-        RuntimeError: If the collection cannot be found.
+        str: The collection XID, or None if collection cannot be found.
     """
     kwargs = {"study": study_shortname, "num": collection_num}
     (collection,) = get_cionic(f'{org_shortname}/collections', **kwargs)
-    return collection['xid']
+    return collection.get('xid', None)
 
 
 def _check_file_exists(org_shortname: str, collection_xid: str, filename: str) -> bool:
@@ -417,7 +414,7 @@ def _get_upload_url(org_shortname: str, collection_xid: str, filename: str) -> s
     return gcs_url
 
 
-def _upload_file(filepath: str, gcs_url: str):
+def _upload_file(filepath: str, gcs_url: str) -> bool:
     """
     Upload a file to a specified GCS URL.
 
@@ -446,7 +443,7 @@ def _update_collection_files(
     collection_xid: str,
     uploaded_files: list[str],
     participant_xid: Optional[str] = None,
-):
+) -> dict:
     """
     Updates a collection by marking files as uploaded after verifying they exist
     in the storage bucket. Required after uploading files to get the collection
@@ -472,7 +469,7 @@ def upload_file_from_metadata(
     tokenpath: str,
     org_shortname: str,
     study_shortname: str,
-    collection_num: str,
+    collection_num: int,
     filepath: str,
     overwrite: bool = False,
 ) -> bool:
@@ -483,7 +480,7 @@ def upload_file_from_metadata(
         tokenpath (str): Path to the authentication token file.
         org_shortname (str): The organization shortname.
         study_shortname (str): The study shortname.
-        collection_num (str): The collection number.
+        collection_num (int): The collection number.
         filepath (str): The local file path to upload.
         overwrite (bool, optional): Whether to overwrite the file if it already exists.
             Defaults to False.
