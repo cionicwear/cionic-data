@@ -404,6 +404,7 @@ def _get_upload_url(org_shortname: str, collection_xid: str, filename: str) -> s
     urlpath = f"{org_shortname}/collections/{collection_xid}/files"
     response = post_cionic(urlpath, json={'files': [filename]})
 
+    # Use RuntimeError here to allow for more specific error handling
     if not response:
         raise RuntimeError(f"Failed to get upload URL for file: {filename}")
 
@@ -425,17 +426,13 @@ def _upload_file(filepath: str, gcs_url: str) -> bool:
     Returns:
         bool: True if the file was uploaded successfully, False otherwise.
     """
-    try:
-        with open(filepath, 'rb') as file:
-            # file can be any type, octet stream is generic
-            response = requests.put(
-                gcs_url, data=file, headers={'Content-Type': 'application/octet-stream'}
-            )
-        response.raise_for_status()
-        return True
-    except Exception as e:
-        print(f"Error uploading file: {e}", file=sys.stderr)
-        return False
+    with open(filepath, 'rb') as file:
+        # file can be any type, octet stream is generic
+        response = requests.put(
+            gcs_url, data=file, headers={'Content-Type': 'application/octet-stream'}
+        )
+    response.raise_for_status()
+    return True
 
 
 def _update_collection_files(
@@ -496,12 +493,23 @@ def upload_file_from_metadata(
     auth(tokenpath=tokenpath)
     filename = os.path.basename(filepath)
 
+    # Get collection XID
     try:
-        # Get collection ID and check file existence
         collection_xid = _get_collection_xid(
             org_shortname, study_shortname, collection_num
         )
+        if not collection_xid:
+            print(
+                f"Collection not found: {study_shortname} #{collection_num}",
+                file=sys.stderr,
+            )
+            return False
+    except Exception as e:
+        print(f"Error retrieving collection: {str(e)}", file=sys.stderr)
+        return False
 
+    # Check file existence
+    try:
         if _check_file_exists(org_shortname, collection_xid, filename):
             if not overwrite:
                 print(
@@ -511,23 +519,40 @@ def upload_file_from_metadata(
                 )
                 return False
             print(f"File {filename} exists, overwriting...", file=sys.stderr)
+    except Exception as e:
+        print(f"Error checking file existence: {str(e)}", file=sys.stderr)
+        return False
 
-        # Get upload URL and perform upload
+    # Get upload URL and perform upload
+    try:
         gcs_url = _get_upload_url(org_shortname, collection_xid, filename)
-        success = _upload_file(filepath, gcs_url)
-        if success:
-            _update_collection_files(
-                orgname=org_shortname,
-                collection_xid=collection_xid,
-                uploaded_files=[filename],
-            )
-            return True
-
     except RuntimeError as e:
-        print(str(e), file=sys.stderr)
+        print(f"Failed to get upload URL: {str(e)}", file=sys.stderr)
         return False
     except Exception as e:
-        print(f"Unexpected error: {str(e)}", file=sys.stderr)
+        print(f"Unexpected error getting upload URL: {str(e)}", file=sys.stderr)
+        return False
+
+    try:
+        if not _upload_file(filepath, gcs_url):
+            print(f"Failed to upload file {filename}", file=sys.stderr)
+            return False
+    except Exception as e:
+        print(f"Error during file upload: {str(e)}", file=sys.stderr)
+        return False
+
+    # Update collection files
+    try:
+        if not _update_collection_files(
+            orgname=org_shortname,
+            collection_xid=collection_xid,
+            uploaded_files=[filename],
+        ):
+            print(f"Failed to update collection files for {filename}", file=sys.stderr)
+            return False
+        return True
+    except Exception as e:
+        print(f"Error updating collection files: {str(e)}", file=sys.stderr)
         return False
 
 
