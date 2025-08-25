@@ -9,6 +9,7 @@ import os
 import pathlib
 import sys
 import zipfile
+from typing import Optional
 
 import numpy as np
 import requests
@@ -441,7 +442,10 @@ def _upload_file(filepath: str, gcs_url: str):
 
 
 def _update_collection_files(
-    orgname: str, collection_xid: str, uploaded_files: list[str], participant_xid: 'Optional[str]' = None
+    orgname: str,
+    collection_xid: str,
+    uploaded_files: list[str],
+    participant_xid: Optional[str] = None,
 ):
     """
     Updates a collection by marking files as uploaded after verifying they exist
@@ -504,11 +508,8 @@ def upload_file_from_metadata(
         if _check_file_exists(org_shortname, collection_xid, filename):
             if not overwrite:
                 print(
-                    f"File {filename} already exists in collection. \
-                    (
-                        f"File {filename} already exists in collection. "
-                        "Use overwrite=True to replace."
-                    ),
+                    f"File {filename} already exists in collection. "
+                    "Use overwrite=True to replace.",
                     file=sys.stderr,
                 )
                 return False
