@@ -101,8 +101,8 @@ def main():
     parser = argparse.ArgumentParser(
         description='Download electrode configurations from Cionic API'
     )
-    parser.add_argument('--org', required=True, help='Organization ID')
-    parser.add_argument('--study', required=True, help='Study name')
+    parser.add_argument('--org_shortname', required=True, help='Organization ID')
+    parser.add_argument('--study_shortname', default=None, help='Study name')
     parser.add_argument(
         '--token-path', help='Path to token file (default: ../token.json)'
     )
@@ -110,7 +110,9 @@ def main():
     args = parser.parse_args()
 
     try:
-        download_electrode_configs(args.org, args.study, args.token_path)
+        download_electrode_configs(
+            args.org_shortname, args.study_shortname, args.token_path
+        )
     except Exception as e:
         print(f"Error: {str(e)}")
         return 1
