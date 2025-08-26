@@ -9,6 +9,7 @@ import os
 import pathlib
 import sys
 import zipfile
+from typing import Optional
 
 import numpy as np
 import requests
@@ -106,7 +107,11 @@ def post_cionic(
     if ret_status:
         return r.status_code
 
-    if r.status_code not in [200, 201, 202]:  # 200: OK, 201: Created, 202: Accepted
+    if r.status_code not in [
+        200,
+        201,  # 201 is standard response for resource creation (for getting gcs urls)
+        202,  # 202 for accepted request (update collection files after upload)
+    ]:
         print(r, file=sys.stderr)
         return None
 
@@ -345,6 +350,212 @@ def package_npz(segments, npzdir, npzpath, segsuffix=''):
         print("study package complete", file=sys.stderr)
 
 
+def _get_collection_xid(
+    org_shortname: str, study_shortname: str, collection_num: int
+) -> str:
+    """
+    Get the collection XID from the collection metadata.
+
+    Args:
+        org_shortname (str): The organization shortname.
+        study_shortname (str): The study shortname.
+        collection_num (int): The collection number.
+
+    Returns:
+        str: The collection XID, or None if collection cannot be found.
+    """
+    kwargs = {"study": study_shortname, "num": collection_num}
+    (collection,) = get_cionic(f'{org_shortname}/collections', **kwargs)
+    return collection.get('xid', None)
+
+
+def _check_file_exists(org_shortname: str, collection_xid: str, filename: str) -> bool:
+    """
+    Check if a file already exists in a collection.
+
+    Args:
+        org_shortname (str): The organization shortname.
+        collection_xid (str): The collection XID.
+        filename (str): The name of the file to check.
+
+    Returns:
+        bool: True if the file exists, False otherwise.
+    """
+    urlpath = f"{org_shortname}/collections/{collection_xid}/files"
+    existing_files = get_cionic(urlpath)
+    return existing_files is not None and filename in existing_files
+
+
+def _get_upload_url(org_shortname: str, collection_xid: str, filename: str) -> str:
+    """
+    Get the upload URL for a file.
+
+    Args:
+        org_shortname (str): The organization shortname.
+        collection_xid (str): The collection XID.
+        filename (str): The name of the file to upload.
+
+    Returns:
+        str: The upload URL for the file.
+
+    Raises:
+        RuntimeError: If unable to get an upload URL.
+    """
+    urlpath = f"{org_shortname}/collections/{collection_xid}/files"
+    response = post_cionic(urlpath, json={'files': [filename]})
+
+    # Use RuntimeError here to allow for more specific error handling
+    if not response:
+        raise RuntimeError(f"Failed to get upload URL for file: {filename}")
+
+    gcs_url = response.get(filename)
+    if not gcs_url:
+        raise RuntimeError(f"No upload URL found for file: {filename}")
+
+    return gcs_url
+
+
+def _upload_file(filepath: str, gcs_url: str) -> bool:
+    """
+    Upload a file to a specified GCS URL.
+
+    Args:
+        filepath (str): The local file path to upload.
+        gcs_url (str): The GCS URL to upload the file to.
+
+    Returns:
+        bool: True if the file was uploaded successfully, False otherwise.
+    """
+    with open(filepath, 'rb') as file:
+        # file can be any type, octet stream is generic
+        response = requests.put(
+            gcs_url, data=file, headers={'Content-Type': 'application/octet-stream'}
+        )
+    response.raise_for_status()
+    return True
+
+
+def _update_collection_files(
+    orgname: str,
+    collection_xid: str,
+    uploaded_files: list[str],
+    participant_xid: Optional[str] = None,
+) -> dict:
+    """
+    Updates a collection by marking files as uploaded after verifying they exist
+    in the storage bucket. Required after uploading files to get the collection
+    out of "in progress" state.
+
+    Args:
+        orgname (str): Organization name
+        collection_xid (str): Collection ID to update
+        uploaded_files (list[str]): List of filenames that have been uploaded
+        participant_xid (str, optional): Participant ID if updating participant
+
+    Returns:
+        dict: Updated collection data if successful, None otherwise
+    """
+    data = {"uploaded_files": uploaded_files}
+    if participant_xid:
+        data["participant_xid"] = participant_xid
+
+    return post_cionic(f"{orgname}/collections/{collection_xid}", json=data)
+
+
+def upload_file_from_metadata(
+    tokenpath: str,
+    org_shortname: str,
+    study_shortname: str,
+    collection_num: int,
+    filepath: str,
+    overwrite: bool = False,
+) -> bool:
+    """
+    Upload a file to a specific collection in the Cionic platform using metadata.
+
+    Args:
+        tokenpath (str): Path to the authentication token file.
+        org_shortname (str): The organization shortname.
+        study_shortname (str): The study shortname.
+        collection_num (int): The collection number.
+        filepath (str): The local file path to upload.
+        overwrite (bool, optional): Whether to overwrite the file if it already exists.
+            Defaults to False.
+
+    Returns:
+        bool: True if the file was uploaded successfully, False otherwise.
+    """
+    if not os.path.exists(filepath):
+        print(f"File not found: {filepath}", file=sys.stderr)
+        return False
+
+    # Initialize authentication
+    auth(tokenpath=tokenpath)
+    filename = os.path.basename(filepath)
+
+    # Get collection XID
+    try:
+        collection_xid = _get_collection_xid(
+            org_shortname, study_shortname, collection_num
+        )
+        if not collection_xid:
+            print(
+                f"Collection not found: {study_shortname} #{collection_num}",
+                file=sys.stderr,
+            )
+            return False
+    except Exception as e:
+        print(f"Error retrieving collection: {str(e)}", file=sys.stderr)
+        return False
+
+    # Check file existence
+    try:
+        if _check_file_exists(org_shortname, collection_xid, filename):
+            if not overwrite:
+                print(
+                    f"File {filename} already exists in collection. "
+                    "Use overwrite=True to replace.",
+                    file=sys.stderr,
+                )
+                return False
+            print(f"File {filename} exists, overwriting...", file=sys.stderr)
+    except Exception as e:
+        print(f"Error checking file existence: {str(e)}", file=sys.stderr)
+        return False
+
+    # Get upload URL and perform upload
+    try:
+        gcs_url = _get_upload_url(org_shortname, collection_xid, filename)
+    except RuntimeError as e:
+        print(f"Failed to get upload URL: {str(e)}", file=sys.stderr)
+        return False
+    except Exception as e:
+        print(f"Unexpected error getting upload URL: {str(e)}", file=sys.stderr)
+        return False
+
+    try:
+        if not _upload_file(filepath, gcs_url):
+            print(f"Failed to upload file {filename}", file=sys.stderr)
+            return False
+    except Exception as e:
+        print(f"Error during file upload: {str(e)}", file=sys.stderr)
+        return False
+
+    # Update collection files
+    try:
+        if not _update_collection_files(
+            orgname=org_shortname,
+            collection_xid=collection_xid,
+            uploaded_files=[filename],
+        ):
+            print(f"Failed to update collection files for {filename}", file=sys.stderr)
+            return False
+        return True
+    except Exception as e:
+        print(f"Error updating collection files: {str(e)}", file=sys.stderr)
+        return False
+
+
 def download_file(
     destpath: str, url: str, overwrite: bool = False, headers: dict = None
 ) -> bool:
@@ -531,7 +742,7 @@ def download_files(urlpath, directory, include=None, exclude=None, ver=apiver):
 
 def add_arrays_to_npz_and_store(
     npz: np.lib.npyio.NpzFile,
-    array_dict: dict[str, np.ndarray],
+    array_dict: dict[str, np.recarray],
     destpath: str,
 ) -> None:
     """
@@ -658,7 +869,7 @@ def create_new_segment_helper(
 
 def get_splits_arrays_and_segments(
     npz: np.lib.npyio.NpzFile,
-) -> tuple[dict[str, np.ndarray], np.ndarray]:
+) -> tuple[dict[str, np.recarray], np.recarray]:
     '''
     Processes segments in the given npz file, generating new arrays and segments
     for walking intervals and paired walking splits based on segment properties.
@@ -667,7 +878,7 @@ def get_splits_arrays_and_segments(
         npz (np.lib.npyio.NpzFile): NPZ file containing 'segments' and time series.
 
     Returns:
-        tuple[dict[str, np.ndarray], np.ndarray]: A dictionary of new arrays keyed
+        tuple[dict[str, np.recarray], np.recarray]: A dictionary of new arrays keyed
         by path, and an updated array of segments.
     '''
     new_files = {}
@@ -716,20 +927,20 @@ def get_splits_arrays_and_segments(
 
 
 def get_grouped_walking_periods_as_array(
-    kinematic_time_series: np.ndarray,
+    kinematic_time_series: np.recarray,
     component: str = "x",
     peak_kwargs: dict = None,
-) -> np.ndarray:
+) -> np.recarray:
     '''
     Convert grouped walking splits from time series into a structured NumPy array.
 
     Args:
-        kinematic_time_series (np.ndarray): Input time series data.
+        kinematic_time_series (np.recarray): Input time series data.
         component (str): Component to analyze (default "x").
         peak_kwargs (dict, optional): Arguments for peak detection.
 
     Returns:
-        np.ndarray: Structured array with start, stop, and elapsed times.
+        np.recarray: Structured array with start, stop, and elapsed times.
     '''
     grouped_walking_periods = kinematics.get_grouped_walking_splits(
         kinematic_time_series=kinematic_time_series,
@@ -747,24 +958,24 @@ def get_grouped_walking_periods_as_array(
 
 
 def get_paired_stride_splits_as_array(
-    kinematic_time_series: np.ndarray,
+    kinematic_time_series: np.recarray,
     component: str = "x",
     n_start_remove: int = 0,
     n_stop_remove: int = 0,
     peak_kwargs: dict = None,
-) -> np.ndarray:
+) -> np.recarray:
     '''
     Convert paired walking splits from time series into a structured NumPy array.
 
     Args:
-        kinematic_time_series (np.ndarray): Input time series data.
+        kinematic_time_series (np.recarray): Input time series data.
         component (str): Component to analyze (default "x").
         n_start_remove (int): Number of splits to remove from start.
         n_stop_remove (int): Number of splits to remove from end.
         peak_kwargs (dict, optional): Arguments for peak detection.
 
     Returns:
-        np.ndarray: Structured array with start, stop, and elapsed times.
+        np.recarray: Structured array with start, stop, and elapsed times.
     '''
     paired_stride_splits = kinematics.get_paired_walking_splits(
         kinematic_time_series=kinematic_time_series,
