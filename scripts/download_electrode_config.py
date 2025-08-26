@@ -19,17 +19,16 @@ import os
 from cionic import api
 
 
-def download_electrode_configs(org_id, study_name, token_path=None):
+def download_electrode_configs(org_shortname, study_shortname, token_path=None):
     """
     Download electrode configurations from Cionic API.
 
     Args:
-        org_id (str): The organization ID
-        study_name (str): The study name
+        org_shortname (str): The organization shortname
+        study_shortname (str): Study shortname (optional, download all if not given)
         token_path (str): The path to the token file (default: ../token.json)
     """
     # Authenticate
-    d = api.auth(tokenpath=token_path)
     if not os.path.isfile(token_path):
         raise ValueError(f"Token file not found at '{token_path}'")
     d = api.auth(tokenpath=token_path)
@@ -40,22 +39,26 @@ def download_electrode_configs(org_id, study_name, token_path=None):
 
     # Validate org exists
     orgs = [org['shortname'] for org in d]
-    if org_id not in orgs:
+    if org_shortname not in orgs:
         raise ValueError(
-            f"Organization {org_id} not found. Available orgs: {', '.join(orgs)}"
+            f"Organization {org_shortname} not found. Available orgs: {', '.join(orgs)}"
         )
 
     # Get studies for org
-    studies = api.get_cionic(f'{org_id}/studies')
+    studies = api.get_cionic(f'{org_shortname}/studies')
     if not studies:
-        raise ValueError(f"No studies found for organization {org_id}")
+        raise ValueError(f"No studies found for organization {org_shortname}")
 
-    # Filter studies if study_name is provided
-    studies = [s for s in studies if s['shortname'] == study_name]
+    # Filter studies if study_name is provided (otherwise, use all studies)
+    if study_shortname is not None:
+        studies = [s for s in studies if s['shortname'] == study_shortname]
     if not studies:
-        raise ValueError(f"Study {study_name} not found in org {org_id}")
+        raise ValueError(
+            f"Study {study_shortname} not found in org {org_shortname}. "
+            f"Available studies: {', '.join([s['shortname'] for s in studies])}"
+        )
 
-    base_dir = os.path.join('recordings', org_id)
+    base_dir = os.path.join('../recordings', org_shortname)
 
     configs_downloaded = 0
     for study in studies:
@@ -68,7 +71,7 @@ def download_electrode_configs(org_id, study_name, token_path=None):
 
         # Get configs for this study
         configs = api.get_cionic(
-            f"{org_id}/studies/{study_xid}/deviceconfig", ver='1.16'
+            f"{org_shortname}/studies/{study_xid}/deviceconfig", ver='1.16'
         )
 
         # Save each config

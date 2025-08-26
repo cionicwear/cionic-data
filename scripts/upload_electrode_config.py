@@ -10,7 +10,7 @@ python upload_electrode_config.py \
     --org cionic \
     --study demo-develop \
     --config-name "EXAMPLE_CONFIG" \
-    --json-path "recordings/cionic/artemis/EXAMPLE_CONFIG.json" \
+    --json-path "../recordings/cionic/artemis/EXAMPLE_CONFIG.json" \
     --token-path "../token.json" \
     --new
 
@@ -19,27 +19,26 @@ python upload_electrode_config.py \
     --org cionic \
     --study demo-develop \
     --config-name "EXAMPLE_CONFIG" \
-    --json-path "recordings/cionic/artemis/EXAMPLE_CONFIG.json" \
+    --json-path "../recordings/cionic/artemis/EXAMPLE_CONFIG.json" \
     --token-path "../token.json"
 
 """
 
 import argparse
 import json
-import os
 
 from cionic import api
 
 
 def upload_electrode_config(
-    org_id, study_name, config_name, json_path, token_path, new=False
+    org_shortname, study_shortname, config_name, json_path, token_path, new=False
 ):
     """
     Upload electrode configuration to Cionic API.
 
     Args:
-        org_id (str): The organization ID
-        study_name (str): The study name
+        org_shortname (str): The organization shortname
+        study_shortname (str): The study shortname
         config_name (str): The name of the configuration
         json_path (str): The path to the JSON configuration file
         token_path (str): The path to the token file
@@ -47,26 +46,27 @@ def upload_electrode_config(
     """
 
     # Authenticate
-    d = api.auth(tokenpath=token_path)
+    orgs = api.auth(tokenpath=token_path)
 
     # Validate org exists
-    orgs = [org['shortname'] for org in d]
-    if org_id not in orgs:
+    org_shortnames = [org['shortname'] for org in orgs]
+    if org_shortname not in org_shortnames:
         raise ValueError(
-            f"Organization {org_id} not found. Available orgs: {', '.join(orgs)}"
+            f"Organization {org_shortname} not found. "
+            f"Available orgs: {', '.join(org_shortnames)}"
         )
 
     # Get studies for org
-    studies = api.get_cionic(f'{org_id}/studies')
+    studies = api.get_cionic(f'{org_shortname}/studies')
     study_map = {s['shortname']: s['xid'] for s in studies}
 
-    if study_name not in study_map:
+    if study_shortname not in study_map:
         raise ValueError(
-            f"Study {study_name} not found. "
+            f"Study {study_shortname} not found. "
             f"Available studies: {', '.join(study_map.keys())}"
         )
 
-    study_xid = study_map[study_name]
+    study_xid = study_map[study_shortname]
 
     # Read and validate JSON config
     try:
@@ -83,16 +83,25 @@ def upload_electrode_config(
     if new:
         # Create new config
         response = api.post_cionic(
-            f"{org_id}/studies/{study_xid}/deviceconfig/", json=payload, ver='1.16'
+            f"{org_shortname}/studies/{study_xid}/deviceconfig/",
+            json=payload,
+            ver='1.16',
         )
-        print(
-            f"Successfully created new config '{config_name}' "
-            f"in study '{study_name}' in org '{org_id}'"
-        )
+        if response is None:
+            raise ValueError(
+                f"Failed to create new config '{config_name}' "
+                f"in study '{study_shortname}' in org '{org_shortname}'. "
+                f"It may already exist."
+            )
+        else:
+            print(
+                f"Successfully created new config '{config_name}' "
+                f"in study '{study_shortname}' in org '{org_shortname}'"
+            )
     else:
         # Get existing configs to find the config_id
         configs = api.get_cionic(
-            f"{org_id}/studies/{study_xid}/deviceconfig", ver='1.16'
+            f"{org_shortname}/studies/{study_xid}/deviceconfig", ver='1.16'
         )
 
         # Find the config with matching name
@@ -102,18 +111,19 @@ def upload_electrode_config(
         if not matching_config:
             raise ValueError(
                 f"No existing config named '{config_name}' "
-                f"found in study '{study_name}'"
+                f"found in study '{study_shortname}'"
             )
 
         # Update existing config
         response = api.put_cionic(
-            f"{org_id}/studies/{study_xid}/deviceconfig/{matching_config['xid']}",
+            f"{org_shortname}/studies/{study_xid}/"
+            f"deviceconfig/{matching_config['xid']}",
             json=payload,
             ver='1.16',
         )
         print(
             f"Successfully updated config '{config_name}' "
-            f"in study '{study_name}' in org '{org_id}'"
+            f"in study '{study_shortname}' in org '{org_shortname}'"
         )
 
     return response
@@ -123,8 +133,8 @@ def main():
     parser = argparse.ArgumentParser(
         description='Upload electrode configuration to Cionic API'
     )
-    parser.add_argument('--org', required=True, help='Organization ID')
-    parser.add_argument('--study', required=True, help='Study name')
+    parser.add_argument('--org_shortname', required=True, help='Organization ID')
+    parser.add_argument('--study_shortname', required=True, help='Study name')
     parser.add_argument(
         '--config-name', required=True, help='Name for the configuration'
     )
@@ -146,8 +156,8 @@ def main():
 
     try:
         upload_electrode_config(
-            args.org,
-            args.study,
+            args.org_shortname,
+            args.study_shortname,
             args.config_name,
             args.json_path,
             args.token_path,
