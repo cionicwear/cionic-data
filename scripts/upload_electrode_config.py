@@ -58,6 +58,62 @@ def find_closest_config_name(config_name: str, available_configs: list) -> str:
     return matches[0] if matches else ""
 
 
+def _validate_electrode(electrode: dict) -> None:
+    """Validate a single electrode configuration."""
+    required_fields = {'h', 'kind', 'switch', 'w', 'x', 'y'}
+    missing = required_fields - set(electrode.keys())
+    if missing:
+        raise ValueError(f"Electrode missing required fields: {missing}")
+
+    # Validate kind
+    if electrode['kind'] not in {'fes_positive', 'fes_negative'}:
+        raise ValueError(
+            f"Invalid electrode kind: {electrode['kind']}. "
+            "Must be 'fes_positive' or 'fes_negative'"
+        )
+
+    # Validate numeric fields are positive integers
+    for field in {'h', 'w', 'x', 'y', 'switch'}:
+        value = electrode[field]
+        if not isinstance(value, int) or value < 0:
+            raise ValueError(
+                f"Field '{field}' must be a non-negative integer, got: {value}"
+            )
+
+
+def _validate_muscle(muscle: dict, used_ids: set) -> None:
+    """Validate a single muscle configuration."""
+    required_fields = {
+        'electrodes',
+        'id',
+        'image',
+        'image_pos',
+        'name',
+        'short_name',
+        'side_independent_name',
+    }
+    missing = required_fields - set(muscle.keys())
+    if missing:
+        raise ValueError(f"Muscle missing required fields: {missing}")
+
+    # Check for duplicate IDs
+    if muscle['id'] in used_ids:
+        raise ValueError(f"Duplicate muscle ID found: {muscle['id']}")
+    used_ids.add(muscle['id'])
+
+    # Validate image URL
+    if not isinstance(muscle['image'], str) or not muscle['image'].startswith('http'):
+        raise ValueError(
+            f"Invalid image URL for muscle {muscle['id']}: {muscle['image']}"
+        )
+
+    # Validate electrodes list
+    if not isinstance(muscle['electrodes'], list):
+        raise ValueError(f"Electrodes for muscle {muscle['id']} must be a list")
+    for electrode in muscle['electrodes']:
+        _validate_electrode(electrode)
+
+
 def upload_electrode_config(
     org_shortname, study_shortname, config_name, json_path, token_path, new=False
 ):
@@ -96,62 +152,6 @@ def upload_electrode_config(
 
     study_xid = study_map[study_shortname]
 
-    def validate_electrode(electrode: dict) -> None:
-        """Validate a single electrode configuration."""
-        required_fields = {'h', 'kind', 'switch', 'w', 'x', 'y'}
-        missing = required_fields - set(electrode.keys())
-        if missing:
-            raise ValueError(f"Electrode missing required fields: {missing}")
-
-        # Validate kind
-        if electrode['kind'] not in {'fes_positive', 'fes_negative'}:
-            raise ValueError(
-                f"Invalid electrode kind: {electrode['kind']}. "
-                "Must be 'fes_positive' or 'fes_negative'"
-            )
-
-        # Validate numeric fields are positive integers
-        for field in {'h', 'w', 'x', 'y', 'switch'}:
-            value = electrode[field]
-            if not isinstance(value, int) or value < 0:
-                raise ValueError(
-                    f"Field '{field}' must be a non-negative integer, got: {value}"
-                )
-
-    def validate_muscle(muscle: dict, used_ids: set) -> None:
-        """Validate a single muscle configuration."""
-        required_fields = {
-            'electrodes',
-            'id',
-            'image',
-            'image_pos',
-            'name',
-            'short_name',
-            'side_independent_name',
-        }
-        missing = required_fields - set(muscle.keys())
-        if missing:
-            raise ValueError(f"Muscle missing required fields: {missing}")
-
-        # Check for duplicate IDs
-        if muscle['id'] in used_ids:
-            raise ValueError(f"Duplicate muscle ID found: {muscle['id']}")
-        used_ids.add(muscle['id'])
-
-        # Validate image URL
-        if not isinstance(muscle['image'], str) or not muscle['image'].startswith(
-            'http'
-        ):
-            raise ValueError(
-                f"Invalid image URL for muscle {muscle['id']}: {muscle['image']}"
-            )
-
-        # Validate electrodes list
-        if not isinstance(muscle['electrodes'], list):
-            raise ValueError(f"Electrodes for muscle {muscle['id']} must be a list")
-        for electrode in muscle['electrodes']:
-            validate_electrode(electrode)
-
     # Read and validate JSON config
     try:
         with open(json_path, 'r') as f:
@@ -172,7 +172,7 @@ def upload_electrode_config(
     # Validate each muscle configuration
     used_ids = set()
     for muscle in config_data['muscles']:
-        validate_muscle(muscle, used_ids)
+        _validate_muscle(muscle, used_ids)
 
     # Prepare payload
     payload = {'config_name': config_name, 'config': config_data}
@@ -290,8 +290,16 @@ def main():
             print("\nExisting configurations:")
             for i, config in enumerate(configs):
                 print(f"{i} : {config['config_name']}")
-            choice = int(input("\nChoose a configuration to update: "))
-            args.config_name = configs[choice]['config_name']
+            choice = int(
+                input(
+                    "\nChoose a configuration to update "
+                    "(or enter -1 to create new one): "
+                )
+            )
+            if choice != -1:
+                args.config_name = configs[choice]['config_name']
+            else:
+                args.new = True
         else:
             print("No existing configurations found. Creating new one.")
             args.new = True
@@ -303,17 +311,28 @@ def main():
             print("Configuration name cannot be empty")
             args.config_name = input("\nEnter configuration name: ").strip()
 
-    # Handle JSON file selection
-    if args.json_path is None:
+    # Handle JSON file selection... check if file exists in
+    # ./recordings/org_shortname/study_shortname/config_name.json first...
+    # if not, prompt for path
+    json_path = Path(
+        f"./recordings/{args.org_shortname}/{args.study_shortname}/"
+        f"{args.config_name}.json"
+    )
+    if json_path.exists():
+        args.json_path = str(json_path)
+    else:
+        print(f"File not found: {json_path}")
         while True:
-            args.json_path = input("\nEnter path to JSON configuration file: ").strip()
-            if not args.json_path:
+            args.json_path = input(
+                "\nEnter path to JSON configuration file instead: "
+            ).strip()
+            if args.json_path:
+                break
+            else:
                 print("Path cannot be empty")
-                continue
-            if not Path(args.json_path).exists():
-                print(f"File not found: {args.json_path}")
-                continue
-            break
+    if args.json_path is None:
+        print("Path cannot be empty")
+        return 1
 
     try:
         upload_electrode_config(
