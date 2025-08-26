@@ -33,7 +33,11 @@ import os
 from cionic import api
 
 
-def download_electrode_configs(org_shortname, study_shortname, token_path=None):
+def download_electrode_configs(
+    org_shortname: str,
+    study_shortname: str,
+    token_path: str = './token.json',
+):
     """
     Download electrode configurations from Cionic API.
 

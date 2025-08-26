@@ -115,7 +115,12 @@ def _validate_muscle(muscle: dict, used_ids: set) -> None:
 
 
 def upload_electrode_config(
-    org_shortname, study_shortname, config_name, json_path, token_path, new=False
+    org_shortname: str,
+    study_shortname: str,
+    config_name: str,
+    json_path: str,
+    token_path: str = './token.json',
+    new: bool = False,
 ):
     """
     Upload electrode configuration to Cionic API.
