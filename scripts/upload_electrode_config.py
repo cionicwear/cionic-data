@@ -26,8 +26,25 @@ python upload_electrode_config.py \
 
 import argparse
 import json
+from difflib import get_close_matches
 
 from cionic import api
+
+
+def find_closest_config_name(config_name: str, available_configs: list) -> str:
+    """
+    Find the closest matching config name using fuzzy string matching.
+
+    Args:
+        config_name (str): The config name to match
+        available_configs (list): List of available config dictionaries
+
+    Returns:
+        str: The closest matching config name, or empty string if no close matches found
+    """
+    config_names = [c['config_name'] for c in available_configs]
+    matches = get_close_matches(config_name, config_names, n=1, cutoff=0.6)
+    return matches[0] if matches else ""
 
 
 def upload_electrode_config(
@@ -109,9 +126,11 @@ def upload_electrode_config(
             (c for c in configs if c['config_name'] == config_name), None
         )
         if not matching_config:
+            suggestion = find_closest_config_name(config_name, configs)
+            suggestion_msg = f"\nDid you mean '{suggestion}'?" if suggestion else ""
             raise ValueError(
                 f"No existing config named '{config_name}' "
-                f"found in study '{study_shortname}'"
+                f"found in study '{study_shortname}'{suggestion_msg}"
             )
 
         # Update existing config
