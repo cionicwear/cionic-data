@@ -1,16 +1,30 @@
+#!/usr/bin/env python3
 """
 Download electrode configurations from Cionic API.
 
 Requires a token.json file.
-
-Example usage:
-
-python download_electrode_config.py \
-    --org cionic \
-    --study demo-develop \
-    --token-path "../token.json"
-
 """
+
+__usage__ = '''
+./scripts/download_electrode_config.py
+    [org_shortname]
+    [study_shortname]
+    [--token_path <filepath to tokenfile>]
+
+Common usage examples:
+
+Print help
+./scripts/download_electrode_config.py -h
+
+Interactive mode - prompts for org and study selection
+./scripts/download_electrode_config.py
+
+Download all configs from cionic/demo-develop study
+./scripts/download_electrode_config.py cionic demo-develop
+
+Download all configs from all studies in cionic org
+./scripts/download_electrode_config.py cionic
+'''
 
 import argparse
 import json
@@ -26,7 +40,7 @@ def download_electrode_configs(org_shortname, study_shortname, token_path=None):
     Args:
         org_shortname (str): The organization shortname
         study_shortname (str): Study shortname (optional, download all if not given)
-        token_path (str): The path to the token file (default: ../token.json)
+        token_path (str): The path to the token file (default: ./token.json)
     """
     # Authenticate
     if not os.path.isfile(token_path):
@@ -59,7 +73,7 @@ def download_electrode_configs(org_shortname, study_shortname, token_path=None):
             f"Available studies: {', '.join([s['shortname'] for s in studies])}"
         )
 
-    base_dir = os.path.join('../recordings', org_shortname)
+    base_dir = os.path.join('./recordings', org_shortname)
 
     configs_downloaded = 0
     for study in studies:
@@ -99,15 +113,43 @@ def download_electrode_configs(org_shortname, study_shortname, token_path=None):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Download electrode configurations from Cionic API'
+        description='Download electrode configurations from Cionic API', usage=__usage__
     )
-    parser.add_argument('--org_shortname', required=True, help='Organization ID')
-    parser.add_argument('--study_shortname', default=None, help='Study name')
+    parser.add_argument('org_shortname', nargs='?', help='Organization shortname')
+    parser.add_argument('study_shortname', nargs='?', help='Study shortname')
     parser.add_argument(
-        '--token-path', help='Path to token file (default: ../token.json)'
+        '--token_path',
+        default='./token.json',
+        help='Path to token file (default: ./token.json)',
     )
 
     args = parser.parse_args()
+
+    # Initialize authentication first to get available orgs
+    orgs = api.auth(tokenpath=args.token_path)
+
+    # Handle org selection
+    if args.org_shortname is None:
+        print("\nAvailable organizations:")
+        for i, org in enumerate(orgs):
+            print(f"{i} : {org['shortname']}")
+        choice = int(input("\nChoose an organization: "))
+        args.org_shortname = orgs[choice]['shortname']
+
+    # Get studies for selected org
+    studies = api.get_cionic(f'{args.org_shortname}/studies')
+    if studies is None:
+        print(f"Studies not found for org [{args.org_shortname}]")
+        return 1
+
+    # Handle study selection if not downloading all
+    if args.study_shortname is None:
+        print("\nAvailable studies (or press Enter to download from all):")
+        for i, study in enumerate(studies):
+            print(f"{i} : {study['shortname']}")
+        choice = input("\nChoose a study (or press Enter for all): ").strip()
+        if choice:
+            args.study_shortname = studies[int(choice)]['shortname']
 
     try:
         download_electrode_configs(

@@ -1,32 +1,43 @@
+#!/usr/bin/env python3
 """
 Upload electrode configuration to Cionic API. Use the --new flag to make a new config.
 
 Requires a token.json file and a config json file to upload.
-
-Example usage:
-
-For a new config:
-python upload_electrode_config.py \
-    --org cionic \
-    --study demo-develop \
-    --config-name "EXAMPLE_CONFIG" \
-    --json-path "../recordings/cionic/artemis/EXAMPLE_CONFIG.json" \
-    --token-path "../token.json" \
-    --new
-
-For an existing config:
-python upload_electrode_config.py \
-    --org cionic \
-    --study demo-develop \
-    --config-name "EXAMPLE_CONFIG" \
-    --json-path "../recordings/cionic/artemis/EXAMPLE_CONFIG.json" \
-    --token-path "../token.json"
-
 """
+
+__usage__ = '''
+./scripts/upload_electrode_config.py
+    [org_shortname]
+    [study_shortname]
+    [config_name]
+    [json_path]
+    [--token_path <filepath to tokenfile>]
+    [--new]
+
+Common usage examples:
+
+Print help
+./scripts/upload_electrode_config.py -h
+
+Interactive mode - prompts for all inputs
+./scripts/upload_electrode_config.py
+
+Create new config in cionic/demo-develop study
+./scripts/upload_electrode_config.py cionic demo-develop EXAMPLE_CONFIG \
+    ./recordings/cionic/demo-develop/EXAMPLE_CONFIG.json --new
+
+Update existing config in cionic/demo-develop study
+./scripts/upload_electrode_config.py cionic demo-develop EXAMPLE_CONFIG \
+    ./recordings/cionic/demo-develop/EXAMPLE_CONFIG.json
+
+Interactive config selection - specify only org and study
+./scripts/upload_electrode_config.py cionic demo-develop
+'''
 
 import argparse
 import json
 from difflib import get_close_matches
+from pathlib import Path
 
 from cionic import api
 
@@ -150,20 +161,16 @@ def upload_electrode_config(
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Upload electrode configuration to Cionic API'
+        description='Upload electrode configuration to Cionic API', usage=__usage__
     )
-    parser.add_argument('--org_shortname', required=True, help='Organization ID')
-    parser.add_argument('--study_shortname', required=True, help='Study name')
+    parser.add_argument('org_shortname', nargs='?', help='Organization shortname')
+    parser.add_argument('study_shortname', nargs='?', help='Study shortname')
+    parser.add_argument('config_name', nargs='?', help='Name for the configuration')
+    parser.add_argument('json_path', nargs='?', help='Path to JSON configuration file')
     parser.add_argument(
-        '--config-name', required=True, help='Name for the configuration'
-    )
-    parser.add_argument(
-        '--json-path', required=True, help='Path to JSON configuration file'
-    )
-    parser.add_argument(
-        '--token-path',
-        default='../token.json',
-        help='Path to token file (default: ../token.json)',
+        '--token_path',
+        default='./token.json',
+        help='Path to token file (default: ./token.json)',
     )
     parser.add_argument(
         '--new',
@@ -172,6 +179,72 @@ def main():
     )
 
     args = parser.parse_args()
+
+    # Initialize authentication first to get available orgs
+    orgs = api.auth(tokenpath=args.token_path)
+
+    # Handle org selection
+    if args.org_shortname is None:
+        print("\nAvailable organizations:")
+        for i, org in enumerate(orgs):
+            print(f"{i} : {org['shortname']}")
+        choice = int(input("\nChoose an organization: "))
+        args.org_shortname = orgs[choice]['shortname']
+
+    # Get studies for selected org
+    studies = api.get_cionic(f'{args.org_shortname}/studies')
+    if studies is None:
+        print(f"Studies not found for org [{args.org_shortname}]")
+        return 1
+
+    # Handle study selection
+    if args.study_shortname is None:
+        print("\nAvailable studies:")
+        for i, study in enumerate(studies):
+            print(f"{i} : {study['shortname']}")
+        choice = int(input("\nChoose a study: "))
+        args.study_shortname = studies[choice]['shortname']
+
+    # Get existing configs if not creating new one
+    if not args.new and args.config_name is None:
+        study_xid = next(
+            (s['xid'] for s in studies if s['shortname'] == args.study_shortname), None
+        )
+        if study_xid is None:
+            print(f"Study [{args.study_shortname}] not found")
+            return 1
+
+        configs = api.get_cionic(
+            f"{args.org_shortname}/studies/{study_xid}/deviceconfig", ver='1.16'
+        )
+        if configs:
+            print("\nExisting configurations:")
+            for i, config in enumerate(configs):
+                print(f"{i} : {config['config_name']}")
+            choice = int(input("\nChoose a configuration to update: "))
+            args.config_name = configs[choice]['config_name']
+        else:
+            print("No existing configurations found. Creating new one.")
+            args.new = True
+
+    # Prompt for config name if still None
+    if args.config_name is None:
+        args.config_name = input("\nEnter configuration name: ").strip()
+        while not args.config_name:
+            print("Configuration name cannot be empty")
+            args.config_name = input("\nEnter configuration name: ").strip()
+
+    # Handle JSON file selection
+    if args.json_path is None:
+        while True:
+            args.json_path = input("\nEnter path to JSON configuration file: ").strip()
+            if not args.json_path:
+                print("Path cannot be empty")
+                continue
+            if not Path(args.json_path).exists():
+                print(f"File not found: {args.json_path}")
+                continue
+            break
 
     try:
         upload_electrode_config(
