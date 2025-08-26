@@ -106,7 +106,7 @@ def post_cionic(
     if ret_status:
         return r.status_code
 
-    if r.status_code not in [200]:
+    if r.status_code not in [200, 201, 202]:  # 200: OK, 201: Created, 202: Accepted
         print(r, file=sys.stderr)
         return None
 

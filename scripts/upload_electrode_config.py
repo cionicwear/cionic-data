@@ -96,6 +96,62 @@ def upload_electrode_config(
 
     study_xid = study_map[study_shortname]
 
+    def validate_electrode(electrode: dict) -> None:
+        """Validate a single electrode configuration."""
+        required_fields = {'h', 'kind', 'switch', 'w', 'x', 'y'}
+        missing = required_fields - set(electrode.keys())
+        if missing:
+            raise ValueError(f"Electrode missing required fields: {missing}")
+
+        # Validate kind
+        if electrode['kind'] not in {'fes_positive', 'fes_negative'}:
+            raise ValueError(
+                f"Invalid electrode kind: {electrode['kind']}. "
+                "Must be 'fes_positive' or 'fes_negative'"
+            )
+
+        # Validate numeric fields are positive integers
+        for field in {'h', 'w', 'x', 'y', 'switch'}:
+            value = electrode[field]
+            if not isinstance(value, int) or value < 0:
+                raise ValueError(
+                    f"Field '{field}' must be a non-negative integer, got: {value}"
+                )
+
+    def validate_muscle(muscle: dict, used_ids: set) -> None:
+        """Validate a single muscle configuration."""
+        required_fields = {
+            'electrodes',
+            'id',
+            'image',
+            'image_pos',
+            'name',
+            'short_name',
+            'side_independent_name',
+        }
+        missing = required_fields - set(muscle.keys())
+        if missing:
+            raise ValueError(f"Muscle missing required fields: {missing}")
+
+        # Check for duplicate IDs
+        if muscle['id'] in used_ids:
+            raise ValueError(f"Duplicate muscle ID found: {muscle['id']}")
+        used_ids.add(muscle['id'])
+
+        # Validate image URL
+        if not isinstance(muscle['image'], str) or not muscle['image'].startswith(
+            'http'
+        ):
+            raise ValueError(
+                f"Invalid image URL for muscle {muscle['id']}: {muscle['image']}"
+            )
+
+        # Validate electrodes list
+        if not isinstance(muscle['electrodes'], list):
+            raise ValueError(f"Electrodes for muscle {muscle['id']} must be a list")
+        for electrode in muscle['electrodes']:
+            validate_electrode(electrode)
+
     # Read and validate JSON config
     try:
         with open(json_path, 'r') as f:
@@ -104,6 +160,19 @@ def upload_electrode_config(
         raise ValueError(f"Invalid JSON file: {json_path}")
     except FileNotFoundError:
         raise ValueError(f"JSON file not found: {json_path}")
+
+    # Validate overall structure
+    if not isinstance(config_data, dict):
+        raise ValueError("Config must be a JSON object")
+    if 'muscles' not in config_data:
+        raise ValueError("Config missing required 'muscles' field")
+    if not isinstance(config_data['muscles'], list):
+        raise ValueError("'muscles' field must be a list")
+
+    # Validate each muscle configuration
+    used_ids = set()
+    for muscle in config_data['muscles']:
+        validate_muscle(muscle, used_ids)
 
     # Prepare payload
     payload = {'config_name': config_name, 'config': config_data}
