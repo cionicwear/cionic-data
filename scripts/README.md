@@ -106,8 +106,35 @@ optional arguments:
 
 ## upload_electrode_config.py
 
+This script allows you to upload custom electrode configurations, which will be used for mapping and calibration displays in the corresponding studies in the CIONIC App.
 ```
-usage: upload_electrode_config.py [-h] --org ORG --study STUDY --config-name CONFIG_NAME --json-path JSON_PATH [--token-path TOKEN_PATH] [--new]
+usage: 
+./scripts/upload_electrode_config.py
+    [org_shortname]
+    [study_shortname]
+    [config_name]
+    [json_path]
+    [--token_path <filepath to tokenfile>]
+    [--new]
+
+Common usage examples:
+
+Print help
+./scripts/upload_electrode_config.py -h
+
+Interactive mode - prompts for all inputs
+./scripts/upload_electrode_config.py
+
+Create new config in cionic/demo-develop study
+./scripts/upload_electrode_config.py cionic demo-develop EXAMPLE_CONFIG \
+    ./recordings/cionic/demo-develop/EXAMPLE_CONFIG.json --new
+
+Update existing config in cionic/demo-develop study
+./scripts/upload_electrode_config.py cionic demo-develop EXAMPLE_CONFIG \
+    ./recordings/cionic/demo-develop/EXAMPLE_CONFIG.json
+
+Interactive config selection - specify only org and study
+./scripts/upload_electrode_config.py cionic demo-develop
 
 positional arguments:
   org                 organization shortname
@@ -124,8 +151,28 @@ optional arguments:
 
 ## download_electrode_config.py
 
+This script allows you to download custom electrode configurations, which are used for mapping and calibration displays in the corresponding studies in the CIONIC App.
+
 ```
-usage: download_electrode_config.py [-h] --org ORG --study STUDY [--token-path TOKEN_PATH]
+usage:
+./scripts/download_electrode_config.py
+    [org_shortname]
+    [study_shortname]
+    [--token_path <filepath to tokenfile>]
+
+Common usage examples:
+
+Print help
+./scripts/download_electrode_config.py -h
+
+Interactive mode - prompts for org and study selection
+./scripts/download_electrode_config.py
+
+Download all configs from cionic/demo-develop study
+./scripts/download_electrode_config.py cionic demo-develop
+
+Download all configs from all studies in cionic org
+./scripts/download_electrode_config.py cionic
 
 positional arguments:
   org                 organization shortname
