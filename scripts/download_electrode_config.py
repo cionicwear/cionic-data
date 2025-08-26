@@ -31,17 +31,18 @@ def download_electrode_configs(org_shortname, study_shortname, token_path=None):
     # Authenticate
     if not os.path.isfile(token_path):
         raise ValueError(f"Token file not found at '{token_path}'")
-    d = api.auth(tokenpath=token_path)
-    if not d:
+    orgs = api.auth(tokenpath=token_path)
+    if not orgs:
         raise ValueError(
             f"Auth failed with token file '{token_path}'. Token is invalid/expired."
         )
 
     # Validate org exists
-    orgs = [org['shortname'] for org in d]
-    if org_shortname not in orgs:
+    org_shortnames = [org['shortname'] for org in orgs]
+    if org_shortname not in org_shortnames:
         raise ValueError(
-            f"Organization {org_shortname} not found. Available orgs: {', '.join(orgs)}"
+            f"Organization {org_shortname} not found. "
+            f"Available orgs: {', '.join(org_shortnames)}"
         )
 
     # Get studies for org
