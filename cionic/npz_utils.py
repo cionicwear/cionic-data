@@ -81,7 +81,7 @@ def retrieve_stream(
 def retrieve_stream_generalized(
     npz: np.lib.npyio.NpzFile,
     field_filters: dict,
-) -> Union[np.ndarray, None]:
+) -> Union[np.recarray, None]:
     '''
     Retrieve a specific data stream segment from an NPZ archive using arbitrary
     field filters.
@@ -92,7 +92,7 @@ def retrieve_stream_generalized(
             Example: {'position': 'r_shank', 'stream': 'euler', 'segment_num': 1}
 
     Returns:
-        np.ndarray or None: The matched data segment if found, otherwise None.
+        np.recarray or None: The matched data segment if found, otherwise None.
     '''
     segments = npz['segments']
     mask = np.ones(len(segments), dtype=bool)
