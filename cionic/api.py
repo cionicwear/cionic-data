@@ -952,7 +952,7 @@ def get_grouped_walking_periods_as_array(
             (group[0], group[-1], group[-1] - group[0])
             for group in grouped_walking_periods
         ],
-        dtype=np.dtype([('start_s', 'f8'), ('stop_s', 'f8'), ('elapsed_s', 'f8')]),
+        dtype=np.dtype([('start_s', 'f8'), ('stop_s', 'f8'), ('duration_s', 'f8')]),
     )
     return grouped_walking_periods_array
 
@@ -986,7 +986,7 @@ def get_paired_stride_splits_as_array(
     )
     paired_stride_splits_array = np.array(
         [(start, stop, stop - start) for start, stop in paired_stride_splits],
-        dtype=np.dtype([('start_s', 'f8'), ('stop_s', 'f8'), ('elapsed_s', 'f8')]),
+        dtype=np.dtype([('start_s', 'f8'), ('stop_s', 'f8'), ('duration_s', 'f8')]),
     )
     return paired_stride_splits_array
 
