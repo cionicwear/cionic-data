@@ -20,7 +20,7 @@ from scipy.stats import ttest_ind
 
 from cionic import tools
 
-PEAK_KWARGS = {'distance': 50, 'prominence': 20, 'height': 15}
+PEAK_KWARGS = {'distance': 50, 'prominence': 30}
 
 
 def GaitCycleAxis():
@@ -165,6 +165,9 @@ def get_grouped_walking_splits(
     if not peak_kwargs:
         peak_kwargs = PEAK_KWARGS
     peaks, _ = find_peaks(factor * kinematic_time_series[component], **peak_kwargs)
+    valid_peaks = (peaks != 0) & (peaks != kinematic_time_series.shape[0] - 1)
+    peaks = peaks[valid_peaks]
+
     splits_timestamps = kinematic_time_series["elapsed_s"][peaks]
     if splits_timestamps.shape[0] < 2:
         return [[]]
