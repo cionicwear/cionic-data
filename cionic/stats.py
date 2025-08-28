@@ -3,6 +3,8 @@ from typing import Dict, Tuple
 import numpy as np
 from scipy.special import gamma
 
+MAD_SCALING_FACTOR = 1.4826
+
 
 def c4_correction(n: int) -> float:
     """
@@ -26,7 +28,8 @@ def c4_correction(n: int) -> float:
 def robust_sd(x: np.ndarray) -> float:
     """
     Compute a robust estimate of the standard deviation using the
-    median absolute deviation (MAD).
+    median absolute deviation (MAD). The MAD is scaled by a constant
+    factor to make it comparable to the standard deviation.
 
     This method is less sensitive to outliers than the standard deviation.
 
@@ -37,7 +40,7 @@ def robust_sd(x: np.ndarray) -> float:
         float: Robust standard deviation estimate.
     """
     mad = np.median(np.abs(x - np.median(x)))
-    return 1.4826 * mad
+    return MAD_SCALING_FACTOR * mad
 
 
 def coefficient_of_variation(sd: float, mean: float) -> float:
