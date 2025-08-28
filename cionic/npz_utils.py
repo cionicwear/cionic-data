@@ -4,6 +4,14 @@ from typing import Union
 import numpy as np
 
 
+class StreamNotFoundError(Exception):
+    pass
+
+
+class MultipleStreamsFoundError(Exception):
+    pass
+
+
 def get_segment_nums_labels(npz):
     '''
     Extract unique segment numbers and their corresponding labels from NPZ archive.
@@ -101,9 +109,11 @@ def retrieve_stream_generalized(
             mask &= segments[field] == value
     filtered = segments[mask]
     if len(filtered) == 0:
-        return None
+        raise StreamNotFoundError(f"No stream found for filters: {field_filters}")
     if len(filtered) > 1:
-        raise ValueError(f"More than one stream found for filters: {field_filters}")
+        raise MultipleStreamsFoundError(
+            f"{len(filtered)} streams found for filters: {field_filters}"
+        )
     return npz[filtered[0]['path']]
 
 
