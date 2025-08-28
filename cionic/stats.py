@@ -67,8 +67,9 @@ def bootstrap_ci(
         ci (float, optional): Confidence interval width (e.g., 95 for 95% CI).
 
     Returns:
-        Tuple[float, float]: (lower, upper) confidence interval bounds.
-        float: Statistic computed on the original data.
+        Tuple[Tuple[float, float], float]: A tuple where the first element is a tuple
+        containing the (lower, upper) confidence interval bounds, and the second element
+        is the statistic computed on the original data.
     """
     rng = np.random.default_rng()
     boot_stats = []
