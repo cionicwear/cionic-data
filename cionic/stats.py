@@ -56,7 +56,7 @@ def coefficient_of_variation(sd: float, mean: float) -> float:
 
 def bootstrap_ci(
     func, x: np.ndarray, n_boot: int = 2000, ci: float = 95
-) -> Tuple[float, float]:
+) -> Tuple[Tuple[float, float], float]:
     """
     Compute a bootstrap confidence interval for a statistic.
 
