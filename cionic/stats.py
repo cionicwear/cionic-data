@@ -122,7 +122,7 @@ def summarize_metric_distribution(
     mean_val = np.mean(values)
     sd_val = np.std(values, ddof=1)  # sample SD
     c4 = c4_correction(n)
-    sd_unbiased = sd_val / c4 if c4 and not np.isnan(c4) else np.nan
+    sd_unbiased = sd_val / c4 if not np.isnan(c4) else np.nan
     robust_sd_val = robust_sd(values)
 
     cv_val = coefficient_of_variation(sd_unbiased, mean_val)
