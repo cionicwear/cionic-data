@@ -674,13 +674,13 @@ def download_npz(
     npz_dict = get_cionic(urlpath)
 
     status = download_file(destpath, npz_dict['streams.npz'], overwrite=overwrite)
-    add_side_column_to_segments(destpath)
     if status is False:
         return
     if include_eulers:
         include_eulers_to_npz(destpath)
     if include_gait_splits:
         include_gait_splits_to_npz(destpath)
+    add_side_column_to_segments(destpath)
 
 
 def download_files_from_metadata(
@@ -818,19 +818,19 @@ def add_side_column_to_segments(destpath: str) -> None:
     for name, dtype in npz["segments"].dtype.descr:
         # 'side' column added before 'position'
         if name == "position":
-            new_dtype.append(('side', 'U8'))
+            new_dtype.append(("side", "U8"))
             side_added = True
         new_dtype.append((name, dtype))
 
     if side_added is False:
-        new_dtype.append(('side', 'U8'))
+        new_dtype.append(("side", "U8"))
 
     segments = np.recarray(npz["segments"].shape, dtype=new_dtype)
 
     for name in npz["segments"].dtype.names:
         segments[name] = npz["segments"][name]
 
-    sides = np.full(segments.shape, None)  # start with None everywhere
+    sides = np.full(segments.shape, "", dtype="U8")  # start with empty strings
     sides[np.char.startswith(segments["position"], "r_")] = "right"
     sides[np.char.startswith(segments["position"], "l_")] = "left"
 
