@@ -103,6 +103,7 @@ def segment_stride_periods(arr: np.recarray, t0: float, t1: float):
         seg['start_s'] = np.maximum(seg['start_s'], t0)
     if t1 is not None:
         seg['stop_s'] = np.minimum(seg['stop_s'], t1)
+    seg['duration_s'] = seg['stop_s'] - seg['start_s']
     return seg
 
 
