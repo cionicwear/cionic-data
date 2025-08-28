@@ -165,7 +165,9 @@ def get_grouped_walking_splits(
     if not peak_kwargs:
         peak_kwargs = PEAK_KWARGS
     peaks, _ = find_peaks(factor * kinematic_time_series[component], **peak_kwargs)
-    valid_peaks = (peaks != 0) & (peaks != kinematic_time_series.shape[0] - 1)
+    FIRST_INDEX = 0
+    LAST_INDEX = kinematic_time_series.shape[0] - 1
+    valid_peaks = (peaks != FIRST_INDEX) & (peaks != LAST_INDEX)
     peaks = peaks[valid_peaks]
 
     splits_timestamps = kinematic_time_series["elapsed_s"][peaks]
