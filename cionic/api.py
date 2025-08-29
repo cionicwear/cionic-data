@@ -832,7 +832,7 @@ def add_side_column_to_segments(destpath: str) -> None:
             side_added = True
         new_dtype.append((name, dtype))
 
-    if side_added is False:
+    if not side_added:
         new_dtype.append(("side", "U8"))
 
     segments = np.recarray(npz["segments"].shape, dtype=new_dtype)
