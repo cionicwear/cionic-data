@@ -818,7 +818,7 @@ def add_side_column_to_segments(destpath: str) -> None:
         print(f"File {destpath} not found.", file=sys.stderr)
         return
 
-    if npz['segments'] is None:
+    if 'segments' not in npz or npz['segments'] is None:
         print(f"No segments found in {destpath}.", file=sys.stderr)
         return
 
