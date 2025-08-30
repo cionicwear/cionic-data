@@ -4,10 +4,6 @@ from typing import Union
 import numpy as np
 
 
-class StreamNotFoundError(Exception):
-    pass
-
-
 class MultipleStreamsFoundError(Exception):
     pass
 
@@ -76,14 +72,13 @@ def retrieve_stream(
     Returns:
         np.recarray or None: The matched data segment if found, otherwise None.
     '''
-    return retrieve_stream_generalized(
-        npz=npz,
-        field_filters={
-            'position': position,
-            'stream': stream,
-            'segment_num': segment_num,
-        },
-    )
+    field_filters = {
+        'position': position,
+        'stream': stream,
+    }
+    if segment_num:
+        field_filters['segment_num'] = segment_num
+    return retrieve_stream_generalized(npz=npz, field_filters=field_filters)
 
 
 def retrieve_stream_generalized(
@@ -105,11 +100,13 @@ def retrieve_stream_generalized(
     segments = npz['segments']
     mask = np.ones(len(segments), dtype=bool)
     for field, value in field_filters.items():
+        if field not in segments.dtype.names:
+            raise ValueError(f"Warning: field '{field}' not in segments metadata.")
         if value is not False and value is not None:
             mask &= segments[field] == value
     filtered = segments[mask]
     if len(filtered) == 0:
-        raise StreamNotFoundError(f"No stream found for filters: {field_filters}")
+        return None
     if len(filtered) > 1:
         raise MultipleStreamsFoundError(
             f"{len(filtered)} streams found for filters: {field_filters}"

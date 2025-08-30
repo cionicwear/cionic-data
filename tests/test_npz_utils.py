@@ -7,7 +7,7 @@ based on specified field filters. The tests cover the following scenarios:
 - Ensuring that a `MultipleStreamsFoundError` is raised when multiple streams match
   the provided filters.
 - Confirming that the correct stream is returned when a single match is found.
-- Verifying that a `StreamNotFoundError` is raised when no matching stream exists.
+- Ensuring that a `ValueError` is raised when an invalid field is specified.
 
 Fixtures:
     npz: Loads the example NPZ file for use in the tests.
@@ -15,7 +15,8 @@ Fixtures:
 Test Cases:
     - test_multiple_streams_found: Checks error handling for multiple matching streams.
     - test_stream_found: Validates successful retrieval of a single matching stream.
-    - test_stream_not_found: Checks error handling for missing streams.
+    - test_bad_field_identified: Ensures that a `ValueError` is raised when an invalid
+        field is specified.
 """
 
 import numpy as np
@@ -62,18 +63,17 @@ def test_stream_found(npz):
     assert stream is not None
 
 
-def test_stream_not_found(npz):
+def test_bad_field_identified(npz):
     """
-    Test that retrieve_stream_generalized raises StreamNotFoundError when a non-existent
-    stream is requested.
+    Test that retrieve_stream_generalized raises a ValueError when an invalid
+    field is specified in the filters.
 
     Args:
         npz: An npz data structure to be queried.
 
     Raises:
-        npz_utils.StreamNotFoundError: If the specified stream is not found in the npz
-        object.
+        ValueError: If an invalid field is specified in the filters.
     """
-    field_filters = {"position": "l_shank", "stream": "fake_stream"}
-    with pytest.raises(npz_utils.StreamNotFoundError):
+    field_filters = {"position": "l_shank", "stream": "euler", "invalid_field": "value"}
+    with pytest.raises(ValueError):
         npz_utils.retrieve_stream_generalized(npz=npz, field_filters=field_filters)
