@@ -690,6 +690,7 @@ def download_npz(
         include_eulers_to_npz(destpath)
     if include_gait_splits:
         include_gait_splits_to_npz(destpath, peak_kwargs=peak_kwargs)
+    add_side_column_to_segments(destpath)
 
 
 def download_files_from_metadata(
@@ -798,6 +799,55 @@ def add_arrays_to_npz_and_store(
             else:
                 with outzf.open(f"{file}.npy", mode='w') as fp:
                     np.save(fp, arr, allow_pickle=False)
+
+
+def add_side_column_to_segments(destpath: str) -> None:
+    """
+    Load a .npz file, add a 'side' column to the segments array,
+    and save the updated arrays back to the .npz file.
+
+    Args:
+        destpath (str): Path to the .npz file to update.
+
+    Returns:
+        None
+    """
+    try:
+        npz = np.load(destpath)
+    except FileNotFoundError:
+        print(f"File {destpath} not found.", file=sys.stderr)
+        return
+
+    if 'segments' not in npz or npz['segments'] is None:
+        print(f"No segments found in {destpath}.", file=sys.stderr)
+        return
+
+    # Add 'side' column to segments
+    new_dtype = []
+    side_added = False
+    for name, dtype in npz["segments"].dtype.descr:
+        # 'side' column added before 'position'
+        if name == "position":
+            new_dtype.append(("side", "U8"))
+            side_added = True
+        new_dtype.append((name, dtype))
+
+    if not side_added:
+        new_dtype.append(("side", "U8"))
+
+    segments = np.recarray(npz["segments"].shape, dtype=new_dtype)
+
+    for name in npz["segments"].dtype.names:
+        segments[name] = npz["segments"][name]
+
+    sides = np.full(segments.shape, "", dtype="U8")  # start with empty strings
+    sides[np.char.startswith(segments["position"], "r_")] = "right"
+    sides[np.char.startswith(segments["position"], "l_")] = "left"
+
+    segments["side"] = sides
+
+    # Save updated segments back to the .npz file
+    add_arrays_to_npz_and_store(npz, {'segments': segments}, destpath)
 
 
 def include_eulers_to_npz(destpath: str) -> None:
