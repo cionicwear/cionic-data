@@ -4,6 +4,10 @@ from typing import Union
 import numpy as np
 
 
+class MultipleStreamsFoundError(Exception):
+    pass
+
+
 def get_segment_nums_labels(npz):
     '''
     Extract unique segment numbers and their corresponding labels from NPZ archive.
@@ -68,16 +72,46 @@ def retrieve_stream(
     Returns:
         np.recarray or None: The matched data segment if found, otherwise None.
     '''
-    for line in npz['segments.jsonl'].split(b'\n'):
-        if line:
-            segment = json.loads(line)
-            if (
-                position == segment.get('position')
-                and stream == segment.get('stream')
-                and (segment_num is False or segment_num == segment.get('segment_num'))
-            ):
-                return npz[segment['path']]
-    return None
+    field_filters = {
+        'position': position,
+        'stream': stream,
+    }
+    if segment_num:
+        field_filters['segment_num'] = segment_num
+    return retrieve_stream_generalized(npz=npz, field_filters=field_filters)
+
+
+def retrieve_stream_generalized(
+    npz: np.lib.npyio.NpzFile,
+    field_filters: dict,
+) -> Union[np.recarray, None]:
+    '''
+    Retrieve a specific data stream segment from an NPZ archive using arbitrary
+    field filters.
+
+    Args:
+        npz (np.lib.npyio.NpzFile): Loaded NPZ archive.
+        field_filters (dict): Dictionary mapping field names to values to filter on.
+            Example: {'position': 'r_shank', 'stream': 'euler', 'segment_num': 1}
+
+    Returns:
+        np.recarray or None: The matched data segment if found, otherwise None.
+    '''
+    segments = npz['segments']
+    mask = np.ones(len(segments), dtype=bool)
+    for field, value in field_filters.items():
+        if field not in segments.dtype.names:
+            raise ValueError(f"Warning: field '{field}' not in segments metadata.")
+        if value is not False and value is not None:
+            mask &= segments[field] == value
+    filtered = segments[mask]
+    if len(filtered) == 0:
+        return None
+    if len(filtered) > 1:
+        raise MultipleStreamsFoundError(
+            f"{len(filtered)} streams found for filters: {field_filters}"
+        )
+    return npz[filtered[0]['path']]
 
 
 def retrieve_segment_field(
@@ -129,6 +163,7 @@ def change_segments_column_dtype(segments: np.recarray, dtype_dict=None) -> np.r
             'position': 'U20',
             'device': 'U40',
             'path': 'U100',
+            'stream': 'U25',
         }
 
     # Build new dtype: update only specified fields, keep others the same
