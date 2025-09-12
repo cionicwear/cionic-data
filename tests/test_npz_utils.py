@@ -1,4 +1,6 @@
 """
+Usage: pytest tests/test_npz_utils.py
+
 Unit tests for the `retrieve_stream_generalized` function in the `npz_utils` module.
 
 These tests verify the correct behavior of stream retrieval from an NPZ data source
@@ -27,7 +29,7 @@ from cionic import npz_utils
 
 @pytest.fixture(scope="module")
 def npz():
-    return np.load("example.npz")
+    return np.load("npz_examples/example.npz")
 
 
 def test_multiple_streams_found(npz):
