@@ -316,25 +316,34 @@ def main():
             print("Configuration name cannot be empty")
             args.config_name = input("\nEnter configuration name: ").strip()
 
-    # Handle JSON file selection... check if file exists in
-    # ./recordings/org_shortname/study_shortname/config_name.json first...
-    # if not, prompt for path
-    json_path = Path(
-        f"./recordings/{args.org_shortname}/{args.study_shortname}/"
-        f"{args.config_name}.json"
-    )
-    if json_path.exists():
-        args.json_path = str(json_path)
+    # Handle JSON file selection... first, check if it was provided
+    # IF NOT, check if file exists in
+    # ./recordings/org_shortname/study_shortname/config_name.json
+    # IF NOT that either, prompt for path
+    prompt_for_json_path = False
+    if args.json_path is not None:
+        json_path = Path(args.json_path)
+        if not json_path.exists():
+            print(f"File not found: {json_path}")
+            prompt_for_json_path = True
     else:
-        print(f"File not found: {json_path}")
-        while True:
-            args.json_path = input(
-                "\nEnter path to JSON configuration file instead: "
-            ).strip()
-            if args.json_path:
-                break
-            else:
-                print("Path cannot be empty")
+        json_path = Path(
+            f"./recordings/{args.org_shortname}/{args.study_shortname}/"
+            f"{args.config_name}.json"
+        )
+        if json_path.exists():
+            args.json_path = str(json_path)
+        else:
+            print(f"File not found: {json_path}")
+            prompt_for_json_path = True
+    while prompt_for_json_path:
+        args.json_path = input(
+            "\nEnter path to JSON configuration file instead: "
+        ).strip()
+        if args.json_path:
+            break
+        else:
+            print("Path cannot be empty")
     if args.json_path is None:
         print("Path cannot be empty")
         return 1
