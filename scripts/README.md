@@ -104,6 +104,88 @@ optional arguments:
   -t TOKEN          path to auth credentials json file
 ```
 
+## upload_electrode_config.py
+
+This script allows you to upload custom electrode configurations, which will be used for mapping and calibration displays in the corresponding studies in the CIONIC App.
+```
+usage: 
+./scripts/upload_electrode_config.py
+    [org_shortname]
+    [study_shortname]
+    [config_name]
+    [json_path]
+    [--token_path <filepath to tokenfile>]
+    [--new]
+
+Common usage examples:
+
+Print help
+./scripts/upload_electrode_config.py -h
+
+Interactive mode - prompts for all inputs
+./scripts/upload_electrode_config.py
+
+Create new config in cionic/demo-develop study
+./scripts/upload_electrode_config.py cionic demo-develop EXAMPLE_CONFIG \
+    ./recordings/cionic/demo-develop/EXAMPLE_CONFIG.json --new
+
+Update existing config in cionic/demo-develop study
+./scripts/upload_electrode_config.py cionic demo-develop EXAMPLE_CONFIG \
+    ./recordings/cionic/demo-develop/EXAMPLE_CONFIG.json
+
+Interactive config selection - specify only org and study
+./scripts/upload_electrode_config.py cionic demo-develop
+
+positional arguments:
+  org                 organization shortname
+  study               study shortname
+  config_name         name of the configuration
+  json_path           path to the JSON configuration file
+
+optional arguments:
+  -h, --help          show this help message and exit
+  --new               create a new config
+  --token-path TOKEN_PATH
+                      path to the token file (default: ../token.json)
+```
+
+## download_electrode_config.py
+
+This script allows you to download custom electrode configurations, which are used for mapping and calibration displays in the corresponding studies in the CIONIC App.
+
+```
+usage:
+./scripts/download_electrode_config.py
+    [org_shortname]
+    [study_shortname]
+    [--token_path <filepath to tokenfile>]
+
+Common usage examples:
+
+Print help
+./scripts/download_electrode_config.py -h
+
+Interactive mode - prompts for org and study selection
+./scripts/download_electrode_config.py
+
+Download all configs from cionic/demo-develop study
+./scripts/download_electrode_config.py cionic demo-develop
+
+Download all configs from all studies in cionic org
+./scripts/download_electrode_config.py cionic
+
+positional arguments:
+  org                 organization shortname
+  study               study shortname
+
+optional arguments:
+
+  -h, --help          show this help message and exit
+  --token-path TOKEN_PATH
+                      path to the token file (default: ../token.json)
+```
+
+
 ## Committing changes with pre-commit hooks
 
 Pushing changes requires passing formatting and linting standards integrated into pre-commit hooks. These will automatically run when you try to commit, and the commit will be blocked if any tests fail. It is convenient to check if changes will pass prior to committing with:
