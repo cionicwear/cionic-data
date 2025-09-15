@@ -9,7 +9,7 @@ services:
       - JUPYTER_ENABLE_LAB=yes
       - PYTHONPATH=/home/jovyan/
     volumes:
-      - ./analysis:/home/jovyan/analysis
+      - ./analysis:/home/jovyan/jupyter/analysis
       - ../cionic:/home/jovyan/cionic
       - ../npz_examples:/home/jovyan/npz_examples
       - ../recordings:/home/jovyan/recordings
