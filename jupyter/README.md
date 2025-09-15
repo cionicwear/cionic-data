@@ -66,7 +66,7 @@ You will first need to download an authorization token from the web portal.
 
 5. Try to execute the notebook (you can press the "Run All" button in the top of the `runner.ipynb` tab or press `Shift+Enter` on each cell)
 
-6. You will be prompted to select a kernel. Select the kernel named `Jupyter + Python` and select the `base` environment.
+6. You will be prompted to select a Python environment. Select the `base` environment. Note: If no options appear, you may need to update the Python or Jupyter extensions and restart VS Code. You can do this by opening the extensions tab, searching for the extensions, and clicking the "Update" button if it appears. After updating, restart VS Code and try again.
 
 Note: the first time running runner.ipynb, the notebook may stall, improperly render the UI or otherwise fail. In this case, restart the kernel, close the notebook tab and try again.
 
