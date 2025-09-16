@@ -1,11 +1,8 @@
 {
   "name": "Jupyter + Cionic",
-  "dockerComposeFile": "../docker-compose.yml",
-  "service": "jupyter",
   "workspaceFolder": "/home/jovyan/work",
   "remoteUser": "jovyan",
   "overrideCommand": false,
-
   "customizations": {
     "vscode": {
       "settings": {
@@ -19,6 +16,5 @@
       ]
     }
   },
-
   "postCreateCommand": "echo 'VS Code container ready.'"
 }

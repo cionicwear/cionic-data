@@ -26,6 +26,10 @@ You will first need to download an authorization token from the web portal.
    ```bash
    docker compose -f docker-compose.yml -f private-volumes.yml up
    ```
+5. (Note) If you want to work in dev, which gives access to .git and allows for version control from the container, start the container with the following instead.
+   ```bash
+   docker compose -f docker-compose.dev.yml up
+   ```
 
 ### Option 1: JupyterLab (Browser-based)
 *Recommended for quick analysis*
