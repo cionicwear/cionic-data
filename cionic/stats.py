@@ -16,6 +16,10 @@ def compute_mae(true: np.ndarray, pred: np.ndarray) -> float:
     Returns:
         float: Mean absolute error.
     """
+    if true.size == 0 or pred.size == 0:
+        return np.nan
+    elif true.shape != pred.shape:
+        raise ValueError("Input arrays must have the same shape.")
     return np.mean(np.abs(true - pred))
 
 
@@ -29,6 +33,13 @@ def compute_mape(true: np.ndarray, pred: np.ndarray) -> float:
     Returns:
         float: Mean absolute percentage error as a percentage (0-100).
     """
+    if true.size == 0 or pred.size == 0:
+        return np.nan
+    elif true.shape != pred.shape:
+        raise ValueError("Input arrays must have the same shape.")
+
+    if np.any(true == 0):
+        return np.inf
     return np.mean(np.abs((true - pred) / true)) * 100
 
 
@@ -42,6 +53,10 @@ def compute_rmse(true: np.ndarray, pred: np.ndarray) -> float:
     Returns:
         float: Root mean square error.
     """
+    if true.size == 0 or pred.size == 0:
+        return np.nan
+    elif true.shape != pred.shape:
+        raise ValueError("Input arrays must have the same shape.")
     return np.sqrt(np.mean((true - pred) ** 2))
 
 
@@ -55,6 +70,10 @@ def compute_absolute_error(true: np.ndarray, pred: np.ndarray) -> np.ndarray:
     Returns:
         np.ndarray: Array of absolute errors for each prediction.
     """
+    if true.size == 0 or pred.size == 0:
+        return np.nan
+    elif true.shape != pred.shape:
+        raise ValueError("Input arrays must have the same shape.")
     return np.abs(true - pred)
 
 
@@ -68,6 +87,10 @@ def compute_absolute_percentage_error(true: np.ndarray, pred: np.ndarray) -> np.
     Returns:
         np.ndarray: Array of absolute percentage errors (0-100) for each prediction.
     """
+    if true.size == 0 or pred.size == 0:
+        return np.nan
+    elif true.shape != pred.shape:
+        raise ValueError("Input arrays must have the same shape.")
     return np.abs((true - pred) / true) * 100
 
 
@@ -84,6 +107,10 @@ def compute_percentage_within_threshold(
     Returns:
         float: Percentage of predictions within the threshold (0-100).
     """
+    if true.size == 0 or pred.size == 0:
+        return np.nan
+    elif true.shape != pred.shape:
+        raise ValueError("Input arrays must have the same shape.")
     abs_percent_errors = np.abs(true - pred) / true * 100
     within_threshold = abs_percent_errors <= threshold_percent
     return np.mean(within_threshold) * 100
