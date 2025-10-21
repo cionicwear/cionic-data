@@ -119,7 +119,7 @@ def compute_percentage_within_threshold(
     Args:
         true (np.ndarray): Array of true/reference values.
         pred (np.ndarray): Array of predicted values.
-        threshold_percent: Error threshold as a percentage (e.g., 5.0 for 5%).
+        threshold_percent (float): Error threshold as a percentage (e.g., 5.0 for 5%).
 
     Returns:
         float: Percentage of predictions within the threshold (0-100).
