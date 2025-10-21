@@ -6,7 +6,7 @@ from scipy.special import gamma
 MAD_SCALING_FACTOR = 1.4826
 
 
-def _validate_arrays(true: np.ndarray, pred: np.ndarray) -> None:
+def _validate_arrays(true: np.ndarray, pred: np.ndarray) -> bool:
     """Validate input arrays for metric computation functions.
 
     Args:
@@ -20,10 +20,10 @@ def _validate_arrays(true: np.ndarray, pred: np.ndarray) -> None:
         None: Returns np.nan if either array is empty (caller should handle).
     """
     if true.size == 0 or pred.size == 0:
-        return np.nan
+        return False
     elif true.shape != pred.shape:
         raise ValueError("Input arrays must have the same shape.")
-    return None
+    return True
 
 
 def compute_mae(true: np.ndarray, pred: np.ndarray) -> float:
@@ -36,9 +36,9 @@ def compute_mae(true: np.ndarray, pred: np.ndarray) -> float:
     Returns:
         float: Mean absolute error.
     """
-    validation_result = _validate_arrays(true, pred)
-    if validation_result is not None:
-        return validation_result
+    valid_result = _validate_arrays(true, pred)
+    if not valid_result:
+        return np.nan
     return np.mean(np.abs(true - pred))
 
 
@@ -52,9 +52,9 @@ def compute_mape(true: np.ndarray, pred: np.ndarray) -> float:
     Returns:
         float: Mean absolute percentage error as a percentage (0-100).
     """
-    validation_result = _validate_arrays(true, pred)
-    if validation_result is not None:
-        return validation_result
+    valid_result = _validate_arrays(true, pred)
+    if not valid_result:
+        return np.nan
 
     if np.any(true == 0):
         return np.inf
@@ -71,9 +71,9 @@ def compute_rmse(true: np.ndarray, pred: np.ndarray) -> float:
     Returns:
         float: Root mean square error.
     """
-    validation_result = _validate_arrays(true, pred)
-    if validation_result is not None:
-        return validation_result
+    valid_result = _validate_arrays(true, pred)
+    if not valid_result:
+        return np.nan
     return np.sqrt(np.mean((true - pred) ** 2))
 
 
@@ -87,15 +87,14 @@ def compute_absolute_error(true: np.ndarray, pred: np.ndarray) -> np.ndarray:
     Returns:
         np.ndarray: Array of absolute errors for each prediction.
     """
-    if true.size == 0 or pred.size == 0:
+    valid_result = _validate_arrays(true, pred)
+    if not valid_result:
         return np.array([])
-    elif true.shape != pred.shape:
-        raise ValueError("Input arrays must have the same shape.")
     return np.abs(true - pred)
 
 
 def compute_absolute_percentage_error(true: np.ndarray, pred: np.ndarray) -> np.ndarray:
-    """Compute element-wise absolute percentage errors between true and predicted vals.
+    """Compute element-wise absolute percent errors between true and predicted values.
 
     Args:
         true (np.ndarray): Array of true/reference values.
@@ -104,10 +103,12 @@ def compute_absolute_percentage_error(true: np.ndarray, pred: np.ndarray) -> np.
     Returns:
         np.ndarray: Array of absolute percentage errors (0-100) for each prediction.
     """
-    if true.size == 0 or pred.size == 0:
+    valid_result = _validate_arrays(true, pred)
+    if not valid_result:
         return np.array([])
-    elif true.shape != pred.shape:
-        raise ValueError("Input arrays must have the same shape.")
+
+    if np.any(true == 0):
+        return np.inf
     return np.abs((true - pred) / true) * 100
 
 
@@ -124,9 +125,9 @@ def compute_percentage_within_threshold(
     Returns:
         float: Percentage of predictions within the threshold (0-100).
     """
-    validation_result = _validate_arrays(true, pred)
-    if validation_result is not None:
-        return validation_result
+    valid_result = _validate_arrays(true, pred)
+    if not valid_result:
+        return np.nan
     abs_percent_errors = np.abs(true - pred) / true * 100
     within_threshold = abs_percent_errors <= threshold_percent
     return np.mean(within_threshold) * 100
