@@ -159,7 +159,7 @@ def compute_percentage_within_five_percent(true: np.ndarray, pred: np.ndarray) -
     return compute_percentage_within_threshold(true, pred, 5)
 
 
-def compute_percentage_with_ten_percent(true: np.ndarray, pred: np.ndarray) -> float:
+def compute_percentage_within_ten_percent(true: np.ndarray, pred: np.ndarray) -> float:
     """Compute percentage of predictions within 10% error threshold.
 
     Args:
