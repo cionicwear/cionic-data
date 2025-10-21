@@ -6,6 +6,42 @@ from scipy.special import gamma
 MAD_SCALING_FACTOR = 1.4826
 
 
+def compute_mae(true: np.ndarray, pred: np.ndarray) -> float:
+    return np.mean(np.abs(true - pred))
+
+
+def compute_mape(true: np.ndarray, pred: np.ndarray) -> float:
+    return np.mean(np.abs((true - pred) / true)) * 100
+
+
+def compute_rmse(true: np.ndarray, pred: np.ndarray) -> float:
+    return np.sqrt(np.mean((true - pred) ** 2))
+
+
+def compute_absolute_error(true: np.ndarray, pred: np.ndarray) -> np.ndarray:
+    return np.abs(true - pred)
+
+
+def compute_absolute_percentage_error(true: np.ndarray, pred: np.ndarray) -> np.ndarray:
+    return np.abs((true - pred) / true) * 100
+
+
+def compute_percentage_within_threshold(
+    true: np.ndarray, pred: np.ndarray, threshold_percent: float
+) -> float:
+    abs_percent_errors = np.abs(true - pred) / true * 100
+    within_threshold = abs_percent_errors <= threshold_percent
+    return np.mean(within_threshold) * 100
+
+
+def compute_percentage_within_five_percent(true: np.ndarray, pred: np.ndarray) -> float:
+    return compute_percentage_within_threshold(true, pred, 5)
+
+
+def compute_percentage_with_ten_percent(true: np.ndarray, pred: np.ndarray) -> float:
+    return compute_percentage_within_threshold(true, pred, 10)
+
+
 def c4_correction(n: int) -> float:
     """
     Compute the small-sample bias correction factor for the standard deviation.
