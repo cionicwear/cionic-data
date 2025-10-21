@@ -1,3 +1,4 @@
+import warnings
 from typing import Dict, Tuple
 
 import numpy as np
@@ -36,10 +37,10 @@ def compute_mae(true: np.ndarray, pred: np.ndarray) -> float:
     Returns:
         float: Mean absolute error.
     """
-    valid_result = _validate_arrays(true, pred)
-    if not valid_result:
+    abs_errors = compute_absolute_error(true, pred)
+    if abs_errors.size == 0:
         return np.nan
-    return np.mean(np.abs(true - pred))
+    return np.mean(abs_errors)
 
 
 def compute_mape(true: np.ndarray, pred: np.ndarray) -> float:
@@ -52,13 +53,10 @@ def compute_mape(true: np.ndarray, pred: np.ndarray) -> float:
     Returns:
         float: Mean absolute percentage error as a percentage (0-100).
     """
-    valid_result = _validate_arrays(true, pred)
-    if not valid_result:
+    abs_percent_errors = compute_absolute_percentage_error(true, pred)
+    if abs_percent_errors.size == 0:
         return np.nan
-
-    if np.any(true == 0):
-        return np.inf
-    return np.mean(np.abs((true - pred) / true)) * 100
+    return np.mean(abs_percent_errors)
 
 
 def compute_rmse(true: np.ndarray, pred: np.ndarray) -> float:
@@ -107,9 +105,24 @@ def compute_absolute_percentage_error(true: np.ndarray, pred: np.ndarray) -> np.
     if not valid_result:
         return np.array([])
 
-    if np.any(true == 0):
-        return np.inf
-    return np.abs((true - pred) / true) * 100
+    # Mask out zero values in true array
+    non_zero_mask = true != 0
+
+    n_zeros = true.size - np.sum(non_zero_mask)
+    if not np.any(non_zero_mask):
+        return np.array([])  # All true values are zero
+    elif n_zeros > 0:
+        warnings.warn(
+            f"MAPE calculation excludes {n_zeros} zero true values "
+            f"({n_zeros/true.size*100:.1f}% of data)",
+            UserWarning,
+            stacklevel=2,
+        )
+
+    true_filtered = true[non_zero_mask]
+    pred_filtered = pred[non_zero_mask]
+
+    return np.abs((true_filtered - pred_filtered) / true_filtered) * 100
 
 
 def compute_percentage_within_threshold(

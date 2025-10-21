@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import pytest
 
@@ -119,9 +121,13 @@ class TestEdgeCases:
         true = np.array([0, 1, 2])
         pred = np.array([1, 2, 3])
 
-        # Should handle division by zero (result will be inf)
-        result = compute_mape(true, pred)
-        assert np.isinf(result)
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            expected = 75.0  # Only the last two values contribute: (1/1 + 1/2)/2 * 100
+            assert compute_mape(true, pred) == expected
+            assert len(w) == 1
+            assert "excludes" in str(w[0].message)
+            assert "zero true values" in str(w[0].message)
 
     def test_single_value_arrays(self):
         """Test behavior with single-value arrays."""
