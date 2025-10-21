@@ -71,7 +71,7 @@ def compute_absolute_error(true: np.ndarray, pred: np.ndarray) -> np.ndarray:
         np.ndarray: Array of absolute errors for each prediction.
     """
     if true.size == 0 or pred.size == 0:
-        return np.nan
+        return np.array([])
     elif true.shape != pred.shape:
         raise ValueError("Input arrays must have the same shape.")
     return np.abs(true - pred)
