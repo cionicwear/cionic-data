@@ -1,9 +1,175 @@
+import warnings
 from typing import Dict, Tuple
 
 import numpy as np
 from scipy.special import gamma
 
 MAD_SCALING_FACTOR = 1.4826
+
+
+def _validate_arrays(true: np.ndarray, pred: np.ndarray) -> bool:
+    """Validate input arrays for metric computation functions.
+
+    Args:
+        true (np.ndarray): Array of true/reference values.
+        pred (np.ndarray): Array of predicted values.
+
+    Raises:
+        ValueError: If arrays have different shapes.
+
+    Returns:
+        None: Returns np.nan if either array is empty (caller should handle).
+    """
+    if true.size == 0 or pred.size == 0:
+        return False
+    elif true.shape != pred.shape:
+        raise ValueError("Input arrays must have the same shape.")
+    return True
+
+
+def compute_mae(true: np.ndarray, pred: np.ndarray) -> float:
+    """Compute Mean Absolute Error between true and predicted values.
+
+    Args:
+        true (np.ndarray): Array of true/reference values.
+        pred (np.ndarray): Array of predicted values.
+
+    Returns:
+        float: Mean absolute error.
+    """
+    abs_errors = compute_absolute_error(true, pred)
+    if abs_errors.size == 0:
+        return np.nan
+    return np.mean(abs_errors)
+
+
+def compute_mape(true: np.ndarray, pred: np.ndarray) -> float:
+    """Compute Mean Absolute Percentage Error between true and predicted values.
+
+    Args:
+        true (np.ndarray): Array of true/reference values.
+        pred (np.ndarray): Array of predicted values.
+
+    Returns:
+        float: Mean absolute percentage error as a percentage (0-100).
+    """
+    abs_percent_errors = compute_absolute_percentage_error(true, pred)
+    if abs_percent_errors.size == 0:
+        return np.nan
+    return np.mean(abs_percent_errors)
+
+
+def compute_rmse(true: np.ndarray, pred: np.ndarray) -> float:
+    """Compute Root Mean Square Error between true and predicted values.
+
+    Args:
+        true (np.ndarray): Array of true/reference values.
+        pred (np.ndarray): Array of predicted values.
+
+    Returns:
+        float: Root mean square error.
+    """
+    valid_result = _validate_arrays(true, pred)
+    if not valid_result:
+        return np.nan
+    return np.sqrt(np.mean((true - pred) ** 2))
+
+
+def compute_absolute_error(true: np.ndarray, pred: np.ndarray) -> np.ndarray:
+    """Compute element-wise absolute errors between true and predicted values.
+
+    Args:
+        true (np.ndarray): Array of true/reference values.
+        pred (np.ndarray): Array of predicted values.
+
+    Returns:
+        np.ndarray: Array of absolute errors for each prediction.
+    """
+    valid_result = _validate_arrays(true, pred)
+    if not valid_result:
+        return np.array([])
+    return np.abs(true - pred)
+
+
+def compute_absolute_percentage_error(true: np.ndarray, pred: np.ndarray) -> np.ndarray:
+    """Compute element-wise absolute percent errors between true and predicted values.
+
+    Args:
+        true (np.ndarray): Array of true/reference values.
+        pred (np.ndarray): Array of predicted values.
+
+    Returns:
+        np.ndarray: Array of absolute percentage errors (0-100) for each prediction.
+    """
+    valid_result = _validate_arrays(true, pred)
+    if not valid_result:
+        return np.array([])
+
+    # Mask out zero values in true array
+    non_zero_mask = true != 0
+
+    n_zeros = true.size - np.sum(non_zero_mask)
+    if not np.any(non_zero_mask):
+        return np.array([])  # All true values are zero
+    elif n_zeros > 0:
+        warnings.warn(
+            f"MAPE calculation excludes {n_zeros} zero true values "
+            f"({n_zeros/true.size*100:.1f}% of data)",
+            UserWarning,
+            stacklevel=2,
+        )
+
+    true_filtered = true[non_zero_mask]
+    pred_filtered = pred[non_zero_mask]
+
+    return np.abs((true_filtered - pred_filtered) / true_filtered) * 100
+
+
+def compute_percentage_within_threshold(
+    true: np.ndarray, pred: np.ndarray, threshold_percent: float
+) -> float:
+    """Compute percentage of predictions within a specified error threshold.
+
+    Args:
+        true (np.ndarray): Array of true/reference values.
+        pred (np.ndarray): Array of predicted values.
+        threshold_percent (float): Error threshold as a percentage (e.g., 5.0 for 5%).
+
+    Returns:
+        float: Percentage of predictions within the threshold (0-100).
+    """
+    valid_result = _validate_arrays(true, pred)
+    if not valid_result:
+        return np.nan
+    abs_percent_errors = np.abs(true - pred) / true * 100
+    within_threshold = abs_percent_errors <= threshold_percent
+    return np.mean(within_threshold) * 100
+
+
+def compute_percentage_within_five_percent(true: np.ndarray, pred: np.ndarray) -> float:
+    """Compute percentage of predictions within 5% error threshold.
+
+    Args:
+        true (np.ndarray): Array of true/reference values.
+        pred (np.ndarray): Array of predicted values.
+
+    Returns:
+        float: Percentage of predictions within 5% error (0-100).
+    """
+    return compute_percentage_within_threshold(true, pred, 5)
+
+
+def compute_percentage_with_ten_percent(true: np.ndarray, pred: np.ndarray) -> float:
+    """Compute percentage of predictions within 10% error threshold.
+
+    Args:
+        true (np.ndarray): Array of true/reference values.
+        pred (np.ndarray): Array of predicted values.
+
+    Returns:
+        float: Percentage of predictions within 10% error (0-100).
+    """
+    return compute_percentage_within_threshold(true, pred, 10)
 
 
 def c4_correction(n: int) -> float:
