@@ -7,38 +7,111 @@ MAD_SCALING_FACTOR = 1.4826
 
 
 def compute_mae(true: np.ndarray, pred: np.ndarray) -> float:
+    """Compute Mean Absolute Error between true and predicted values.
+
+    Args:
+        true (np.ndarray): Array of true/reference values.
+        pred (np.ndarray): Array of predicted values.
+
+    Returns:
+        float: Mean absolute error.
+    """
     return np.mean(np.abs(true - pred))
 
 
 def compute_mape(true: np.ndarray, pred: np.ndarray) -> float:
+    """Compute Mean Absolute Percentage Error between true and predicted values.
+
+    Args:
+        true (np.ndarray): Array of true/reference values.
+        pred (np.ndarray): Array of predicted values.
+
+    Returns:
+        float: Mean absolute percentage error as a percentage (0-100).
+    """
     return np.mean(np.abs((true - pred) / true)) * 100
 
 
 def compute_rmse(true: np.ndarray, pred: np.ndarray) -> float:
+    """Compute Root Mean Square Error between true and predicted values.
+
+    Args:
+        true (np.ndarray): Array of true/reference values.
+        pred (np.ndarray): Array of predicted values.
+
+    Returns:
+        float: Root mean square error.
+    """
     return np.sqrt(np.mean((true - pred) ** 2))
 
 
 def compute_absolute_error(true: np.ndarray, pred: np.ndarray) -> np.ndarray:
+    """Compute element-wise absolute errors between true and predicted values.
+
+    Args:
+        true (np.ndarray): Array of true/reference values.
+        pred (np.ndarray): Array of predicted values.
+
+    Returns:
+        np.ndarray: Array of absolute errors for each prediction.
+    """
     return np.abs(true - pred)
 
 
 def compute_absolute_percentage_error(true: np.ndarray, pred: np.ndarray) -> np.ndarray:
+    """Compute element-wise absolute percentage errors between true and predicted vals.
+
+    Args:
+        true (np.ndarray): Array of true/reference values.
+        pred (np.ndarray): Array of predicted values.
+
+    Returns:
+        np.ndarray: Array of absolute percentage errors (0-100) for each prediction.
+    """
     return np.abs((true - pred) / true) * 100
 
 
 def compute_percentage_within_threshold(
     true: np.ndarray, pred: np.ndarray, threshold_percent: float
 ) -> float:
+    """Compute percentage of predictions within a specified error threshold.
+
+    Args:
+        true (np.ndarray): Array of true/reference values.
+        pred (np.ndarray): Array of predicted values.
+        threshold_percent: Error threshold as a percentage (e.g., 5.0 for 5%).
+
+    Returns:
+        float: Percentage of predictions within the threshold (0-100).
+    """
     abs_percent_errors = np.abs(true - pred) / true * 100
     within_threshold = abs_percent_errors <= threshold_percent
     return np.mean(within_threshold) * 100
 
 
 def compute_percentage_within_five_percent(true: np.ndarray, pred: np.ndarray) -> float:
+    """Compute percentage of predictions within 5% error threshold.
+
+    Args:
+        true (np.ndarray): Array of true/reference values.
+        pred (np.ndarray): Array of predicted values.
+
+    Returns:
+        float: Percentage of predictions within 5% error (0-100).
+    """
     return compute_percentage_within_threshold(true, pred, 5)
 
 
 def compute_percentage_with_ten_percent(true: np.ndarray, pred: np.ndarray) -> float:
+    """Compute percentage of predictions within 10% error threshold.
+
+    Args:
+        true (np.ndarray): Array of true/reference values.
+        pred (np.ndarray): Array of predicted values.
+
+    Returns:
+        float: Percentage of predictions within 10% error (0-100).
+    """
     return compute_percentage_within_threshold(true, pred, 10)
 
 
