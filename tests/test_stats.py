@@ -8,8 +8,8 @@ from cionic.stats import (
     compute_absolute_percentage_error,
     compute_mae,
     compute_mape,
-    compute_percentage_with_ten_percent,
     compute_percentage_within_five_percent,
+    compute_percentage_within_ten_percent,
     compute_percentage_within_threshold,
     compute_rmse,
 )
@@ -170,11 +170,11 @@ class TestThresholdMetrics:
         result = compute_percentage_within_five_percent(true, pred)
         assert result == 50.0
 
-    def test_compute_percentage_with_ten_percent(self):
+    def test_compute_percentage_within_ten_percent(self):
         """Test convenience function for 10% threshold."""
         true = np.array([100, 100])
         pred = np.array([104, 110])  # 4%, 10% errors
-        result = compute_percentage_with_ten_percent(true, pred)
+        result = compute_percentage_within_ten_percent(true, pred)
         assert result == 100.0
 
 
