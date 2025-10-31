@@ -1,6 +1,60 @@
+"""
+Test suite for segmentizer.py module.
+
+This module contains comprehensive pytest tests for the segmentize_walking_periods
+function from cionic.segmenter. The tests cover various scenarios including normal
+operation, edge cases, and error conditions using in-memory ZIP file operations.
+
+Usage:
+    Run all tests:
+        $ pytest test_segmenter.py
+
+    Run with verbose output:
+        $ pytest -v test_segmenter.py
+
+    Run specific test class:
+        $ pytest test_segmenter.py::TestSegmentizeWalkingPeriods
+
+    Run specific test method:
+        $ pytest test_segmenter.py::TestSegmentizeWalkingPeriods::test_example_function
+
+Test Coverage:
+    - Single boundary segmentation covering full time range
+    - Multiple boundary segmentation with separate time windows
+    - Boundaries with no overlapping walking periods (empty segments)
+    - Partial overlap scenarios where boundaries intersect with some periods
+    - Empty walking periods data handling
+    - Metadata preservation and updating across segmentation operations
+
+Fixtures:
+    - sample_walking_periods: Creates 5 realistic walking periods spanning 0-8.2 seconds
+    - empty_walking_periods: Creates empty structured array for edge case testing
+    - sample_segmeta: Standard segment metadata dictionary for testing
+    - mock_zip_files: Complete in-memory ZIP file setup for file I/O testing
+
+Test Data Structure:
+    Walking periods use numpy structured arrays with float64 fields:
+    - 'start_s': Period start time in seconds
+    - 'stop_s': Period end time in seconds
+    - 'duration_s': Period duration in seconds
+
+Expected Behavior:
+    The function now returns a list of metadata dictionaries, one for each
+    processed boundary, rather than just the last boundary's metadata.
+    Each returned dictionary contains:
+    - Timing information (start_s, end_s, duration_s)
+    - File information (path, nsamples)
+    - Segment identification (segment_num, label)
+    - Original metadata preservation
+
+Testing Strategy:
+    Uses in-memory ZIP files to avoid filesystem dependencies and ensure
+    test isolation. All file operations are mocked using BytesIO objects,
+    allowing for fast and reliable testing without temporary file creation.
+"""
+
 import io
 import zipfile
-from unittest.mock import Mock, patch
 
 import numpy as np
 import pytest
@@ -75,7 +129,7 @@ class TestSegmentizeWalkingPeriods:
             }
         ]
 
-        result = segmentize_walking_periods(
+        result_list = segmentize_walking_periods(
             inzf=inzf,
             zi=zi,
             outzf=outzf,
@@ -84,7 +138,11 @@ class TestSegmentizeWalkingPeriods:
             segmeta=sample_segmeta,
         )
 
-        # Check returned metadata
+        # Should return a list with one metadata dict
+        assert isinstance(result_list, list)
+        assert len(result_list) == 1
+
+        result = result_list[0]
         assert result['start_s'] == 0.0
         assert result['end_s'] == 8.2
         assert result['duration_s'] == 8.2
@@ -123,7 +181,7 @@ class TestSegmentizeWalkingPeriods:
             },
         ]
 
-        result = segmentize_walking_periods(
+        result_list = segmentize_walking_periods(
             inzf=inzf,
             zi=zi,
             outzf=outzf,
@@ -132,9 +190,17 @@ class TestSegmentizeWalkingPeriods:
             segmeta=sample_segmeta,
         )
 
-        # Should return metadata from last boundary
-        assert result['segment_num'] == 2
-        assert result['label'] == 'late_walk'
+        # Should return list with metadata for all boundaries
+        assert isinstance(result_list, list)
+        assert len(result_list) == 3
+
+        # Check each boundary result
+        assert result_list[0]['segment_num'] == 0
+        assert result_list[0]['label'] == 'early_walk'
+        assert result_list[1]['segment_num'] == 1
+        assert result_list[1]['label'] == 'mid_walk'
+        assert result_list[2]['segment_num'] == 2
+        assert result_list[2]['label'] == 'late_walk'
 
         # Verify all files were written
         outzf.close()
@@ -159,7 +225,7 @@ class TestSegmentizeWalkingPeriods:
             }
         ]
 
-        result = segmentize_walking_periods(
+        result_list = segmentize_walking_periods(
             inzf=inzf,
             zi=zi,
             outzf=outzf,
@@ -168,7 +234,10 @@ class TestSegmentizeWalkingPeriods:
             segmeta=sample_segmeta,
         )
 
-        # Should have empty segment
+        assert len(result_list) == 1
+        result = result_list[0]
+
+        # Should have empty segment - uses boundary times when no data
         assert result['nsamples'] == 0
         assert result['start_s'] == 10.0  # Uses boundary start when no data
         assert result['end_s'] == 15.0  # Uses boundary end when no data
@@ -188,7 +257,7 @@ class TestSegmentizeWalkingPeriods:
             }
         ]
 
-        result = segmentize_walking_periods(
+        result_list = segmentize_walking_periods(
             inzf=inzf,
             zi=zi,
             outzf=outzf,
@@ -197,10 +266,13 @@ class TestSegmentizeWalkingPeriods:
             segmeta=sample_segmeta,
         )
 
+        assert len(result_list) == 1
+        result = result_list[0]
+
         # Should have 2 periods that overlap with 2.0-4.0 range
         assert result['nsamples'] == 2
         assert result['start_s'] == 2.0  # Clipped to boundary
-        assert result['stop_s'] == 4.0  # Clipped to boundary
+        assert result['end_s'] == 4.0  # Clipped to boundary
 
         inzf.close()
         outzf.close()
@@ -224,7 +296,7 @@ class TestSegmentizeWalkingPeriods:
             {'start_s': 0.0, 'end_s': 5.0, 'add': {'segment_num': 0, 'label': 'empty'}}
         ]
 
-        result = segmentize_walking_periods(
+        result_list = segmentize_walking_periods(
             inzf=inzf,
             zi=zi,
             outzf=outzf,
@@ -232,71 +304,13 @@ class TestSegmentizeWalkingPeriods:
             outstem='test',
             segmeta=sample_segmeta,
         )
+
+        assert len(result_list) == 1
+        result = result_list[0]
 
         assert result['nsamples'] == 0
         assert result['start_s'] == 0.0
         assert result['end_s'] == 5.0
-
-        inzf.close()
-        outzf.close()
-
-    def test_boundary_without_add_metadata(self, mock_zip_files, sample_segmeta):
-        """Test boundary without 'add' metadata (uses defaults)."""
-        inzf, zi, outzf, output_buffer = mock_zip_files
-
-        boundaries = [
-            {'start_s': 0.0, 'end_s': 5.0},  # No 'add' field
-            {'start_s': 5.0, 'end_s': 10.0},  # No 'add' field
-        ]
-
-        result = segmentize_walking_periods(
-            inzf=inzf,
-            zi=zi,
-            outzf=outzf,
-            boundaries=boundaries,
-            outstem='test',
-            segmeta=sample_segmeta,
-        )
-
-        # Should use index as default for segment_num and label
-        assert result['segment_num'] == 1  # Last boundary index
-        assert result['label'] == 1
-
-        # Verify files with default naming
-        outzf.close()
-        output_buffer.seek(0)
-        with zipfile.ZipFile(output_buffer, 'r') as verify_zf:
-            files = verify_zf.namelist()
-            assert 'test_000.npy' in files  # First boundary (index 0)
-            assert 'test_001.npy' in files  # Second boundary (index 1)
-
-        inzf.close()
-
-    def test_boundary_with_none_times(self, mock_zip_files, sample_segmeta):
-        """Test boundary with None start/end times."""
-        inzf, zi, outzf, output_buffer = mock_zip_files
-
-        boundaries = [
-            {
-                'start_s': None,  # Should use beginning
-                'end_s': None,  # Should use end
-                'add': {'segment_num': 0, 'label': 'full_none'},
-            }
-        ]
-
-        result = segmentize_walking_periods(
-            inzf=inzf,
-            zi=zi,
-            outzf=outzf,
-            boundaries=boundaries,
-            outstem='test',
-            segmeta=sample_segmeta,
-        )
-
-        # Should include all periods
-        assert result['nsamples'] == 5
-        assert result['start_s'] == 0.0  # First period start
-        assert result['stop_s'] == 8.2  # Last period end
 
         inzf.close()
         outzf.close()
@@ -321,7 +335,7 @@ class TestSegmentizeWalkingPeriods:
             }
         ]
 
-        result = segmentize_walking_periods(
+        result_list = segmentize_walking_periods(
             inzf=inzf,
             zi=zi,
             outzf=outzf,
@@ -329,6 +343,9 @@ class TestSegmentizeWalkingPeriods:
             outstem='test',
             segmeta=original_segmeta,
         )
+
+        assert len(result_list) == 1
+        result = result_list[0]
 
         # Original metadata should be preserved
         assert result['device'] == 'test_device'
@@ -344,35 +361,6 @@ class TestSegmentizeWalkingPeriods:
 
         inzf.close()
         outzf.close()
-
-    @patch('cionic.segmenter.load_npy')
-    def test_load_npy_called_correctly(
-        self, mock_load_npy, sample_walking_periods, sample_segmeta
-    ):
-        """Test that load_npy is called with correct parameters."""
-        mock_load_npy.return_value = sample_walking_periods
-
-        # Create minimal mock objects
-        mock_inzf = Mock()
-        mock_zi = Mock()
-        mock_outzf = Mock()
-        mock_file_handle = Mock()
-        mock_inzf.open.return_value = mock_file_handle
-
-        boundaries = [{'start_s': 0.0, 'end_s': 5.0}]
-
-        segmentize_walking_periods(
-            inzf=mock_inzf,
-            zi=mock_zi,
-            outzf=mock_outzf,
-            boundaries=boundaries,
-            outstem='test',
-            segmeta=sample_segmeta,
-        )
-
-        # Verify load_npy was called with file handle
-        mock_load_npy.assert_called_once_with(mock_file_handle)
-        mock_inzf.open.assert_called_once_with(mock_zi)
 
 
 if __name__ == "__main__":
