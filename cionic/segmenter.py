@@ -107,6 +107,60 @@ def segment_stride_periods(arr: np.recarray, t0: float, t1: float):
     return seg
 
 
+def segmentize_walking_periods(
+    inzf: zipfile.ZipFile,
+    zi: zipfile.ZipInfo,
+    outzf: zipfile.ZipFile,
+    boundaries: list,
+    outstem: str,
+    segmeta: dict,
+):
+    """Segments walking period data according to specified time boundaries.
+
+    This function processes walking period arrays (containing stride/walking periods)
+    by splitting them according to time boundaries and writing the segmented data
+    to an output ZIP file. Each boundary creates a new segment with updated metadata.
+
+    Args:
+        inzf (zipfile.ZipFile): Input ZIP file containing the walking period data.
+        zi (zipfile.ZipInfo): ZIP info object for the specific file to process.
+        outzf (zipfile.ZipFile): Output ZIP file to write segmented data.
+        boundaries (list): List of boundary dictionaries
+        outstem (str): Base filename stem for output files.
+        segmeta (dict): Original segment metadata dictionary to be updated.
+
+    Returns:
+        dict: Updated segment metadata dictionary containing:
+            - 'start_s' (float): Actual start time of the segmented data.
+            - 'end_s' (float): Actual end time of the segmented data.
+            - 'duration_s' (float): Duration of the segment in seconds.
+            - 'path' (str): Path/filename of the segmented data file.
+            - 'nsamples' (int): Number of samples in the segmented data.
+            - 'segment_num' (int): Segment number identifier.
+            - 'label' (str): Segment label.
+    """
+    arr = load_npy(inzf.open(zi))
+    for i, boundary in enumerate(boundaries):
+        t0 = boundary.get('start_s')
+        t1 = boundary.get('end_s')
+        seg = segment_stride_periods(arr, t0, t1)
+        suffix = boundary.get('add', {}).get('segment_num', i)
+        label = boundary.get('add', {}).get('label', i)
+        stem = f'{outstem}_{suffix:03}'
+        with outzf.open(stem + '.npy', mode='w') as outfp:
+            np.save(outfp, seg)
+        newsegmeta = dict(segmeta)
+        newsegmeta["start_s"] = float(seg['start_s'][0]) if seg.shape[0] > 0 else t0
+        newsegmeta["end_s"] = float(seg['stop_s'][-1]) if seg.shape[0] > 0 else t1
+        newsegmeta['duration_s'] = newsegmeta['end_s'] - newsegmeta['start_s']
+        newsegmeta['path'] = stem
+        newsegmeta["nsamples"] = seg.shape[0]
+        newsegmeta["segment_num"] = suffix
+        newsegmeta["label"] = label
+
+    return newsegmeta
+
+
 def segmentize(inputs, boundaries, output, progress=progress_none):
     """
     Segments and processes data from one or more input .npz files, splitting
@@ -168,31 +222,15 @@ def segmentize(inputs, boundaries, output, progress=progress_none):
                         file in zipath.stem
                         for file in ('paired_stride_splits', 'walking_periods')
                     ):
-                        arr = load_npy(inzf.open(zi))
-                        for i, boundary in enumerate(boundaries):
-                            t0 = boundary.get('start_s')
-                            t1 = boundary.get('end_s')
-                            seg = segment_stride_periods(arr, t0, t1)
-                            suffix = boundary.get('add', {}).get('segment_num', i)
-                            label = boundary.get('add', {}).get('label', i)
-                            stem = f'{outstem}_{suffix:03}'
-                            with outzf.open(stem + '.npy', mode='w') as outfp:
-                                np.save(outfp, seg)
-                            newsegmeta = dict(segmeta)
-                            newsegmeta["start_s"] = (
-                                float(seg['start_s'][0]) if seg.shape[0] > 0 else t0
-                            )
-                            newsegmeta["end_s"] = (
-                                float(seg['stop_s'][-1]) if seg.shape[0] > 0 else t1
-                            )
-                            newsegmeta['duration_s'] = (
-                                newsegmeta['end_s'] - newsegmeta['start_s']
-                            )
-                            newsegmeta['path'] = stem
-                            newsegmeta["nsamples"] = seg.shape[0]
-                            newsegmeta["segment_num"] = suffix
-                            newsegmeta["label"] = label
-                            metatables['segments'].append(dict(newsegmeta))
+                        newsegmeta = segmentize_walking_periods(
+                            inzf=inzf,
+                            zi=zi,
+                            outzf=outzf,
+                            boundaries=boundaries,
+                            outstem=outstem,
+                            segmeta=segmeta,
+                        )
+                        metatables['segments'].append(dict(newsegmeta))
                         continue
 
                     if not segmeta:
