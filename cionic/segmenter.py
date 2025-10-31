@@ -76,7 +76,123 @@ def progress_none(s):
     pass
 
 
+def segment_stride_periods(arr: np.recarray, t0: float, t1: float):
+    """
+    Segments an array of stride or walking periods to a specified time range [t0, t1].
+
+    Args:
+        arr (numpy.recarray): Record array containing stride or walking periods,
+            with fields 'start_s', 'stop_s', and 'duration_s'.
+        t0 (float): Start time of segment range. If None, no lower bound is applied.
+        t1 (float): End time of segment range. If None, no upper bound is applied.
+
+    Returns:
+        numpy.recarray: A copy of the input array, filtered to periods overlapping
+            [t0, t1], with 'start_s' and 'stop_s' clipped to the specified range.
+    """
+    # arr: numpy record array with start_s, stop_s, duration_s
+    mask = np.ones(len(arr), dtype=bool)
+    if t0 is not None:
+        mask &= arr['stop_s'] > t0
+    if t1 is not None:
+        mask &= arr['start_s'] < t1
+    # Clip start/stop to t0/t1
+    seg = arr[mask].copy()
+    if t0 is not None:
+        seg['start_s'] = np.maximum(seg['start_s'], t0)
+    if t1 is not None:
+        seg['stop_s'] = np.minimum(seg['stop_s'], t1)
+    seg['duration_s'] = seg['stop_s'] - seg['start_s']
+    return seg
+
+
+def segmentize_walking_periods(
+    inzf: zipfile.ZipFile,
+    zi: zipfile.ZipInfo,
+    outzf: zipfile.ZipFile,
+    boundaries: list,
+    outstem: str,
+    segmeta: dict,
+):
+    """Segments walking period data according to specified time boundaries.
+
+    This function processes walking period arrays (containing stride/walking periods)
+    by splitting them according to time boundaries and writing the segmented data
+    to an output ZIP file. Each boundary creates a new segment with updated metadata.
+
+    Args:
+        inzf (zipfile.ZipFile): Input ZIP file containing the walking period data.
+        zi (zipfile.ZipInfo): ZIP info object for the specific file to process.
+        outzf (zipfile.ZipFile): Output ZIP file to write segmented data.
+        boundaries (list): List of boundary dictionaries
+        outstem (str): Base filename stem for output files.
+        segmeta (dict): Original segment metadata dictionary to be updated.
+
+    Returns:
+        dict: Updated segment metadata dictionary containing:
+            - 'start_s' (float): Actual start time of the segmented data.
+            - 'end_s' (float): Actual end time of the segmented data.
+            - 'duration_s' (float): Duration of the segment in seconds.
+            - 'path' (str): Path/filename of the segmented data file.
+            - 'nsamples' (int): Number of samples in the segmented data.
+            - 'segment_num' (int): Segment number identifier.
+            - 'label' (str): Segment label.
+    """
+    arr = load_npy(inzf.open(zi))
+    newsegmeta_list = []
+    for i, boundary in enumerate(boundaries):
+        t0 = boundary.get('start_s')
+        t1 = boundary.get('end_s')
+        seg = segment_stride_periods(arr, t0, t1)
+        suffix = boundary.get('add', {}).get('segment_num', i)
+        label = boundary.get('add', {}).get('label', i)
+        stem = f'{outstem}_{suffix:03}'
+        with outzf.open(stem + '.npy', mode='w') as outfp:
+            np.save(outfp, seg)
+        newsegmeta = dict(segmeta)
+        newsegmeta["start_s"] = float(seg['start_s'][0]) if seg.shape[0] > 0 else t0
+        newsegmeta["end_s"] = float(seg['stop_s'][-1]) if seg.shape[0] > 0 else t1
+        newsegmeta['duration_s'] = newsegmeta['end_s'] - newsegmeta['start_s']
+        newsegmeta['path'] = stem
+        newsegmeta["nsamples"] = seg.shape[0]
+        newsegmeta["segment_num"] = suffix
+        newsegmeta["label"] = label
+        newsegmeta_list.append(newsegmeta)
+
+    return newsegmeta_list
+
+
 def segmentize(inputs, boundaries, output, progress=progress_none):
+    """
+    Segments and processes data from one or more input .npz files, splitting
+    segments according to specified boundaries, and writes the resulting
+    segments and updated metadata to a new output .npz file.
+
+    Args:
+        inputs (list of str): List of input .npz file paths to process.
+        boundaries (list of dict): List of boundary definitions, each specifying
+            how to split segments (with 'start_s', 'end_s', and optional 'add'
+            keys).
+        output (str): Path to the output .npz file to write the segmented data
+            and updated metadata.
+        progress (callable, optional): Function to report progress messages.
+            Defaults to a no-op function.
+
+    Side Effects:
+        - Reads and processes input .npz files.
+        - Writes a new .npz file at the specified output path, containing
+          segmented data and updated metadata tables.
+        - Writes additional metadata files (e.g., .jsonl) inside the output
+          archive.
+
+    Notes:
+        - Only segments found in the input metadata are processed.
+        - Segments are split according to the provided boundaries, and new
+          metadata is generated for each segment.
+        - The function handles copying of 'regs' tables and updates segment
+          metadata accordingly.
+        - Progress messages are reported via the provided progress function.
+    """
     metatables = parse_metatables(inputs)
 
     segments = metatables['segments']
@@ -101,6 +217,22 @@ def segmentize(inputs, boundaries, output, progress=progress_none):
 
                     progress(zi.filename)
                     segmeta = find_segment(instem, zipath.stem, segments)
+
+                    # Handle stride time/walking period files
+                    if any(
+                        file in zipath.stem
+                        for file in ('paired_stride_splits', 'walking_periods')
+                    ):
+                        newsegmeta_list = segmentize_walking_periods(
+                            inzf=inzf,
+                            zi=zi,
+                            outzf=outzf,
+                            boundaries=boundaries,
+                            outstem=outstem,
+                            segmeta=segmeta,
+                        )
+                        metatables['segments'].extend(newsegmeta_list)
+                        continue
 
                     if not segmeta:
                         progress(f'"{zipath.stem}" not found in segments table')
