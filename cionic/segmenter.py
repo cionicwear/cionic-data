@@ -76,7 +76,6 @@ def progress_none(s):
     pass
 
 
-# Helper to segment stride/walking arrays
 def segment_stride_periods(arr: np.recarray, t0: float, t1: float):
     """
     Segments an array of stride or walking periods to a specified time range [t0, t1].
@@ -140,6 +139,7 @@ def segmentize_walking_periods(
             - 'label' (str): Segment label.
     """
     arr = load_npy(inzf.open(zi))
+    newsegmeta_list = []
     for i, boundary in enumerate(boundaries):
         t0 = boundary.get('start_s')
         t1 = boundary.get('end_s')
@@ -157,8 +157,9 @@ def segmentize_walking_periods(
         newsegmeta["nsamples"] = seg.shape[0]
         newsegmeta["segment_num"] = suffix
         newsegmeta["label"] = label
+        newsegmeta_list.append(newsegmeta)
 
-    return newsegmeta
+    return newsegmeta_list
 
 
 def segmentize(inputs, boundaries, output, progress=progress_none):
@@ -222,7 +223,7 @@ def segmentize(inputs, boundaries, output, progress=progress_none):
                         file in zipath.stem
                         for file in ('paired_stride_splits', 'walking_periods')
                     ):
-                        newsegmeta = segmentize_walking_periods(
+                        newsegmeta_list = segmentize_walking_periods(
                             inzf=inzf,
                             zi=zi,
                             outzf=outzf,
@@ -230,7 +231,7 @@ def segmentize(inputs, boundaries, output, progress=progress_none):
                             outstem=outstem,
                             segmeta=segmeta,
                         )
-                        metatables['segments'].append(dict(newsegmeta))
+                        metatables['segments'].extend(newsegmeta_list)
                         continue
 
                     if not segmeta:
