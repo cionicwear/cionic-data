@@ -441,11 +441,10 @@ def component_plot(
     axs.spines['top'].set_visible(False)
     axs.spines['right'].set_visible(False)
     if not xlabel:
-        axs.set_xlabel(f"{y_column}")
+        axs.set_xlabel(f"{y_column}", fontsize=12, fontweight="bold")
     else:
-        axs.set_xlabel(f"{xlabel}")
-    axs.set_ylabel(f"{ylabel}")
-    axs.set_title(title)
+        axs.set_xlabel(f"{xlabel}", fontsize=12, fontweight="bold")
+    axs.set_ylabel(f"{ylabel}", fontsize=12, fontweight="bold")
     if ylim != [0, 0]:
         axs.set_ylim(ylim)
 
@@ -497,7 +496,8 @@ def configurable_plot(
             shades=shades,
         )
 
-        fig.show()
+        plt.tight_layout()
+        plt.show()
     else:
 
         if not isinstance(streams, list):
@@ -533,9 +533,9 @@ def configurable_plot(
                 shades=shades,
             )
 
-        plt.suptitle(title)
+        plt.suptitle(title, fontsize=16, fontweight="bold")
         plt.tight_layout()
-        fig.show()
+        plt.show()
 
 
 def join_segments(npz, segments):
