@@ -3,6 +3,7 @@ from typing import Dict, Tuple
 
 import numpy as np
 from scipy.special import gamma
+from sklearn.metrics import r2_score
 
 MAD_SCALING_FACTOR = 1.4826
 
@@ -157,6 +158,23 @@ def compute_percentage_within_five_percent(true: np.ndarray, pred: np.ndarray) -
         float: Percentage of predictions within 5% error (0-100).
     """
     return compute_percentage_within_threshold(true, pred, 5)
+
+
+def compute_r2(true: np.ndarray, pred: np.ndarray) -> float:
+    """Compute the coefficient of determination (R²) between true and predicted values.
+
+    Args:
+        true (np.ndarray): Array of true/reference values.
+        pred (np.ndarray): Array of predicted values.
+
+    Returns:
+        float: Coefficient of determination (R²) between true and predicted values.
+    """
+    valid_result = _validate_arrays(true, pred)
+    if not valid_result:
+        return np.nan
+
+    return r2_score(true, pred)
 
 
 def compute_percentage_within_ten_percent(true: np.ndarray, pred: np.ndarray) -> float:
