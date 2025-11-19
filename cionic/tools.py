@@ -21,6 +21,9 @@ RMS_PARAMS = {"window_size": 301}
 ADS119X_ID = 0xB6
 ADS129X_ID = 0x92
 
+LABEL_FONT_SIZE = 12
+TITLE_FONT_SIZE = 16
+
 
 class AX:
     def __init__(self, axes, nrows, ncols):
@@ -354,7 +357,7 @@ def simple_plot(
         style=style,
         legend_loc=legend_loc,
     )
-    axs.set_title(title, fontsize=16, fontweight="bold")
+    axs.set_title(title, fontsize=TITLE_FONT_SIZE, fontweight="bold")
     fig.show()
 
 
@@ -439,10 +442,10 @@ def component_plot(
     axs.spines['top'].set_visible(False)
     axs.spines['right'].set_visible(False)
     if not xlabel:
-        axs.set_xlabel(f"{y_column}", fontsize=12, fontweight="bold")
+        axs.set_xlabel(f"{y_column}", fontsize=LABEL_FONT_SIZE, fontweight="bold")
     else:
-        axs.set_xlabel(f"{xlabel}", fontsize=12, fontweight="bold")
-    axs.set_ylabel(f"{ylabel}", fontsize=12, fontweight="bold")
+        axs.set_xlabel(f"{xlabel}", fontsize=LABEL_FONT_SIZE, fontweight="bold")
+    axs.set_ylabel(f"{ylabel}", fontsize=LABEL_FONT_SIZE, fontweight="bold")
     if ylim != [0, 0]:
         axs.set_ylim(ylim)
 
@@ -529,7 +532,7 @@ def configurable_plot(
                 shades=shades,
             )
 
-        plt.suptitle(title, fontsize=16, fontweight="bold")
+        plt.suptitle(title, fontsize=TITLE_FONT_SIZE, fontweight="bold")
         plt.tight_layout()
         plt.show()
 
