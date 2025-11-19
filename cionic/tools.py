@@ -21,6 +21,10 @@ RMS_PARAMS = {"window_size": 301}
 ADS119X_ID = 0xB6
 ADS129X_ID = 0x92
 
+LABEL_FONT_SIZE = 12
+TITLE_FONT_SIZE = 16
+FONT_WEIGHT = "bold"
+
 
 class AX:
     def __init__(self, axes, nrows, ncols):
@@ -346,7 +350,6 @@ def simple_plot(
         components=components,
         off=off,
         y_column=y_column,
-        title=title,
         xlabel=xlabel,
         ylabel=ylabel,
         color=color,
@@ -355,7 +358,7 @@ def simple_plot(
         style=style,
         legend_loc=legend_loc,
     )
-
+    axs.set_title(title, fontsize=TITLE_FONT_SIZE, fontweight=FONT_WEIGHT)
     fig.show()
 
 
@@ -391,7 +394,6 @@ def component_plot(
     components=None,
     off=0,
     y_column='elapsed_s',
-    title='',
     xlabel='',
     ylabel='',
     color='',
@@ -441,11 +443,10 @@ def component_plot(
     axs.spines['top'].set_visible(False)
     axs.spines['right'].set_visible(False)
     if not xlabel:
-        axs.set_xlabel(f"{y_column}")
+        axs.set_xlabel(f"{y_column}", fontsize=LABEL_FONT_SIZE, fontweight=FONT_WEIGHT)
     else:
-        axs.set_xlabel(f"{xlabel}")
-    axs.set_ylabel(f"{ylabel}")
-    axs.set_title(title)
+        axs.set_xlabel(f"{xlabel}", fontsize=LABEL_FONT_SIZE, fontweight=FONT_WEIGHT)
+    axs.set_ylabel(f"{ylabel}", fontsize=LABEL_FONT_SIZE, fontweight=FONT_WEIGHT)
     if ylim != [0, 0]:
         axs.set_ylim(ylim)
 
@@ -486,7 +487,6 @@ def configurable_plot(
             components=components,
             off=off,
             y_column=y_column,
-            title=title,
             xlabel=xlabel,
             ylabel=ylabel,
             color=color,
@@ -497,7 +497,8 @@ def configurable_plot(
             shades=shades,
         )
 
-        fig.show()
+        plt.tight_layout()
+        plt.show()
     else:
 
         if not isinstance(streams, list):
@@ -522,7 +523,6 @@ def configurable_plot(
                 components=components,
                 off=0,
                 y_column=y_column,
-                title=title,
                 xlabel=xlabel,
                 ylabel=ylabel,
                 color=color,
@@ -533,9 +533,9 @@ def configurable_plot(
                 shades=shades,
             )
 
-        plt.suptitle(title)
+        plt.suptitle(title, fontsize=TITLE_FONT_SIZE, fontweight=FONT_WEIGHT)
         plt.tight_layout()
-        fig.show()
+        plt.show()
 
 
 def join_segments(npz, segments):
