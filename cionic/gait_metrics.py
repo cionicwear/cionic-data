@@ -78,7 +78,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
-from cionic import kinematics
+from cionic import api, kinematics, npz_utils, stats
 
 
 def compute_stride_time(stride_data: np.recarray) -> float:
@@ -144,6 +144,14 @@ def compute_trough_value(stride_data: np.recarray, component: str = 'x') -> floa
     if stride_data.shape[0] == 0:
         return None
     return stride_data[component].min()
+
+
+def compute_range_value(stride_data: np.recarray, component: str = 'x') -> float:
+    if stride_data.shape[0] == 0:
+        return None
+    return compute_peak_value(stride_data, component) - compute_trough_value(
+        stride_data, component
+    )
 
 
 def compute_start_heel_strike_value(
@@ -419,6 +427,7 @@ class Metric(Enum):
     CADENCE = 'cadence'
     PEAK_VALUE = 'peak_value'
     TROUGH_VALUE = 'trough_value'
+    RANGE_VALUE = 'range_value'
     START_HEEL_STRIKE_VALUE = 'start_heel_strike_value'
     STOP_HEEL_STRIKE_VALUE = 'stop_heel_strike_value'
     MEAN_VALUE = 'mean_value'
@@ -445,6 +454,7 @@ METRIC_FUNCTION_MAP_TIME = {
 METRIC_FUNCTION_MAP_COMPONENT = {
     Metric.PEAK_VALUE: compute_peak_value,
     Metric.TROUGH_VALUE: compute_trough_value,
+    Metric.RANGE_VALUE: compute_range_value,
     Metric.START_HEEL_STRIKE_VALUE: compute_start_heel_strike_value,
     Metric.STOP_HEEL_STRIKE_VALUE: compute_stop_heel_strike_value,
     Metric.MEAN_VALUE: compute_mean_value,
@@ -488,6 +498,7 @@ class GaitMetricsCalculator:
         meta: Metadata,
         toe_off_times: Optional[np.ndarray] = None,
         shank_stream: Optional[np.recarray] = None,
+        peak_kwargs: Optional[dict] = None,
     ) -> None:
         """
         Initialize the GaitMetricsCalculator with input data and metadata.
@@ -511,11 +522,15 @@ class GaitMetricsCalculator:
         if toe_off_times is not None:
             self.toe_off_times = toe_off_times
         elif shank_stream is not None:
-            self.toe_off_times = self._compute_toe_offs(shank_stream)
+            self.toe_off_times = self._compute_toe_offs(
+                shank_stream=shank_stream, peak_kwargs=peak_kwargs
+            )
         else:
             self.toe_off_times = None
 
-    def _compute_toe_offs(self, shank_stream: np.recarray) -> np.recarray:
+    def _compute_toe_offs(
+        self, shank_stream: np.recarray, peak_kwargs: dict = None
+    ) -> np.recarray:
         """
         Compute toe off times from shank stream data.
 
@@ -527,7 +542,7 @@ class GaitMetricsCalculator:
             np.recarray: Array of toe off timestamps.
         """
         grouped_toe_off_times = kinematics.get_grouped_walking_splits(
-            shank_stream, factor=-1.0
+            shank_stream, factor=-1.0, peak_kwargs=peak_kwargs
         )
         toe_off_times = [item for sublist in grouped_toe_off_times for item in sublist]
         return np.array(toe_off_times)
@@ -710,3 +725,168 @@ def compute_gait_metrics(
     return metrics_calculator.calculate_metrics(
         metrics=metrics, output_path=output_path
     )
+
+
+# TODO: Refactor for new metadata structure
+class MetricsExtractor:
+    def __init__(self, metadata_collection_list, metric_specification, tokenpath):
+        self.metadata_collection_list = metadata_collection_list
+        self.metric_specification = metric_specification
+        self.tokenpath = tokenpath
+
+    def _filter_by_str_subset(self, array, field, substring):
+        return np.char.find(array[field], substring) != -1
+
+    def extract_metrics(self, output_path=None, overwrite_npz=False):
+        all_strides_metrics_list = []
+        for metadata in self.metadata_collection_list:
+            # Loop over metadata groupings, typically collections for a participant
+            assert (
+                len(metadata["labels"])
+                == len(metadata["label_names"])
+                == len(metadata["colors"])
+            )
+            for collection_num in metadata["collection_num_list"]:
+                # Loop over each collection
+                npz = api.download_npz_from_metadata(
+                    org_shortname=metadata["org_shortname"],
+                    study_shortname=metadata["study_shortname"],
+                    collection_num=collection_num,
+                    tokenpath=self.tokenpath,
+                    outdir=output_path,
+                    segmented=True,
+                    overwrite=overwrite_npz,
+                )
+                segs = npz["segments"]
+                for label, label_name, color in zip(
+                    metadata["labels"], metadata["label_names"], metadata["colors"]
+                ):
+                    # Loop over each phase label
+                    segment_nums = np.unique(
+                        segs[segs["label"] == label]["segment_num"]
+                    )
+                    for segment_num in segment_nums:
+                        # Loop over each segment number
+                        # Loop over specified position/streams
+                        position = self.metric_specification["position"]
+                        stream_name = self.metric_specification["stream_name"]
+                        component = self.metric_specification["component"]
+                        subset_segs = segs[
+                            (segs["segment_num"] == segment_num)
+                            & self._filter_by_str_subset(segs, "position", position)
+                            & self._filter_by_str_subset(segs, "stream", stream_name)
+                        ]
+                        for seg in subset_segs:
+                            # Loop over potentional left and right segments
+                            stride_splits = npz_utils.retrieve_stream_generalized(
+                                npz=npz,
+                                field_filters={
+                                    "position": f"{seg['position'][0]}_shank",
+                                    "stream": "paired_stride_splits",
+                                    "segment_num": segment_num,
+                                },
+                            )
+                            # Used to compute toe off times
+                            shank_stream = npz_utils.retrieve_stream_generalized(
+                                npz=npz,
+                                field_filters={
+                                    "position": f"{seg['position'][0]}_shank",
+                                    "stream": "euler",
+                                    "segment_num": segment_num,
+                                },
+                            )
+
+                            metrics_calculator = GaitMetricsCalculator(
+                                stream=npz[seg["path"]],
+                                stride_splits=stride_splits,
+                                meta=Metadata(
+                                    position=position,
+                                    stream_name=stream_name,
+                                    component=component,
+                                    org_shortname=metadata["org_shortname"],
+                                    study_shortname=metadata["study_shortname"],
+                                    collection_num=collection_num,
+                                ),
+                                shank_stream=shank_stream,
+                                peak_kwargs=metadata.get("peak_kwargs", None),
+                            )
+                            metrics = metrics_calculator.calculate_metrics(
+                                output_path=output_path,
+                            )
+                            metadata_fields = {  # TODO: change to dataclass
+                                "org": metadata["org_shortname"],
+                                "study": metadata["study_shortname"],
+                                "pid": metadata["participant_id"],
+                                "collection_num": collection_num,
+                                "segment_num": seg["segment_num"],
+                                "side": (
+                                    lambda x: (
+                                        'left'
+                                        if x['position'][0] == 'l'
+                                        else (
+                                            'right' if x['position'][0] == 'r' else None
+                                        )
+                                    )
+                                )(seg),
+                                "label": label,
+                                "label_name": label_name,
+                                "color": color,
+                                "position": position,
+                                "stream_name": stream_name,
+                                "component": component,
+                            }
+                            metrics = metrics.reindex(
+                                columns=list(metadata_fields.keys())
+                                + [
+                                    col
+                                    for col in metrics.columns
+                                    if col not in metadata_fields
+                                ],
+                                fill_value=None,
+                            ).assign(**metadata_fields)
+                            all_strides_metrics_list.append(metrics)
+        return pd.concat(all_strides_metrics_list, axis=0).reset_index(drop=True)
+
+
+def compute_distribution_stats(metrics: pd.DataFrame, metric_name: str) -> pd.DataFrame:
+    """
+    Compute distribution statistics for a given metric, grouped by participant,
+    collection, and label.
+
+    Args:
+        metrics (pd.DataFrame): DataFrame containing metrics with columns 'pid',
+            'collection_num', 'label_name', etc.
+        metric_name (str): Name of the metric column to summarize.
+        stats: Module or object with a summarize_metric_distribution(values) function.
+
+    Returns:
+        pd.DataFrame: DataFrame of distribution statistics.
+    """
+    distribution_stats_output = []
+    for participant_id, collection_num, label_name, side in (
+        metrics[["pid", "collection_num", "label_name", "side"]]
+        .drop_duplicates()
+        .itertuples(index=False)
+    ):
+        subset = metrics[
+            (metrics["pid"] == participant_id)
+            & (metrics["collection_num"] == collection_num)
+            & (metrics["label_name"] == label_name)
+            & (metrics["side"] == side)
+        ]
+        distribution_stats = stats.summarize_metric_distribution(
+            values=subset[metric_name]
+        )
+        distribution_stats = {
+            **{
+                "participant_id": participant_id,
+                "collection_num": collection_num,
+                "label_name": label_name,
+                "side": side,
+                "label": subset["label"].unique()[0],
+                "color": subset["color"].unique()[0],
+            },
+            **distribution_stats,
+        }
+        distribution_stats_output.append(distribution_stats)
+    return pd.DataFrame(distribution_stats_output)
