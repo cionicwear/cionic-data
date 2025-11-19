@@ -346,7 +346,6 @@ def simple_plot(
         components=components,
         off=off,
         y_column=y_column,
-        title=title,
         xlabel=xlabel,
         ylabel=ylabel,
         color=color,
@@ -355,7 +354,7 @@ def simple_plot(
         style=style,
         legend_loc=legend_loc,
     )
-
+    axs.set_title(title, fontsize=16, fontweight="bold")
     fig.show()
 
 
@@ -391,7 +390,6 @@ def component_plot(
     components=None,
     off=0,
     y_column='elapsed_s',
-    title='',
     xlabel='',
     ylabel='',
     color='',
@@ -485,7 +483,6 @@ def configurable_plot(
             components=components,
             off=off,
             y_column=y_column,
-            title=title,
             xlabel=xlabel,
             ylabel=ylabel,
             color=color,
@@ -522,7 +519,6 @@ def configurable_plot(
                 components=components,
                 off=0,
                 y_column=y_column,
-                title=title,
                 xlabel=xlabel,
                 ylabel=ylabel,
                 color=color,
