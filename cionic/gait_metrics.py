@@ -72,7 +72,7 @@ Available metrics include:
 
 import itertools
 import os
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Optional
 
@@ -491,6 +491,10 @@ class Metadata:
     collection_num: Optional[int] = None
     label: Optional[str] = None
     segment_num: Optional[int] = None
+    side: Optional[str] = None
+
+    def to_dict(self):
+        return asdict(self)
 
 
 class GaitMetricsCalculator:
@@ -722,19 +726,20 @@ def compute_gait_metrics(
     Returns:
         pd.DataFrame: DataFrame of computed metrics for all strides.
     """
+    meta = Metadata(
+        position=position,
+        stream_name=stream_name,
+        component=component,
+        org_shortname=org_shortname,
+        study_shortname=study_shortname,
+        collection_num=collection_num,
+        label=label,
+        segment_num=segment_num,
+    )
     metrics_calculator = GaitMetricsCalculator(
         stream=stream,
         stride_splits=stride_splits,
-        meta=Metadata(
-            position=position,
-            stream_name=stream_name,
-            component=component,
-            org_shortname=org_shortname,
-            study_shortname=study_shortname,
-            collection_num=collection_num,
-            label=label,
-            segment_num=segment_num,
-        ),
+        meta=meta,
         toe_off_times=toe_off_times,
         shank_stream=shank_stream,
     )
@@ -806,27 +811,42 @@ class MetricsExtractor:
                         },
                     )
 
+                    meta = Metadata(
+                        position=seg["position"],
+                        stream_name=seg["stream"],
+                        component=channel["channel"],
+                        org_shortname=org_shortname,
+                        study_shortname=study_shortname,
+                        collection_num=collection_num,
+                        label=label,
+                        segment_num=segment_num,
+                        side=side,
+                    )
                     metrics_calculator = GaitMetricsCalculator(
                         stream=npz[seg["path"]],
                         stride_splits=stride_splits,
-                        meta=Metadata(
-                            position=seg["position"],
-                            stream_name=seg["stream"],
-                            component=channel["channel"],
-                            org_shortname=org_shortname,
-                            study_shortname=study_shortname,
-                            collection_num=collection_num,
-                            label=label,
-                            segment_num=segment_num,
-                        ),
+                        meta=meta,
                         shank_stream=shank_stream,
                         peak_kwargs=metadata.get("peak_kwargs", None),
                     )
                     metrics = metrics_calculator.calculate_metrics(
                         output_path=output_path,
                     )
-        # Do something w/ variables to pass pre-commit checks
-        print(all_strides_metrics_list, group_name, group_color, metrics)
+                    metadata_fields = {
+                        "group_name": group_name,
+                        "group_color": group_color,
+                    }
+                    metadata_fields = {**metadata_fields, **meta.to_dict()}
+
+                    metrics = metrics.reindex(
+                        columns=list(metadata_fields.keys())
+                        + [
+                            col for col in metrics.columns if col not in metadata_fields
+                        ],
+                        fill_value=None,
+                    ).assign(**metadata_fields)
+                    all_strides_metrics_list.append(metrics)
+        return pd.concat(all_strides_metrics_list, axis=0).reset_index(drop=True)
 
 
 # TODO: Refactor for new metadata structure
