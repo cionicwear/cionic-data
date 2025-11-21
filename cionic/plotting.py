@@ -1,6 +1,14 @@
 import numpy as np
+from matplotlib import pyplot as plt
+from scipy.stats import gaussian_kde
 
 from cionic import api, npz_utils
+
+FIGSIZE = (8, 6)
+DPI = 100
+LABEL_FONT_SIZE = 12
+TITLE_FONT_SIZE = 16
+FONT_WEIGHT = "bold"
 
 
 class StreamsPlotter:
@@ -141,7 +149,89 @@ class StreamsPlotter:
         ax.set_xlim([min_time - 3, max_time + 3])
 
 
+def violin_jitter(y, center_x=0, width=0.2, n_points=200):
+    """
+    Compute x jitter for scatter points to follow violin shape.
+
+    y: array of data values
+    center_x: x-position of this violin
+    width: max half-width of violin
+    """
+    # Fit KDE on the data
+    kde = gaussian_kde(y)
+    ys = np.linspace(min(y), max(y), n_points)
+    density = kde(ys)
+    density /= density.max()  # normalize to [0,1]
+
+    x_jittered = []
+    for yi in y:
+        # Interpolate normalized density at this yi
+        d = np.interp(yi, ys, density)
+        max_jitter = d * width
+        jitter_val = np.random.uniform(-max_jitter, max_jitter)
+        x_jittered.append(center_x + jitter_val)
+    return np.array(x_jittered)
+
+
 class GroupedMetricsPlotter:
+    def __init__(self, metrics):
+        self.metrics = metrics
+
+    def violin_plot(self, metric_specfication, figsize=FIGSIZE, dpi=DPI):
+        fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
+
+        metrics = self.metrics[
+            (self.metrics["position"] == metric_specfication["position"])
+            & (self.metrics["component"] == metric_specfication["component"])
+        ]
+        group_names = metrics["group_name"].unique()
+        for i, group_name in enumerate(group_names):
+            group_metrics = metrics[metrics["group_name"] == group_name]
+            group_color = group_metrics["group_color"].unique()
+            assert group_color.shape[0] == 1, "Expected one unique color per group"
+            violin = ax.violinplot(
+                dataset=[group_metrics[metric_specfication["metric_column"]]],
+                positions=[i],
+                showmeans=False,
+                showmedians=False,
+                showextrema=False,
+            )
+            assert len(violin["bodies"]) == 1
+            violin["bodies"][0].set_facecolor("lightgray")
+            violin["bodies"][0].set_edgecolor("black")
+
+            x_jittered = violin_jitter(
+                group_metrics[metric_specfication["metric_column"]], center_x=i
+            )
+            ax.scatter(
+                x_jittered,
+                group_metrics[metric_specfication["metric_column"]],
+                color=group_color,
+                alpha=0.6,
+            )
+        ax.grid(axis="y", alpha=0.7)
+        ax.spines["right"].set_visible(False)
+        ax.spines["top"].set_visible(False)
+        ax.set_xticks(range(group_names.shape[0]))
+        ax.set_xticklabels(
+            group_names, fontsize=LABEL_FONT_SIZE, fontweight=FONT_WEIGHT
+        )
+        ax.set_ylabel(
+            metric_specfication["y_label"],
+            fontsize=LABEL_FONT_SIZE,
+            fontweight=FONT_WEIGHT,
+        )
+        ax.set_title(
+            metric_specfication["title"],
+            loc="center",
+            fontsize=TITLE_FONT_SIZE,
+            fontweight=FONT_WEIGHT,
+        )
+        return fig, ax
+
+
+# THIS CLASS IS DEPRECATED. CAN BE DELETED AFTER CONFIRMING NO USAGE.
+class GroupedMetricsPlotterOld:
     def __init__(self, metrics, metric_name, column_prefix):
         self.metrics = metrics
         self.metric_name = metric_name
