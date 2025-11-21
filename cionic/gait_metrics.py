@@ -70,6 +70,7 @@ Available metrics include:
     - swing_std_value: Standard deviation during swing phase.
 """
 
+import itertools
 import os
 from dataclasses import dataclass
 from enum import Enum
@@ -488,6 +489,8 @@ class Metadata:
     org_shortname: Optional[str] = None
     study_shortname: Optional[str] = None
     collection_num: Optional[int] = None
+    label: Optional[str] = None
+    segment_num: Optional[int] = None
 
 
 class GaitMetricsCalculator:
@@ -597,17 +600,26 @@ class GaitMetricsCalculator:
                 self.meta.study_shortname,
                 str(self.meta.collection_num),
             )
-            file_path = (
-                f"{output_path}/{self.meta.org_shortname}_"
-                f"{self.meta.study_shortname}_{self.meta.collection_num}_"
-                f"{self.meta.position}_{self.meta.stream_name}_"
-                f"{self.meta.component}_gait_metrics.csv"
+            filename_parts = [
+                self.meta.org_shortname,
+                self.meta.study_shortname,
+                str(self.meta.collection_num),
+                self.meta.position,
+            ]
+            if self.meta.segment_num is not None and self.meta.label is not None:
+                filename_parts.extend([str(self.meta.segment_num), self.meta.label])
+            filename_parts.extend(
+                [self.meta.stream_name, self.meta.component, "gait_metrics.csv"]
             )
+            file_path = f"{output_path}/" + "_".join(filename_parts)
         else:
-            file_path = (
-                f"{output_path}/{self.meta.position}_{self.meta.stream_name}_"
-                f"{self.meta.component}_gait_metrics.csv"
+            filename_parts = [self.meta.position]
+            if self.meta.segment_num is not None and self.meta.label is not None:
+                filename_parts.extend([str(self.meta.segment_num), self.meta.label])
+            filename_parts.extend(
+                [self.meta.stream_name, self.meta.component, "gait_metrics.csv"]
             )
+            file_path = f"{output_path}/" + "_".join(filename_parts)
         if not os.path.exists(output_path):
             os.makedirs(output_path)
         all_strides_metrics.to_csv(file_path, index=True)
@@ -685,6 +697,8 @@ def compute_gait_metrics(
     shank_stream: Optional[np.recarray] = None,
     metrics: Optional[list[Metric]] = None,
     output_path: Optional[str] = None,
+    label: Optional[str] = None,
+    segment_num: Optional[int] = None,
 ) -> pd.DataFrame:
     """
     Compute gait metrics for all strides and save to CSV if output_path is given.
@@ -718,6 +732,8 @@ def compute_gait_metrics(
             org_shortname=org_shortname,
             study_shortname=study_shortname,
             collection_num=collection_num,
+            label=label,
+            segment_num=segment_num,
         ),
         toe_off_times=toe_off_times,
         shank_stream=shank_stream,
@@ -727,8 +743,94 @@ def compute_gait_metrics(
     )
 
 
-# TODO: Refactor for new metadata structure
 class MetricsExtractor:
+    def __init__(self, metadata_list: list, metric_channels: list, tokenpath):
+        self.metadata_list = metadata_list
+        self.metric_channels = metric_channels
+        self.tokenpath = tokenpath
+
+    def extract_metrics(
+        self,
+        output_path: str = "/home/jovyan/cionic-data/recordings",
+        overwrite_npz: bool = False,
+    ):
+        all_strides_metrics_list = []
+        for metadata in self.metadata_list:
+            group_name = metadata["group_name"]
+            org_shortname = metadata["org_shortname"]
+            group_color = metadata.get("group_color", None)
+            for recording in metadata["recordings"]:
+                study_shortname = recording["study_shortname"]
+                collection_num = recording["collection_num"]
+                label = recording["label"]
+                npz = api.download_npz_from_metadata(
+                    org_shortname=org_shortname,
+                    study_shortname=study_shortname,
+                    collection_num=collection_num,
+                    tokenpath=self.tokenpath,
+                    outdir=output_path,
+                    segmented=True,
+                    overwrite=overwrite_npz,
+                )
+                segs = npz["segments"]
+                segment_nums = np.unique(segs[segs["label"] == label]["segment_num"])
+                sides = np.unique(segs[segs["label"] == label]["side"])
+                mask = sides != ""
+                sides = sides[mask]
+
+                for segment_num, side, channel in itertools.product(
+                    segment_nums, sides, self.metric_channels
+                ):
+                    seg = segs[
+                        (segs["segment_num"] == segment_num)
+                        & (segs["stream"] == channel["stream"])
+                        & (segs["position"] == f"{side[0]}_{channel['position']}")
+                    ]
+                    if seg.shape[0] != 1:
+                        continue
+                    seg = seg[0]
+                    stride_splits = npz_utils.retrieve_stream_generalized(
+                        npz=npz,
+                        field_filters={
+                            "position": f"{side[0]}_shank",
+                            "stream": "paired_stride_splits",
+                            "segment_num": segment_num,
+                        },
+                    )
+                    shank_stream = npz_utils.retrieve_stream_generalized(
+                        npz=npz,
+                        field_filters={
+                            "position": f"{side[0]}_shank",
+                            "stream": "euler",
+                            "segment_num": segment_num,
+                        },
+                    )
+
+                    metrics_calculator = GaitMetricsCalculator(
+                        stream=npz[seg["path"]],
+                        stride_splits=stride_splits,
+                        meta=Metadata(
+                            position=seg["position"],
+                            stream_name=seg["stream"],
+                            component=channel["channel"],
+                            org_shortname=org_shortname,
+                            study_shortname=study_shortname,
+                            collection_num=collection_num,
+                            label=label,
+                            segment_num=segment_num,
+                        ),
+                        shank_stream=shank_stream,
+                        peak_kwargs=metadata.get("peak_kwargs", None),
+                    )
+                    metrics = metrics_calculator.calculate_metrics(
+                        output_path=output_path,
+                    )
+        # Do something w/ variables to pass pre-commit checks
+        print(all_strides_metrics_list, group_name, group_color, metrics)
+
+
+# TODO: Refactor for new metadata structure
+class MetricsExtractorOld:
     def __init__(self, metadata_collection_list, metric_specification, tokenpath):
         self.metadata_collection_list = metadata_collection_list
         self.metric_specification = metric_specification
