@@ -81,6 +81,9 @@ import pandas as pd
 
 from cionic import api, kinematics, npz_utils, stats
 
+STEPS_PER_STRIDE = 2
+SECONDS_PER_MINUTE = 60
+
 
 def compute_stride_time(stride_data: np.recarray) -> float:
     """
@@ -112,7 +115,7 @@ def compute_cadence(stride_data: np.recarray) -> float:
     duration = compute_stride_time(stride_data)
     if duration is None or duration == 0:
         return None
-    return 60 / duration
+    return (STEPS_PER_STRIDE * SECONDS_PER_MINUTE) / duration
 
 
 def compute_peak_value(stride_data: np.recarray, component: str = 'x') -> float:
@@ -837,7 +840,10 @@ class MetricsExtractor:
                         "group_color": group_color,
                     }
                     metadata_fields = {**metadata_fields, **meta.to_dict()}
-
+                    if metadata_fields["position"].startswith(f"{side[0]}_"):
+                        metadata_fields["position"] = metadata_fields[
+                            "position"
+                        ].replace(f"{side[0]}_", "")
                     metrics = metrics.reindex(
                         columns=list(metadata_fields.keys())
                         + [
