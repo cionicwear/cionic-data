@@ -4,7 +4,7 @@ from scipy.stats import gaussian_kde
 
 from cionic import api, npz_utils
 
-FIGSIZE = (8, 6)
+FIGSIZE = (8, 5)
 DPI = 100
 LABEL_FONT_SIZE = 12
 TITLE_FONT_SIZE = 16
@@ -149,7 +149,7 @@ class StreamsPlotter:
         ax.set_xlim([min_time - 3, max_time + 3])
 
 
-def violin_jitter(y, center_x=0, width=0.2, n_points=200):
+def violin_jitter(y, center_x=0, width=0.25, n_points=200):
     """
     Compute x jitter for scatter points to follow violin shape.
 
@@ -167,7 +167,7 @@ def violin_jitter(y, center_x=0, width=0.2, n_points=200):
     for yi in y:
         # Interpolate normalized density at this yi
         d = np.interp(yi, ys, density)
-        max_jitter = d * width
+        max_jitter = d * width * 0.95  # leave a little space
         jitter_val = np.random.uniform(-max_jitter, max_jitter)
         x_jittered.append(center_x + jitter_val)
     return np.array(x_jittered)
@@ -184,6 +184,9 @@ class GroupedMetricsPlotter:
             (self.metrics["position"] == metric_specfication["position"])
             & (self.metrics["component"] == metric_specfication["component"])
         ]
+        if metrics.shape[0] == 0:
+            print(f"No metrics found for {metric_specfication['title']}. Blank plot.")
+
         group_names = metrics["group_name"].unique()
         for i, group_name in enumerate(group_names):
             group_metrics = metrics[metrics["group_name"] == group_name]
