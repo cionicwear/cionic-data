@@ -1,14 +1,26 @@
 import numpy as np
 from matplotlib import pyplot as plt
+from matplotlib.colors import to_rgb
 from scipy.stats import gaussian_kde
 
-from cionic import api, npz_utils
+from cionic import api, npz_utils, stats
 
 FIGSIZE = (8, 5)
 DPI = 100
 LABEL_FONT_SIZE = 12
 TITLE_FONT_SIZE = 16
 FONT_WEIGHT = "bold"
+
+
+def lighten(color, amount=0.3):
+    c = to_rgb(color)
+    return tuple(1 - (1 - x) * (1 - amount) for x in c)
+
+
+def format_axis(ax):
+    ax.grid(axis="y", alpha=0.7, zorder=0)
+    ax.spines["right"].set_visible(False)
+    ax.spines["top"].set_visible(False)
 
 
 class StreamsPlotter:
@@ -201,7 +213,9 @@ class GroupedMetricsPlotter:
             )
             assert len(violin["bodies"]) == 1
             violin["bodies"][0].set_facecolor("lightgray")
-            violin["bodies"][0].set_edgecolor("black")
+            violin["bodies"][0].set_edgecolor("darkgray")
+            violin["bodies"][0].set_alpha(1.0)
+            violin["bodies"][0].set_zorder(3)
 
             x_jittered = violin_jitter(
                 group_metrics[metric_specfication["metric_column"]], center_x=i
@@ -209,12 +223,11 @@ class GroupedMetricsPlotter:
             ax.scatter(
                 x_jittered,
                 group_metrics[metric_specfication["metric_column"]],
-                color=group_color,
+                color=group_color[0],
                 alpha=0.6,
+                zorder=4,
             )
-        ax.grid(axis="y", alpha=0.7)
-        ax.spines["right"].set_visible(False)
-        ax.spines["top"].set_visible(False)
+        format_axis(ax)
         ax.set_xticks(range(group_names.shape[0]))
         ax.set_xticklabels(
             group_names, fontsize=LABEL_FONT_SIZE, fontweight=FONT_WEIGHT
@@ -226,6 +239,56 @@ class GroupedMetricsPlotter:
         )
         ax.set_title(
             metric_specfication["title"],
+            loc="center",
+            fontsize=TITLE_FONT_SIZE,
+            fontweight=FONT_WEIGHT,
+        )
+        return fig, ax
+
+    def statistical_summary_bar_plot(
+        self, metric_specfication, statistic="mean", figsize=FIGSIZE, dpi=DPI
+    ):
+        fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
+
+        metrics = self.metrics[
+            (self.metrics["position"] == metric_specfication["position"])
+            & (self.metrics["component"] == metric_specfication["component"])
+        ]
+        if metrics.shape[0] == 0:
+            print(f"No metrics found for {metric_specfication['title']}. Blank plot.")
+
+        group_names = metrics["group_name"].unique()
+
+        for i, group_name in enumerate(group_names):
+            group_metrics = metrics[metrics["group_name"] == group_name]
+
+            group_color = group_metrics["group_color"].unique()
+            assert group_color.shape[0] == 1, "Expected one unique color per group"
+            stats_summary = stats.summarize_metric_distribution(
+                values=group_metrics[metric_specfication["metric_column"]],
+            )
+            ax.bar(
+                x=i,
+                height=stats_summary[statistic],
+                color=lighten(group_color[0]),
+                zorder=2,
+            )
+            ax.plot(
+                [i, i],
+                stats_summary[f"{statistic}_ci"],
+                color="black",
+                linewidth=2,
+                zorder=4,
+            )
+        format_axis(ax)
+        ax.set_xticks(range(group_names.shape[0]))
+        ax.set_xticklabels(
+            group_names, fontsize=LABEL_FONT_SIZE, fontweight=FONT_WEIGHT
+        )
+        y_label = metric_specfication["y_label"] if statistic != "cv" else "CV (%)"
+        ax.set_ylabel(y_label, fontsize=LABEL_FONT_SIZE, fontweight=FONT_WEIGHT)
+        ax.set_title(
+            f"{metric_specfication['title']}  |  {statistic.upper()}",
             loc="center",
             fontsize=TITLE_FONT_SIZE,
             fontweight=FONT_WEIGHT,
