@@ -61,10 +61,14 @@ Available metrics include:
     - std_value: Standard deviation during the stride.
     - toe_off_value: Value at the toe-off event.
     - stance_time: Duration of the stance phase.
+    - stance_peak_value: Peak value during stance phase.
+    - stance_trough_value: Trough value during stance phase.
     - stance_mean_value: Mean value during stance phase.
     - stance_median_value: Median value during stance phase.
     - stance_std_value: Standard deviation during stance phase.
     - swing_time: Duration of the swing phase.
+    - swing_peak_value: Peak value during swing phase.
+    - swing_trough_value: Trough value during swing phase.
     - swing_mean_value: Mean value during swing phase.
     - swing_median_value: Median value during swing phase.
     - swing_std_value: Standard deviation during swing phase.
@@ -278,6 +282,50 @@ def compute_stance_time(stride_data: np.recarray, toe_off_time: float) -> float:
     return toe_off_time - stride_data['elapsed_s'].min()
 
 
+def compute_stance_peak_value(
+    stride_data: np.recarray, toe_off_time: float, component: str = 'x'
+) -> float:
+    """
+    Compute peak value of a component during the stance phase.
+
+    Args:
+        stride_data (np.recarray): Stride data, NumPy record with 'elapsed_s' field.
+        toe_off_time (float): Toe off timestamp.
+        component (str): Component name to analyze.
+
+    Returns:
+        float: Mean value, or None if data is empty or time is None.
+    """
+    if stride_data.shape[0] == 0 or toe_off_time is None:
+        return None
+    stance_data = stride_data[stride_data['elapsed_s'] <= toe_off_time]
+    if stance_data.shape[0] == 0:
+        return None
+    return compute_peak_value(stance_data, component)
+
+
+def compute_stance_trough_value(
+    stride_data: np.recarray, toe_off_time: float, component: str = 'x'
+) -> float:
+    """
+    Compute trough value of a component during the stance phase.
+
+    Args:
+        stride_data (np.recarray): Stride data, NumPy record with 'elapsed_s' field.
+        toe_off_time (float): Toe off timestamp.
+        component (str): Component name to analyze.
+
+    Returns:
+        float: Mean value, or None if data is empty or time is None.
+    """
+    if stride_data.shape[0] == 0 or toe_off_time is None:
+        return None
+    stance_data = stride_data[stride_data['elapsed_s'] <= toe_off_time]
+    if stance_data.shape[0] == 0:
+        return None
+    return compute_trough_value(stance_data, component)
+
+
 def compute_stance_mean_value(
     stride_data: np.recarray, toe_off_time: float, component: str = 'x'
 ) -> float:
@@ -358,6 +406,50 @@ def compute_swing_time(stride_data: np.recarray, toe_off_time: float) -> float:
     if stride_data.shape[0] == 0 or toe_off_time is None:
         return None
     return stride_data['elapsed_s'].max() - toe_off_time
+
+
+def compute_swing_peak_value(
+    stride_data: np.recarray, toe_off_time: float, component: str = 'x'
+) -> float:
+    """
+    Compute peak value of a component during the swing phase.
+
+    Args:
+        stride_data (np.recarray): Stride data, NumPy record with 'elapsed_s' field.
+        toe_off_time (float): Toe off timestamp.
+        component (str): Component name to analyze.
+
+    Returns:
+        float: Mean value, or None if data is empty or time is None.
+    """
+    if stride_data.shape[0] == 0 or toe_off_time is None:
+        return None
+    swing_data = stride_data[stride_data['elapsed_s'] > toe_off_time]
+    if swing_data.shape[0] == 0:
+        return None
+    return compute_peak_value(swing_data, component)
+
+
+def compute_swing_trough_value(
+    stride_data: np.recarray, toe_off_time: float, component: str = 'x'
+) -> float:
+    """
+    Compute trough value of a component during the swing phase.
+
+    Args:
+        stride_data (np.recarray): Stride data, NumPy record with 'elapsed_s' field.
+        toe_off_time (float): Toe off timestamp.
+        component (str): Component name to analyze.
+
+    Returns:
+        float: Mean value, or None if data is empty or time is None.
+    """
+    if stride_data.shape[0] == 0 or toe_off_time is None:
+        return None
+    swing_data = stride_data[stride_data['elapsed_s'] > toe_off_time]
+    if swing_data.shape[0] == 0:
+        return None
+    return compute_trough_value(swing_data, component)
 
 
 def compute_swing_mean_value(
@@ -441,9 +533,13 @@ class Metric(Enum):
     SWING_TIME = 'swing_time'
     TOE_OFF_VALUE = 'toe_off_value'
     STANCE_MEAN_VALUE = 'stance_mean_value'
+    STANCE_PEAK_VALUE = 'stance_peak_value'
+    STANCE_TROUGH_VALUE = 'stance_trough_value'
     STANCE_MEDIAN_VALUE = 'stance_median_value'
     STANCE_STD_VALUE = 'stance_std_value'
     SWING_MEAN_VALUE = 'swing_mean_value'
+    SWING_PEAK_VALUE = 'swing_peak_value'
+    SWING_TROUGH_VALUE = 'swing_trough_value'
     SWING_MEDIAN_VALUE = 'swing_median_value'
     SWING_STD_VALUE = 'swing_std_value'
 
@@ -475,10 +571,14 @@ METRIC_FUNCTION_MAP_PHASE_TIME = {
 # Metrics that require stride_data, toe_off_time, and component
 METRIC_FUNCTION_MAP_PHASE_COMPONENT = {
     Metric.TOE_OFF_VALUE: compute_toe_off_value,
+    Metric.STANCE_PEAK_VALUE: compute_stance_peak_value,
+    Metric.STANCE_TROUGH_VALUE: compute_stance_trough_value,
     Metric.STANCE_MEAN_VALUE: compute_stance_mean_value,
     Metric.STANCE_MEDIAN_VALUE: compute_stance_median_value,
     Metric.STANCE_STD_VALUE: compute_stance_std_value,
     Metric.SWING_MEAN_VALUE: compute_swing_mean_value,
+    Metric.SWING_PEAK_VALUE: compute_swing_peak_value,
+    Metric.SWING_TROUGH_VALUE: compute_swing_trough_value,
     Metric.SWING_MEDIAN_VALUE: compute_swing_median_value,
     Metric.SWING_STD_VALUE: compute_swing_std_value,
 }
