@@ -11,6 +11,181 @@ LABEL_FONT_SIZE = 12
 TITLE_FONT_SIZE = 16
 FONT_WEIGHT = "bold"
 
+PLOTTING_METRIC_SPECIFICATION_LIST = [
+    {
+        "title": "Stride Time",
+        "y_label": "Seconds",
+        "metric_column": "stride_time",
+        "position": "thigh",
+        "component": "x",
+    },
+    {
+        "title": "Stance Time",
+        "y_label": "Seconds",
+        "metric_column": "stance_time",
+        "position": "thigh",
+        "component": "x",
+    },
+    {
+        "title": "Swing Time",
+        "y_label": "Seconds",
+        "metric_column": "swing_time",
+        "position": "thigh",
+        "component": "x",
+    },
+    {
+        "title": "Cadence",
+        "y_label": "Steps per Minute",
+        "metric_column": "cadence",
+        "position": "thigh",
+        "component": "x",
+    },
+    {
+        "title": "Shank Peak (Sagittal)",
+        "y_label": "Euler, (degrees)",
+        "metric_column": "peak_value",
+        "position": "shank",
+        "component": "x",
+    },
+    {
+        "title": "Shank Trough (Sagittal)",
+        "y_label": "Euler, (degrees)",
+        "metric_column": "trough_value",
+        "position": "shank",
+        "component": "x",
+    },
+    {
+        "title": "Shank Range (Sagittal)",
+        "y_label": "Euler, (degrees)",
+        "metric_column": "range_value",
+        "position": "shank",
+        "component": "x",
+    },
+    {
+        "title": "Thigh Peak (Sagittal)",
+        "y_label": "Euler, (degrees)",
+        "metric_column": "peak_value",
+        "position": "thigh",
+        "component": "x",
+    },
+    {
+        "title": "Thigh Trough (Sagittal)",
+        "y_label": "Euler, (degrees)",
+        "metric_column": "trough_value",
+        "position": "thigh",
+        "component": "x",
+    },
+    {
+        "title": "Thigh Range (Sagittal)",
+        "y_label": "Euler, (degrees)",
+        "metric_column": "range_value",
+        "position": "thigh",
+        "component": "x",
+    },
+    {
+        "title": "Foot Peak (Sagittal)",
+        "y_label": "Euler, (degrees)",
+        "metric_column": "peak_value",
+        "position": "foot",
+        "component": "x",
+    },
+    {
+        "title": "Foot Trough (Sagittal)",
+        "y_label": "Euler, (degrees)",
+        "metric_column": "trough_value",
+        "position": "foot",
+        "component": "x",
+    },
+    {
+        "title": "Foot Range (Sagittal)",
+        "y_label": "Euler, (degrees)",
+        "metric_column": "range_value",
+        "position": "foot",
+        "component": "x",
+    },
+    {
+        "title": "Knee Flexion Peak",
+        "y_label": "Joint Angle, (degrees)",
+        "metric_column": "peak_value",
+        "position": "knee_joint",
+        "component": "knee_flexion",
+    },
+    {
+        "title": "Knee Flexion Trough",
+        "y_label": "Joint Angle, (degrees)",
+        "metric_column": "trough_value",
+        "position": "knee_joint",
+        "component": "knee_flexion",
+    },
+    {
+        "title": "Knee Valgus Stance Mean",
+        "y_label": "Joint Angle, (degrees)",
+        "metric_column": "stance_mean_value",
+        "position": "knee_joint",
+        "component": "knee_adduction",
+    },
+    {
+        "title": "Knee Valgus Stance Std",
+        "y_label": "Joint Angle, (degrees)",
+        "metric_column": "stance_std_value",
+        "position": "knee_joint",
+        "component": "knee_adduction",
+    },
+    {
+        "title": "Knee Valgus Swing Mean",
+        "y_label": "Joint Angle, (degrees)",
+        "metric_column": "swing_mean_value",
+        "position": "knee_joint",
+        "component": "knee_adduction",
+    },
+    {
+        "title": "Knee Valgus Swing Std",
+        "y_label": "Joint Angle, (degrees)",
+        "metric_column": "swing_std_value",
+        "position": "knee_joint",
+        "component": "knee_adduction",
+    },
+    {
+        "title": "Dorsiflexion Peak",
+        "y_label": "Joint Angle, (degrees)",
+        "metric_column": "peak_value",
+        "position": "ankle_joint",
+        "component": "dorsi_flexion",
+    },
+    {
+        "title": "Dorsiflexion Trough",
+        "y_label": "Joint Angle, (degrees)",
+        "metric_column": "trough_value",
+        "position": "ankle_joint",
+        "component": "dorsi_flexion",
+    },
+    {
+        "title": "Dorsiflexion Swing Mean",
+        "y_label": "Joint Angle, (degrees)",
+        "metric_column": "swing_mean_value",
+        "position": "ankle_joint",
+        "component": "dorsi_flexion",
+    },
+    {
+        "title": "Inversion Swing Mean",
+        "y_label": "Joint Angle, (degrees)",
+        "metric_column": "swing_mean_value",
+        "position": "ankle_joint",
+        "component": "ankle_inversion",
+    },
+]
+
+TOP_RELEVANT_PLOTTING_METRICS = [
+    "Stride Time",
+    "Stance Time",
+    "Swing Time",
+    "Cadence",
+    "Knee Flexion Peak",
+    "Knee Valgus Stance Mean",
+    "Dorsiflexion Swing Mean",
+    "Inversion Swing Mean",
+]
+
 
 def lighten(color, amount=0.3):
     c = to_rgb(color)
@@ -248,6 +423,10 @@ class GroupedMetricsPlotter:
     def statistical_summary_bar_plot(
         self, metric_specfication, statistic="mean", figsize=FIGSIZE, dpi=DPI
     ):
+        if statistic not in ["mean", "std", "cv"]:
+            raise ValueError(
+                f"statistic must be one of 'mean', 'std', or 'cv'. Got {statistic}."
+            )
         fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
 
         metrics = self.metrics[
