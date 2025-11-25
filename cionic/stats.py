@@ -238,7 +238,7 @@ def coefficient_of_variation(sd: float, mean: float) -> float:
     Returns:
         float: Coefficient of variation in percent. Returns np.nan if mean is zero.
     """
-    return (sd / mean) * 100 if mean != 0 else np.nan
+    return (sd / np.abs(mean)) * 100 if mean != 0 else np.nan
 
 
 def bootstrap_ci(
