@@ -851,10 +851,21 @@ def compute_gait_metrics(
     )
 
 
+STREAM_DEFINITIONS_FOR_STANDARD_METRICS = [
+    {"stream": "euler", "position": "thigh", "component": "x"},
+    {"stream": "euler", "position": "shank", "component": "x"},
+    {"stream": "euler", "position": "foot", "component": "x"},
+    {"stream": "euler", "position": "knee_joint", "component": "knee_flexion"},
+    {"stream": "euler", "position": "knee_joint", "component": "knee_adduction"},
+    {"stream": "euler", "position": "ankle_joint", "component": "dorsi_flexion"},
+    {"stream": "euler", "position": "ankle_joint", "component": "ankle_inversion"},
+]
+
+
 class MetricsExtractor:
-    def __init__(self, metadata_list: list, metric_channels: list, tokenpath):
+    def __init__(self, metadata_list: list, stream_definitions: list, tokenpath):
         self.metadata_list = metadata_list
-        self.metric_channels = metric_channels
+        self.stream_definitions = stream_definitions
         self.tokenpath = tokenpath
 
     def extract_metrics(
@@ -886,13 +897,16 @@ class MetricsExtractor:
                 mask = sides != ""
                 sides = sides[mask]
 
-                for segment_num, side, channel in itertools.product(
-                    segment_nums, sides, self.metric_channels
+                for segment_num, side, stream_definition in itertools.product(
+                    segment_nums, sides, self.stream_definitions
                 ):
                     seg = segs[
                         (segs["segment_num"] == segment_num)
-                        & (segs["stream"] == channel["stream"])
-                        & (segs["position"] == f"{side[0]}_{channel['position']}")
+                        & (segs["stream"] == stream_definition["stream"])
+                        & (
+                            segs["position"]
+                            == f"{side[0]}_{stream_definition['position']}"
+                        )
                     ]
                     if seg.shape[0] != 1:
                         continue
@@ -917,7 +931,7 @@ class MetricsExtractor:
                     meta = Metadata(
                         position=seg["position"],
                         stream_name=seg["stream"],
-                        component=channel["channel"],
+                        component=stream_definition["component"],
                         org_shortname=org_shortname,
                         study_shortname=study_shortname,
                         collection_num=collection_num,
