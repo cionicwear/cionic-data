@@ -376,15 +376,15 @@ class GroupedMetricsPlotter:
     def __init__(self, metrics):
         self.metrics = metrics
 
-    def violin_plot(self, metric_specfication, figsize=FIGSIZE, dpi=DPI):
+    def violin_plot(self, metric_specification, figsize=FIGSIZE, dpi=DPI):
         fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
 
         metrics = self.metrics[
-            (self.metrics["position"] == metric_specfication["position"])
-            & (self.metrics["component"] == metric_specfication["component"])
+            (self.metrics["position"] == metric_specification["position"])
+            & (self.metrics["component"] == metric_specification["component"])
         ]
         if metrics.shape[0] == 0:
-            print(f"No metrics found for {metric_specfication['title']}. Blank plot.")
+            print(f"No metrics found for {metric_specification['title']}. Blank plot.")
 
         group_names = metrics["group_name"].unique()
         for i, group_name in enumerate(group_names):
@@ -392,7 +392,7 @@ class GroupedMetricsPlotter:
             group_color = group_metrics["group_color"].unique()
             assert group_color.shape[0] == 1, "Expected one unique color per group"
             violin = ax.violinplot(
-                dataset=[group_metrics[metric_specfication["metric_column"]]],
+                dataset=[group_metrics[metric_specification["metric_column"]]],
                 positions=[i],
                 showmeans=False,
                 showmedians=False,
@@ -405,11 +405,11 @@ class GroupedMetricsPlotter:
             violin["bodies"][0].set_zorder(3)
 
             x_jittered = violin_jitter(
-                group_metrics[metric_specfication["metric_column"]], center_x=i
+                group_metrics[metric_specification["metric_column"]], center_x=i
             )
             ax.scatter(
                 x_jittered,
-                group_metrics[metric_specfication["metric_column"]],
+                group_metrics[metric_specification["metric_column"]],
                 color=group_color[0],
                 alpha=0.6,
                 zorder=4,
@@ -420,12 +420,12 @@ class GroupedMetricsPlotter:
             group_names, fontsize=LABEL_FONT_SIZE, fontweight=FONT_WEIGHT
         )
         ax.set_ylabel(
-            metric_specfication["y_label"],
+            metric_specification["y_label"],
             fontsize=LABEL_FONT_SIZE,
             fontweight=FONT_WEIGHT,
         )
         ax.set_title(
-            metric_specfication["title"],
+            metric_specification["title"],
             loc="center",
             fontsize=TITLE_FONT_SIZE,
             fontweight=FONT_WEIGHT,
@@ -433,7 +433,7 @@ class GroupedMetricsPlotter:
         return fig, ax
 
     def statistical_summary_bar_plot(
-        self, metric_specfication, statistic="mean", figsize=FIGSIZE, dpi=DPI
+        self, metric_specification, statistic="mean", figsize=FIGSIZE, dpi=DPI
     ):
         if statistic not in ["mean", "std", "cv"]:
             raise ValueError(
@@ -442,11 +442,11 @@ class GroupedMetricsPlotter:
         fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
 
         metrics = self.metrics[
-            (self.metrics["position"] == metric_specfication["position"])
-            & (self.metrics["component"] == metric_specfication["component"])
+            (self.metrics["position"] == metric_specification["position"])
+            & (self.metrics["component"] == metric_specification["component"])
         ]
         if metrics.shape[0] == 0:
-            print(f"No metrics found for {metric_specfication['title']}. Blank plot.")
+            print(f"No metrics found for {metric_specification['title']}. Blank plot.")
 
         group_names = metrics["group_name"].unique()
 
@@ -456,7 +456,7 @@ class GroupedMetricsPlotter:
             group_color = group_metrics["group_color"].unique()
             assert group_color.shape[0] == 1, "Expected one unique color per group"
             stats_summary = stats.summarize_metric_distribution(
-                values=group_metrics[metric_specfication["metric_column"]],
+                values=group_metrics[metric_specification["metric_column"]],
             )
             ax.bar(
                 x=i,
@@ -476,10 +476,10 @@ class GroupedMetricsPlotter:
         ax.set_xticklabels(
             group_names, fontsize=LABEL_FONT_SIZE, fontweight=FONT_WEIGHT
         )
-        y_label = metric_specfication["y_label"] if statistic != "cv" else "CV (%)"
+        y_label = metric_specification["y_label"] if statistic != "cv" else "CV (%)"
         ax.set_ylabel(y_label, fontsize=LABEL_FONT_SIZE, fontweight=FONT_WEIGHT)
         ax.set_title(
-            f"{metric_specfication['title']}  |  {statistic.upper()}",
+            f"{metric_specification['title']}  |  {statistic.upper()}",
             loc="center",
             fontsize=TITLE_FONT_SIZE,
             fontweight=FONT_WEIGHT,
