@@ -226,7 +226,9 @@ class MetadataListCreator:
             include_gait_splits=False,
         )
         boundaries = json2npy.from_jsonl(npz["gwlabels.jsonl"].split(b"\n"))
-        labels = sorted(list(set([b["add"]["label"] for b in boundaries])))
+        labels = sorted(
+            list(set([b["add"]["label"] for b in boundaries])), key=str.lower
+        )
         return labels
 
     def _show_output_path_step(self):
@@ -404,7 +406,9 @@ class MetadataListCreator:
     def _show_recording_creation_step(self):
         """Show recording creation step."""
         studies = self.studies.get(self.org_shortname, [])
-        study_shortnames = sorted([s.get("shortname", "") for s in studies])
+        study_shortnames = sorted(
+            [s.get("shortname", "") for s in studies], key=str.lower
+        )
         study_select = widgets.Dropdown(
             options=study_shortnames,
             description="Study:",
