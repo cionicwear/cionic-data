@@ -1,9 +1,30 @@
+"""
+Test suite for stats.py module.
+
+This module contains comprehensive pytest tests for stats.py.
+The tests cover various scenarios including normal operations and edge cases.
+
+Usage:
+    Run all tests:
+        $ pytest test_stats.py
+
+    Run with verbose output:
+        $ pytest -v test_stats.py
+
+    Run specific test class:
+        $ pytest test_stats.py::TestBasicMetrics
+
+    Run specific test method:
+        $ pytest test_stats.py::TestBasicMetrics::test_compute_mae_perfect_predictions
+"""
+
 import warnings
 
 import numpy as np
 import pytest
 
 from cionic.stats import (
+    coefficient_of_variation,
     compute_absolute_error,
     compute_absolute_percentage_error,
     compute_mae,
@@ -176,6 +197,38 @@ class TestThresholdMetrics:
         pred = np.array([104, 110])  # 4%, 10% errors
         result = compute_percentage_within_ten_percent(true, pred)
         assert result == 100.0
+
+
+class TestCoefficientOfVariation:
+    """Test coefficient of variation function with various mean values."""
+
+    def test_coefficient_of_variation_positive_mean(self):
+        """Test CV with positive mean."""
+        sd = 2.0
+        mean = 10.0
+        result = coefficient_of_variation(sd, mean)
+        assert result == 20.0  # (2/10) * 100
+
+    def test_coefficient_of_variation_negative_mean(self):
+        """Test CV with negative mean - should use absolute value."""
+        sd = 2.0
+        mean = -10.0
+        result = coefficient_of_variation(sd, mean)
+        assert result == 20.0  # (2/|-10|) * 100 = (2/10) * 100
+
+    def test_coefficient_of_variation_zero_mean(self):
+        """Test CV with zero mean - should return NaN."""
+        sd = 2.0
+        mean = 0.0
+        result = coefficient_of_variation(sd, mean)
+        assert np.isnan(result)
+
+    def test_coefficient_of_variation_zero_sd(self):
+        """Test CV with zero standard deviation."""
+        sd = 0.0
+        mean = 10.0
+        result = coefficient_of_variation(sd, mean)
+        assert result == 0.0
 
 
 if __name__ == "__main__":
