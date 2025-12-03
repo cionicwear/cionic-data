@@ -593,7 +593,7 @@ def download_npz_from_metadata(
     study_shortname: str,
     collection_num: int,
     tokenpath: str,
-    outdir: str = "/home/jovyan/cionic-data/recordings",
+    outdir: str = "recordings",
     overwrite: bool = False,
     segmented: bool = False,
     include_eulers: bool = True,
@@ -698,7 +698,7 @@ def download_files_from_metadata(
     study_shortname: str,
     collection_num: int,
     tokenpath: str,
-    outdir: str = '.',
+    outdir: str = 'recordings',
     include: list = None,
     exclude: list = None,
 ) -> tuple[str, str]:
