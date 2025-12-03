@@ -593,7 +593,7 @@ def download_npz_from_metadata(
     study_shortname: str,
     collection_num: int,
     tokenpath: str,
-    outdir: str = "/home/jovyan/cionic-data/recodings",
+    outdir: str = "/home/jovyan/cionic-data/recordings",
     overwrite: bool = False,
     segmented: bool = False,
     include_eulers: bool = True,
