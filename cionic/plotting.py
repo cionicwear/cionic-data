@@ -1,6 +1,11 @@
+from typing import Dict, List, Optional, Tuple
+
 import numpy as np
+import pandas as pd
 from matplotlib import pyplot as plt
+from matplotlib.axes import Axes
 from matplotlib.colors import to_rgb
+from matplotlib.figure import Figure
 from scipy.stats import gaussian_kde
 
 from cionic import api, npz_utils, stats
@@ -199,29 +204,46 @@ COLORS = [
 ]
 
 
-def lighten(color, amount=0.3):
+def lighten(color: str, amount: float = 0.3) -> Tuple[float, float, float]:
+    """Lighten a color by blending it with white.
+
+    Args:
+        color: Color specification (name, hex, etc.)
+        amount: Amount to lighten (0-1, where 1 is white)
+
+    Returns:
+        RGB tuple with lightened color values
+    """
     c = to_rgb(color)
     return tuple(1 - (1 - x) * (1 - amount) for x in c)
 
 
-def format_axis(ax):
+def format_axis(ax: Axes) -> None:
+    """Format plot axis with standard styling.
+
+    Args:
+        ax: Matplotlib axes object to format
+    """
     ax.grid(axis="y", alpha=0.7, zorder=0)
     ax.spines["right"].set_visible(False)
     ax.spines["top"].set_visible(False)
 
 
 class StreamsPlotter:
+    """Plotter for visualizing kinematic streams with gait events."""
+
     def __init__(
         self,
-        org_shortname,
-        study_shortname,
-        collection_num,
-        tokenpath,
-        outdir,
-        segmented,
-        overwrite=False,
-        peak_kwargs=None,
-    ):
+        org_shortname: str,
+        study_shortname: str,
+        collection_num: int,
+        tokenpath: str,
+        outdir: str,
+        segmented: bool,
+        overwrite: bool = False,
+        peak_kwargs: Optional[Dict] = None,
+    ) -> None:
+        """Initialize StreamsPlotter with data source parameters."""
         self.org_shortname = org_shortname
         self.study_shortname = study_shortname
         self.collection_num = collection_num
@@ -241,8 +263,17 @@ class StreamsPlotter:
         self.segs = self.npz['segments']
 
     def plot_stream(
-        self, ax, label, label_name, position, stream_name, component, color, title
-    ):
+        self,
+        ax: Axes,
+        label: str,
+        label_name: str,
+        position: str,
+        stream_name: str,
+        component: str,
+        color: str,
+        title: str,
+    ) -> None:
+        """Plot kinematic stream data on the given axes."""
         segs_subset = self.segs[
             (self.segs["label"] == label)
             & (self.segs["position"] == position)
@@ -262,8 +293,13 @@ class StreamsPlotter:
         ax.spines['top'].set_visible(False)
 
     def plot_stride_splits(
-        self, ax, label, position, stream_name="paired_stride_splits"
-    ):
+        self,
+        ax: Axes,
+        label: str,
+        position: str,
+        stream_name: str = "paired_stride_splits",
+    ) -> None:
+        """Plot stride boundary markers on the given axes."""
         segs = self.npz["segments"]
         segs = segs[segs["label"] == label]
         segment_nums = np.unique(segs["segment_num"])
@@ -289,11 +325,12 @@ class StreamsPlotter:
 
     def shade_walking_periods(
         self,
-        ax,
-        label,
-        position,
-        stream_name="walking_periods",
-    ):
+        ax: Axes,
+        label: str,
+        position: str,
+        stream_name: str = "walking_periods",
+    ) -> None:
+        """Shade walking periods on the given axes."""
         segs = self.npz["segments"]
         segs = segs[segs["label"] == label]
         segment_nums = np.unique(segs["segment_num"])
@@ -319,11 +356,12 @@ class StreamsPlotter:
 
     def clip_non_gait_edges(
         self,
-        ax,
-        label_list,
-        position,
-        stream_name="walking_periods",
-    ):
+        ax: Axes,
+        label_list: List[str],
+        position: str,
+        stream_name: str = "walking_periods",
+    ) -> None:
+        """Clip plot view to exclude non-gait periods."""
         segs = self.npz["segments"]
         segs = segs[segs["stream"] == stream_name]
         segs = segs[np.isin(segs["label"], label_list)]
@@ -348,13 +386,20 @@ class StreamsPlotter:
         ax.set_xlim([min_time - 3, max_time + 3])
 
 
-def violin_jitter(y, center_x=0, width=0.25, n_points=200):
+def violin_jitter(
+    y: np.ndarray, center_x: float = 0, width: float = 0.25, n_points: int = 200
+) -> np.ndarray:
     """
     Compute x jitter for scatter points to follow violin shape.
 
-    y: array of data values
-    center_x: x-position of this violin
-    width: max half-width of violin
+    Args:
+        y: Array of data values
+        center_x: X-position of this violin
+        width: Max half-width of violin
+        n_points: Number of points for KDE interpolation
+
+    Returns:
+        Array of jittered x-coordinates
     """
     # Fit KDE on the data
     kde = gaussian_kde(y)
@@ -373,10 +418,65 @@ def violin_jitter(y, center_x=0, width=0.25, n_points=200):
 
 
 class GroupedMetricsPlotter:
-    def __init__(self, metrics):
+    """
+    Visualization class for creating comparative plots of gait metrics across groups.
+
+    It supports violin plots for showing full distributions and bar plots for
+    statistical summaries with confidence intervals.
+
+    Typical usage:
+    1. Initialize with a metrics DataFrame containing multiple groups
+    2. Define metric specifications (title, position, component, etc.)
+    3. Generate violin plots to show distributions
+    4. Generate bar plots to show statistical summaries (mean, std, CV)
+    """
+
+    def __init__(self, metrics: pd.DataFrame) -> None:
+        """
+        Initialize the plotter with metrics data.
+
+        Args:
+            metrics (pd.DataFrame): DataFrame containing gait metrics data.
+                Must include columns:
+                - group_name (str): Name of experimental group
+                - group_color (str): Color specification for visualization
+                - position (str): Anatomical position (e.g., 'thigh', 'shank')
+                - component (str): Measurement component (e.g., 'x', 'knee_flexion')
+                - Various metric columns (e.g., 'stride_time', 'peak_value', etc.)
+        """
         self.metrics = metrics
 
-    def violin_plot(self, metric_specification, figsize=FIGSIZE, dpi=DPI):
+    def violin_plot(
+        self,
+        metric_specification: Dict[str, str],
+        figsize: Tuple[int, int] = FIGSIZE,
+        dpi: int = DPI,
+    ) -> Tuple[Figure, Axes]:
+        """
+        Create a violin plot comparing metric distributions across experimental groups.
+
+        Generates a violin plot showing the full probability distribution of a specific
+        metric across different experimental groups. Each group is displayed as a violin
+        shape showing the data distribution, with individual data points scattered over
+        the violin using kernel density-based jittering.
+
+        Args:
+            metric_specification (dict): Dictionary specifying the metric to plot.
+                Must contain keys:
+                - title (str): Plot title
+                - y_label (str): Y-axis label with units
+                - metric_column (str): Column name in metrics DataFrame
+                - position (str): Anatomical position to filter by
+                - component (str): Component to filter by
+            figsize (tuple, optional): Figure size (width, height) in inches.
+                Defaults to FIGSIZE constant.
+            dpi (int, optional): Figure resolution in dots per inch.
+                Defaults to DPI constant.
+
+        Returns:
+            tuple: (fig, ax) - matplotlib Figure and Axes objects for further
+                customization.
+        """
         fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
 
         metrics = self.metrics[
@@ -433,8 +533,43 @@ class GroupedMetricsPlotter:
         return fig, ax
 
     def statistical_summary_bar_plot(
-        self, metric_specification, statistic="mean", figsize=FIGSIZE, dpi=DPI
-    ):
+        self,
+        metric_specification: Dict[str, str],
+        statistic: str = "mean",
+        figsize: Tuple[int, int] = FIGSIZE,
+        dpi: int = DPI,
+    ) -> Tuple[Figure, Axes]:
+        """
+        Create a bar plot showing statistical summaries with confidence intervals.
+
+        Generates a bar chart comparing statistical summaries (mean, standard deviation,
+        or coefficient of variation) across experimental groups. Each bar represents
+        the computed statistic for one group, with error bars showing bootstrap
+        confidence intervals.
+
+        Args:
+            metric_specification (dict): Dictionary specifying the metric to plot.
+                Must contain keys:
+                - title (str): Base plot title (statistic will be appended)
+                - y_label (str): Y-axis label with units
+                - metric_column (str): Column name in metrics DataFrame
+                - position (str): Anatomical position to filter by
+                - component (str): Component to filter by
+            statistic (str, optional): Statistical summary to compute and display.
+                Options: 'mean', 'std', 'cv' (coefficient of variation).
+                Defaults to 'mean'.
+            figsize (tuple, optional): Figure size (width, height) in inches.
+                Defaults to FIGSIZE constant.
+            dpi (int, optional): Figure resolution in dots per inch.
+                Defaults to DPI constant.
+
+        Returns:
+            tuple: (fig, ax) - matplotlib Figure and Axes objects for further
+                customization.
+
+        Raises:
+            ValueError: If statistic is not one of 'mean', 'std', or 'cv'.
+        """
         if statistic not in ["mean", "std", "cv"]:
             raise ValueError(
                 f"statistic must be one of 'mean', 'std', or 'cv'. Got {statistic}."
