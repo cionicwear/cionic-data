@@ -906,7 +906,7 @@ class MetricsExtractor:
 
     def extract_metrics(
         self,
-        output_path: str = "/home/jovyan/cionic-data/recordings",
+        output_path: str = "recordings",
         overwrite_npz: bool = False,
     ):
         """
@@ -1037,4 +1037,6 @@ class MetricsExtractor:
                         fill_value=None,
                     ).assign(**metadata_fields)
                     all_strides_metrics_list.append(metrics)
+        if len(all_strides_metrics_list) == 0:
+            return pd.DataFrame()
         return pd.concat(all_strides_metrics_list, axis=0).reset_index(drop=True)
