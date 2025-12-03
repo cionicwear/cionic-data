@@ -85,3 +85,54 @@ def run_collections(
         </tr></table>"""
             )
         )
+
+
+def run_metrics(
+    metadata_list,
+    output_path,
+    prepare_only=True,
+    overwrite=False,
+    tokenpath="../../token.json",
+):
+    """Run metrics notebook with specified metadata list."""
+
+    # Source metrics notebook path
+    source_notebook = "metrics.ipynb"
+
+    # Create output directory
+    os.makedirs(output_path, exist_ok=True)
+    # print(output_path)
+
+    # # Copy metrics notebook to output directory
+    dest_notebook = f"{output_path}/{os.path.basename(output_path)}_metrics.ipynb"
+    shutil.copy2(source_notebook, dest_notebook)
+
+    # Parameters to inject into the notebook
+    parameters = {
+        "tokenpath": tokenpath,
+        "metadata_list": metadata_list,
+    }
+
+    try:
+        # Execute the notebook with papermill, injecting the parameters
+        pm.execute_notebook(
+            input_path=source_notebook,
+            output_path=dest_notebook,
+            parameters=parameters,
+            prepare_only=prepare_only,
+            overwrite=overwrite,
+        )
+
+        # Trust the executed notebook
+        subprocess.call(["jupyter", "trust", dest_notebook])
+
+        display(Markdown(f"**Success**: Metrics notebook created at `{dest_notebook}`"))
+        display(
+            HTML(f'<a href="{dest_notebook}" target="_blank">Open Metrics Notebook</a>')
+        )
+
+        return dest_notebook
+
+    except Exception as e:
+        display(Markdown(f"⚠️ **Error**: Failed to create metrics notebook: {e}"))
+        return None
