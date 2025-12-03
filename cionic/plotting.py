@@ -400,21 +400,45 @@ def violin_jitter(
 
     Returns:
         Array of jittered x-coordinates
-    """
-    # Fit KDE on the data
-    kde = gaussian_kde(y)
-    ys = np.linspace(min(y), max(y), n_points)
-    density = kde(ys)
-    density /= density.max()  # normalize to [0,1]
 
-    x_jittered = []
-    for yi in y:
-        # Interpolate normalized density at this yi
-        d = np.interp(yi, ys, density)
-        max_jitter = d * width * 0.95  # leave a little space
-        jitter_val = np.random.uniform(-max_jitter, max_jitter)
-        x_jittered.append(center_x + jitter_val)
-    return np.array(x_jittered)
+    Note:
+        For datasets with fewer than 3 points or with insufficient variance,
+        falls back to minimal random jitter around the center position.
+    """
+    y = np.asarray(y)
+
+    # Handle edge cases where KDE won't work properly
+    if len(y) < 3:
+        # Too few points for reliable KDE - use minimal jitter
+        jitter_amount = width * 0.1  # Small fixed jitter
+        return center_x + np.random.uniform(-jitter_amount, jitter_amount, len(y))
+
+    # Check for insufficient variance (all values nearly identical)
+    if np.std(y) < 1e-10:
+        # All values are essentially the same - use minimal jitter
+        jitter_amount = width * 0.05
+        return center_x + np.random.uniform(-jitter_amount, jitter_amount, len(y))
+
+    try:
+        # Fit KDE on the data
+        kde = gaussian_kde(y)
+        ys = np.linspace(min(y), max(y), n_points)
+        density = kde(ys)
+        density /= density.max()  # normalize to [0,1]
+
+        x_jittered = []
+        for yi in y:
+            # Interpolate normalized density at this yi
+            d = np.interp(yi, ys, density)
+            max_jitter = d * width * 0.95  # leave a little space
+            jitter_val = np.random.uniform(-max_jitter, max_jitter)
+            x_jittered.append(center_x + jitter_val)
+        return np.array(x_jittered)
+
+    except (np.linalg.LinAlgError, ValueError):
+        # KDE failed (e.g., singular matrix) - fall back to uniform jitter
+        jitter_amount = width * 0.3
+        return center_x + np.random.uniform(-jitter_amount, jitter_amount, len(y))
 
 
 class GroupedMetricsPlotter:
