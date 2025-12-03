@@ -186,6 +186,18 @@ TOP_RELEVANT_PLOTTING_METRICS = [
     "Inversion Swing Mean",
 ]
 
+# Color palette
+COLORS = [
+    "steelblue",
+    "sandybrown",
+    "firebrick",
+    "olivedrab",
+    "mediumpurple",
+    "slategray",
+    "peru",
+    "cadetblue",
+]
+
 
 def lighten(color, amount=0.3):
     c = to_rgb(color)
