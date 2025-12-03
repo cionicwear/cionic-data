@@ -863,7 +863,43 @@ STREAM_DEFINITIONS_FOR_STANDARD_METRICS = [
 
 
 class MetricsExtractor:
-    def __init__(self, metadata_list: list, stream_definitions: list, tokenpath):
+    """
+    High-level interface for extracting gait metrics from multiple recordings.
+
+    The class handles:
+    - Downloading NPZ files from the Cionic API for each recording
+    - Processing multiple segments and sides (left/right) within each recording
+    - Computing metrics for multiple stream definitions
+    - Aggregating results into a single DataFrame with group metadata
+
+    Typical workflow:
+    1. Define metadata_list with experimental groups and their recordings
+    2. Define stream_definitions specifying which kinematic streams to analyze
+    3. Initialize MetricsExtractor with these configurations
+    4. Call extract_metrics() to process all data and return consolidated results
+    """
+
+    def __init__(self, metadata_list: list, stream_definitions: list, tokenpath: str):
+        """
+        Initialize the MetricsExtractor with configuration for batch processing.
+
+        Args:
+            metadata_list (list): List of dictionaries defining experimental groups.
+                Each group dictionary should contain:
+                - group_name (str): Name of the experimental group
+                - org_shortname (str): Organization identifier
+                - group_color (str, optional): Color for visualization
+                - recordings (list): List of recording dictionaries, each containing:
+                    - study_shortname (str): Study identifier
+                    - collection_num (int): Collection number
+                    - label (str): Specific activity label within the collection
+            stream_definitions (list): List of dictionaries defining which kinematic
+                streams to analyze. Each definition should contain:
+                - stream (str): Stream type (e.g., 'euler', 'gyro', 'accel')
+                - position (str): Anatomical position (e.g., 'thigh', 'shank', 'foot')
+                - component (str): Specific component (e.g., 'x', 'y', 'knee_flexion')
+            tokenpath (str): Path to the authentication token file for API access.
+        """
         self.metadata_list = metadata_list
         self.stream_definitions = stream_definitions
         self.tokenpath = tokenpath
@@ -873,6 +909,41 @@ class MetricsExtractor:
         output_path: str = "/home/jovyan/cionic-data/recordings",
         overwrite_npz: bool = False,
     ):
+        """
+        Extract gait metrics from all recordings and groups defined in metadata_list.
+
+        This method processes each group and recording in the metadata list, downloads
+        the corresponding NPZ files, and computes gait metrics for all specified stream
+        definitions. Results are aggregated into a single DataFrame with group metadata
+        and individual stride metrics.
+
+        The processing workflow for each recording:
+        1. Download NPZ file containing kinematic data and stride boundaries
+        2. Extract segments matching the specified label
+        3. Process each segment/side combination
+        4. Compute metrics for each stream definition
+        5. Add group metadata and aggregate results
+
+        Args:
+            output_path (str, optional): Directory path where NPZ files will be cached
+                and CSV outputs saved. Defaults to "/home/jovyan/cionic-data/recordings"
+            overwrite_npz (bool, optional): Whether to re-download NPZ files if they
+                already exist locally. If False, uses cached files. Defaults to False.
+
+        Returns:
+            pd.DataFrame: Consolidated DataFrame containing gait metrics for all strides
+                across all recordings and groups. Columns include:
+                - Group metadata: group_name, group_color, org_shortname,
+                  study_shortname, collection_num, label, segment_num, side
+                - Stream metadata: position, stream_name, component
+                - Stride boundaries: start_s, stop_s
+                - Computed metrics: stride_time, cadence, peak_value, trough_value, etc.
+
+        Note:
+            Individual CSV files are also saved for each position/stream/component
+            combination in the output_path directory structure organized by
+            org/study/collection.
+        """
         all_strides_metrics_list = []
         for metadata in self.metadata_list:
             group_name = metadata["group_name"]
