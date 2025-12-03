@@ -216,20 +216,27 @@ class MetadataListCreator:
         self.step_content.children = new_content
 
     def _get_phase_labels(self, study_shortname, collection_num):
-        npz = api.download_npz_from_metadata(
-            org_shortname=self.org_shortname,
-            study_shortname=study_shortname,
-            collection_num=collection_num,
-            tokenpath=self.tokenpath,
-            segmented=True,
-            include_eulers=False,
-            include_gait_splits=False,
-        )
-        boundaries = json2npy.from_jsonl(npz["gwlabels.jsonl"].split(b"\n"))
-        labels = sorted(
-            list(set([b["add"]["label"] for b in boundaries])), key=str.lower
-        )
-        return labels
+        try:
+            npz = api.download_npz_from_metadata(
+                org_shortname=self.org_shortname,
+                study_shortname=study_shortname,
+                collection_num=collection_num,
+                tokenpath=self.tokenpath,
+                segmented=True,
+                include_eulers=False,
+                include_gait_splits=False,
+            )
+            boundaries = json2npy.from_jsonl(npz["gwlabels.jsonl"].split(b"\n"))
+            labels = sorted(
+                list(set([b["add"]["label"] for b in boundaries])), key=str.lower
+            )
+            return labels
+        except Exception as e:
+            print(
+                f"Failed to load labels for {study_shortname} "
+                f"collection {collection_num}: {e}"
+            )
+            return []
 
     def _show_output_path_step(self):
         """Show the output path creation step."""
