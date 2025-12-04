@@ -475,7 +475,7 @@ class GroupedMetricsPlotter:
         metric_specification: Dict[str, str],
         figsize: Tuple[int, int] = FIGSIZE,
         dpi: int = DPI,
-    ) -> Tuple[Figure, Axes]:
+    ) -> Tuple[Optional[Figure], Optional[Axes]]:
         """
         Create a violin plot comparing metric distributions across experimental groups.
 
@@ -499,17 +499,21 @@ class GroupedMetricsPlotter:
 
         Returns:
             tuple: (fig, ax) - matplotlib Figure and Axes objects for further
-                customization.
+                customization. Returns (None, None) if no matching data is found.
         """
-        fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
 
         metrics = self.metrics[
             (self.metrics["position"] == metric_specification["position"])
             & (self.metrics["component"] == metric_specification["component"])
         ]
         if metrics.shape[0] == 0:
-            print(f"No metrics found for {metric_specification['title']}. Blank plot.")
+            print(
+                f"No metrics found for {metric_specification['title']}. "
+                f"No plot generated."
+            )
+            return None, None
 
+        fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
         group_names = metrics["group_name"].unique()
         for i, group_name in enumerate(group_names):
             group_metrics = metrics[metrics["group_name"] == group_name]
@@ -562,7 +566,7 @@ class GroupedMetricsPlotter:
         statistic: str = "mean",
         figsize: Tuple[int, int] = FIGSIZE,
         dpi: int = DPI,
-    ) -> Tuple[Figure, Axes]:
+    ) -> Tuple[Optional[Figure], Optional[Axes]]:
         """
         Create a bar plot showing statistical summaries with confidence intervals.
 
@@ -589,7 +593,7 @@ class GroupedMetricsPlotter:
 
         Returns:
             tuple: (fig, ax) - matplotlib Figure and Axes objects for further
-                customization.
+                customization. Returns (None, None) if no matching data is found.
 
         Raises:
             ValueError: If statistic is not one of 'mean', 'std', or 'cv'.
@@ -598,15 +602,18 @@ class GroupedMetricsPlotter:
             raise ValueError(
                 f"statistic must be one of 'mean', 'std', or 'cv'. Got {statistic}."
             )
-        fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
-
         metrics = self.metrics[
             (self.metrics["position"] == metric_specification["position"])
             & (self.metrics["component"] == metric_specification["component"])
         ]
         if metrics.shape[0] == 0:
-            print(f"No metrics found for {metric_specification['title']}. Blank plot.")
+            print(
+                f"No metrics found for {metric_specification['title']}. "
+                f"No plot generated."
+            )
+            return None, None
 
+        fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
         group_names = metrics["group_name"].unique()
 
         for i, group_name in enumerate(group_names):
