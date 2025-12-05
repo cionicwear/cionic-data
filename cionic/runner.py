@@ -99,6 +99,7 @@ def run_collections(
 def run_metrics(
     metadata_list,
     output_path,
+    figure_title,
     prepare_only=True,
     overwrite=False,
     tokenpath="../../token.json",
@@ -118,8 +119,9 @@ def run_metrics(
 
     # Parameters to inject into the notebook
     parameters = {
-        "tokenpath": tokenpath,
         "metadata_list": metadata_list,
+        "figure_title": figure_title,
+        "tokenpath": tokenpath,
     }
 
     try:
@@ -165,6 +167,7 @@ class MetadataListCreator:
         self.studies = {}
         self.metadata_list = []
         self.current_group = {}
+        self.figure_title = None
 
         # State tracking
         self.num_groups = 0
@@ -252,6 +255,12 @@ class MetadataListCreator:
             layout=Layout(width='600px'),
         )
 
+        title_input = widgets.Text(
+            description="Figure Title:",
+            placeholder="Enter a title to be placed on all figures",
+            layout=Layout(width='600px'),
+        )
+
         next_button = widgets.Button(
             description="Next: Select Organization",
             button_style='primary',
@@ -260,6 +269,7 @@ class MetadataListCreator:
 
         def on_next_clicked(b):
             self.output_path = path_input.value.strip()
+            self.figure_title = title_input.value.strip()
             if self.output_path:
                 self._show_org_selection_step()
             else:
@@ -273,6 +283,7 @@ class MetadataListCreator:
                 "<p>Specify the output path for your analysis:</p>"
             ),
             path_input,
+            title_input,
             next_button,
         ]
 
@@ -305,7 +316,8 @@ class MetadataListCreator:
         content = [
             widgets.HTML(
                 f"<h3>Step 2: Select Organization</h3>"
-                f"<p>Output path: <code>{self.output_path}</code></p>"
+                f"<p>Output Path: <code>{self.output_path}</code></p>"
+                f"<p>Figure Title: {self.figure_title}</p>"
             ),
             org_select,
             next_button,
@@ -351,7 +363,8 @@ class MetadataListCreator:
         content = [
             widgets.HTML(
                 f"<h3>Step 3: Specify Number of Groups</h3>"
-                f"<p>Output path: <code>{self.output_path}</code></p>"
+                f"<p>Output Path: <code>{self.output_path}</code></p>"
+                f"<p>Figure Title: {self.figure_title}</p>"
                 f"<p>Organization: <code>{self.org_shortname}</code></p>"
             ),
             count_input,
@@ -405,7 +418,8 @@ class MetadataListCreator:
             widgets.HTML(
                 f"<h3>Step 4: Create Group {self.current_group_index + 1} of "
                 f"{self.num_groups}</h3>"
-                f"<p>Output path: <code>{self.output_path}</code></p>"
+                f"<p>Output Path: <code>{self.output_path}</code></p>"
+                f"<p>Figure Title: {self.figure_title}</p>"
                 f"<p>Organization: <code>{self.org_shortname}</code></p>"
             ),
             group_name_input,
@@ -544,7 +558,8 @@ class MetadataListCreator:
         content = [
             widgets.HTML(
                 f"<h3>Add Recordings to Group: {self.current_group['group_name']}</h3>"
-                f"<p>Output path: <code>{self.output_path}</code></p>"
+                f"<p>Output Path: <code>{self.output_path}</code></p>"
+                f"<p>Figure Title: {self.figure_title}</p>"
                 f"<p>Organization: <code>{self.org_shortname}</code></p>"
             ),
             study_select,
@@ -606,7 +621,8 @@ class MetadataListCreator:
 
         summary = f"""
         <h3>Metadata List Complete!</h3>
-        <p><strong>Output Path:</strong> {self.output_path}</p>
+        <p><strong>Output Path:</strong> <code>{self.output_path}</code></p>
+        <p><strong>Figure Title:</strong> {self.figure_title}</p>
         <p><strong>Organization:</strong> {self.org_shortname}</p>
         <p><strong>Groups Created:</strong> {len(self.metadata_list)}</p>
         <p><strong>Total Recordings:</strong> {
@@ -636,5 +652,6 @@ class MetadataListCreator:
         run_metrics(
             metadata_list=self.metadata_list,
             output_path=self.output_path,
+            figure_title=self.figure_title,
             tokenpath=self.tokenpath,
         )
