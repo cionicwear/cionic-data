@@ -223,7 +223,7 @@ class MetadataListCreator:
         self._current_step = new_content
         self.step_content.children = new_content
 
-    def _get_phase_labels(self, study_shortname, collection_num):
+    def _get_phase_labels_and_sides(self, study_shortname, collection_num):
         try:
             npz = api.download_npz_from_metadata(
                 org_shortname=self.org_shortname,
@@ -238,13 +238,18 @@ class MetadataListCreator:
             labels = sorted(
                 list(set([b["add"]["label"] for b in boundaries])), key=str.lower
             )
-            return labels
+            sides = [
+                side for side in ["left", "right"] if side in npz["segments"]["side"]
+            ]
+            if "left" in sides and "right" in sides:
+                sides.append("BOTH")
+            return labels, sides
         except Exception as e:
             print(
                 f"Failed to load labels for {study_shortname} "
                 f"collection {collection_num}: {e}"
             )
-            return []
+            return [], []
 
     def _show_output_path_step(self):
         """Show the output path creation step."""
@@ -482,18 +487,24 @@ class MetadataListCreator:
             layout=Layout(width='300px'),
         )
 
-        def update_labels(change=None):
+        sides_input = widgets.Dropdown(
+            options=[],
+            description="Sides:",
+            placeholder="e.g., left",
+            layout=Layout(width='300px'),
+        )
+
+        def update_labels_and_sides(change=None):
             """Update label options when collection changes."""
             if study_select.value and collection_input.value is not None:
-                labels = self._get_phase_labels(
+                labels, sides = self._get_phase_labels_and_sides(
                     study_shortname=study_select.value,
                     collection_num=collection_input.value,
                 )
                 label_input.options = labels
-            else:
-                label_input.options = []
+                sides_input.options = sides
 
-        collection_input.observe(update_labels, names='value')
+        collection_input.observe(update_labels_and_sides, names='value')
 
         add_recording_button = widgets.Button(
             description="Add Recording",
@@ -533,17 +544,23 @@ class MetadataListCreator:
                 study_select.value
                 and collection_input.value
                 and label_input.value.strip()
+                and sides_input.value.strip()
             ):
+                sides = [sides_input.value.strip()]
+                if "BOTH" in sides:
+                    sides = ["left", "right"]
                 recording = {
                     "study_shortname": study_select.value,
                     "collection_num": collection_input.value,
                     "label": label_input.value.strip(),
+                    "sides": sides,
                 }
                 self.current_group["recordings"].append(recording)
 
                 # Clear inputs
                 collection_input.value = None
                 label_input.value = None
+                sides_input.value = None
 
                 # Update displays
                 recordings_display.value = self._format_current_recordings()
@@ -565,6 +582,7 @@ class MetadataListCreator:
             study_select,
             collection_input,
             label_input,
+            sides_input,
             recordings_display,
             widgets.HBox([add_recording_button]),
             progress_area,
@@ -579,9 +597,11 @@ class MetadataListCreator:
 
         html = "<h4>Current Recordings:</h4><ul>"
         for rec in self.current_group["recordings"]:
+            sides_str = ", ".join(rec["sides"])
             html += (
                 f"<li><strong>{rec['study_shortname']}</strong> - Collection: "
-                f"{rec['collection_num']} - Label: {rec['label']}</li>"
+                f"{rec['collection_num']} - Label: {rec['label']}"
+                f" - Sides: {sides_str}</li>"
             )
         html += "</ul>"
         return html
