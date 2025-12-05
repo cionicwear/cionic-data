@@ -893,6 +893,7 @@ class MetricsExtractor:
                     - study_shortname (str): Study identifier
                     - collection_num (int): Collection number
                     - label (str): Specific activity label within the collection
+                    - sides (list): Sides of body to include
             stream_definitions (list): List of dictionaries defining which kinematic
                 streams to analyze. Each definition should contain:
                 - stream (str): Stream type (e.g., 'euler', 'gyro', 'accel')
@@ -953,6 +954,7 @@ class MetricsExtractor:
                 study_shortname = recording["study_shortname"]
                 collection_num = recording["collection_num"]
                 label = recording["label"]
+                sides = recording["sides"]
                 npz = api.download_npz_from_metadata(
                     org_shortname=org_shortname,
                     study_shortname=study_shortname,
@@ -964,9 +966,6 @@ class MetricsExtractor:
                 )
                 segs = npz["segments"]
                 segment_nums = np.unique(segs[segs["label"] == label]["segment_num"])
-                sides = np.unique(segs[segs["label"] == label]["side"])
-                mask = sides != ""
-                sides = sides[mask]
 
                 for segment_num, side, stream_definition in itertools.product(
                     segment_nums, sides, self.stream_definitions
