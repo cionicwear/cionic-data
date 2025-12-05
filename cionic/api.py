@@ -579,7 +579,7 @@ def download_file(
         print(f"already exists {destpath}", file=sys.stderr)
         return False
 
-    print(f"getting {destpath}", file=sys.stderr)
+    print(f"getting {os.path.abspath(destpath)}", file=sys.stderr)
 
     r = requests.get(url, stream=True, headers=headers)
     with destpath.open(mode='wb') as fp:
