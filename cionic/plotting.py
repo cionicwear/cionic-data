@@ -238,8 +238,8 @@ class StreamsPlotter:
         study_shortname: str,
         collection_num: int,
         tokenpath: str,
-        outdir: str,
-        segmented: bool,
+        outdir: str = "recordings",
+        segmented: bool = True,
         overwrite: bool = False,
         peak_kwargs: Optional[Dict] = None,
     ) -> None:
@@ -262,6 +262,16 @@ class StreamsPlotter:
         )
         self.segs = self.npz['segments']
 
+    def subplots(self, nrows, ncols, figsize=None, dpi=DPI, **kwargs):
+        if figsize is None:
+            figsize = (10, 3 * nrows)
+        fig, axs = plt.subplots(
+            nrows, ncols, figsize=figsize, dpi=dpi, sharex=True, **kwargs
+        )
+        for ax in axs:
+            format_axis(ax)
+        return fig, axs
+
     def plot_stream(
         self,
         ax: Axes,
@@ -272,6 +282,8 @@ class StreamsPlotter:
         component: str,
         color: str,
         title: str,
+        x_label: str = "Elapsed Time (s)",
+        y_label: str = "Euler (deg)",
     ) -> None:
         """Plot kinematic stream data on the given axes."""
         segs_subset = self.segs[
@@ -286,11 +298,17 @@ class StreamsPlotter:
                 stream["elapsed_s"], stream[component], label=label_name, color=color
             )
         ax.legend(loc="upper right")
-        ax.set_title(f"    {title}", loc="left", fontweight="bold")
-        ax.set_xlabel("Elapsed Time (s)")
-        ax.set_ylabel("Euler (deg)")
-        ax.spines['right'].set_visible(False)
-        ax.spines['top'].set_visible(False)
+        if title:
+            ax.set_title(
+                f"  {title}",
+                loc="left",
+                fontsize=TITLE_FONT_SIZE,
+                fontweight=FONT_WEIGHT,
+            )
+        if x_label:
+            ax.set_xlabel(x_label, fontsize=LABEL_FONT_SIZE, fontweight=FONT_WEIGHT)
+        if y_label:
+            ax.set_ylabel(y_label, fontsize=LABEL_FONT_SIZE, fontweight=FONT_WEIGHT)
 
     def plot_stride_splits(
         self,
