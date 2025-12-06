@@ -230,7 +230,31 @@ def format_axis(ax: Axes) -> None:
 
 
 class StreamsPlotter:
-    """Plotter for visualizing kinematic streams with gait events."""
+    """
+    Visualization class for plotting kinematic data streams with gait event annotations.
+
+    This class provides functionality to visualize time-series kinematic data with
+    overlaid gait events such as stride boundaries and walking periods. It's designed
+    for exploratory data analysis and quality assessment of gait data.
+
+    The plotter automatically downloads and processes NPZ data files, extracts relevant
+    segments based on labels, and provides methods to create time-series plots with
+    standardized formatting.
+
+    Key Features:
+    - Automatic data loading from Cionic API
+    - Multi-stream plotting with synchronized time axes
+    - Gait event overlays (stride splits, walking periods)
+    - Standardized plot formatting and styling
+    - Flexible subplot arrangements
+
+    Typical Usage:
+    1. Initialize with study/collection identifiers
+    2. Create subplot layout with subplots()
+    3. Plot streams with plot_stream()
+    4. Add gait events with plot_stride_splits() and shade_walking_periods()
+    5. Clip view to relevant periods with clip_non_gait_edges()
+    """
 
     def __init__(
         self,
@@ -243,7 +267,23 @@ class StreamsPlotter:
         overwrite: bool = False,
         peak_kwargs: Optional[Dict] = None,
     ) -> None:
-        """Initialize StreamsPlotter with data source parameters."""
+        """
+        Initialize StreamsPlotter with data source parameters and download NPZ data.
+
+        Args:
+            org_shortname: Organization identifier (e.g., "cionic")
+            study_shortname: Study protocol name (e.g., "Parkinsons")
+            collection_num: Unique collection session identifier
+            tokenpath: Path to authentication token file for API access
+            outdir: Directory for caching downloaded NPZ files. Defaults to "recordings"
+            segmented: Whether to download segmented data. Defaults to True
+            overwrite: Whether to re-download existing NPZ files. Defaults to False
+            peak_kwargs: Optional parameters for stride detection algorithms
+
+        Raises:
+            Exception: If API authentication fails or data cannot be downloaded
+            FileNotFoundError: If token file is not found
+        """
         self.org_shortname = org_shortname
         self.study_shortname = study_shortname
         self.collection_num = collection_num
@@ -262,7 +302,23 @@ class StreamsPlotter:
         )
         self.segs = self.npz['segments']
 
-    def subplots(self, nrows, ncols, figsize=None, dpi=DPI, **kwargs):
+    def subplots(
+        self, nrows: int, ncols: int, figsize: Tuple[int, int] = None, dpi=DPI, **kwargs
+    ):
+        """
+        Create a subplot layout with standardized formatting for stream visualization.
+
+        Args:
+            nrows: Number of subplot rows
+            ncols: Number of subplot columns
+            figsize: Figure size (width, height) in inches. If None, auto-calculated
+                as (10, 3*nrows) for optimal stream visualization
+            dpi: Figure resolution in dots per inch. Defaults to module DPI constant
+            **kwargs: Additional arguments passed to plt.subplots()
+
+        Returns:
+            tuple: (fig, axs) - matplotlib Figure and array of Axes objects
+        """
         if figsize is None:
             figsize = (10, 3 * nrows)
         fig, axs = plt.subplots(
