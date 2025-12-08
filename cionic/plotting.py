@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -303,7 +303,12 @@ class StreamsPlotter:
         self.segs = self.npz['segments']
 
     def subplots(
-        self, nrows: int, ncols: int, figsize: Tuple[int, int] = None, dpi=DPI, **kwargs
+        self,
+        nrows: int = 1,
+        ncols: int = 1,
+        figsize: Tuple[int, int] = None,
+        dpi=DPI,
+        **kwargs,
     ):
         """
         Create a subplot layout with standardized formatting for stream visualization.
@@ -324,20 +329,23 @@ class StreamsPlotter:
         fig, axs = plt.subplots(
             nrows, ncols, figsize=figsize, dpi=dpi, sharex=True, **kwargs
         )
-        for ax in axs:
-            format_axis(ax)
+        if isinstance(axs, np.ndarray):
+            for ax in axs:
+                format_axis(ax)
+        else:
+            format_axis(axs)
         return fig, axs
 
     def plot_stream(
         self,
         ax: Axes,
         label: str,
-        label_name: str,
         position: str,
         stream_name: str,
         component: str,
-        color: str,
-        title: str,
+        label_name: str = None,
+        color: str = None,
+        title: str = None,
         x_label: str = "Elapsed Time (s)",
         y_label: str = "Euler (deg)",
     ) -> None:
@@ -347,6 +355,7 @@ class StreamsPlotter:
             & (self.segs["position"] == position)
             & (self.segs["stream"] == stream_name)
         ]
+        color = color if color else "steelblue"
         for i, seg in enumerate(segs_subset):
             stream = self.npz[seg["path"]]
             label_name = label_name if i == 0 else None
@@ -431,11 +440,23 @@ class StreamsPlotter:
     def clip_non_gait_edges(
         self,
         ax: Axes,
-        label_list: List[str],
+        label_list: Union[str, List[str]],
         position: str,
         stream_name: str = "walking_periods",
     ) -> None:
-        """Clip plot view to exclude non-gait periods."""
+        """
+        Clip plot view to exclude non-gait periods based on walking period boundaries.
+
+        Args:
+            ax: Matplotlib axes object to modify
+            label_list: Label(s) to include in analysis. Can be a single string
+                or list of strings for multiple labels
+            position: Anatomical position (e.g., "l_shank")
+            stream_name: Stream containing walking period data."
+        """
+        # Normalize label_list to always be a list
+        if isinstance(label_list, str):
+            label_list = [label_list]
         segs = self.npz["segments"]
         segs = segs[segs["stream"] == stream_name]
         segs = segs[np.isin(segs["label"], label_list)]
