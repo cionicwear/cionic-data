@@ -316,7 +316,7 @@ def compute_stance_trough_value(
         component (str): Component name to analyze.
 
     Returns:
-        float: Mean value, or None if data is empty or time is None.
+        float: Trough value, or None if data is empty or time is None.
     """
     if stride_data.shape[0] == 0 or toe_off_time is None:
         return None
