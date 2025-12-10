@@ -155,6 +155,16 @@ def compute_trough_value(stride_data: np.recarray, component: str = 'x') -> floa
 
 
 def compute_range_value(stride_data: np.recarray, component: str = 'x') -> float:
+    """
+    Compute the range value of a component during the stride.
+
+    Args:
+        stride_data (np.recarray): Stride data, NumPy record with 'elapsed_s' field.
+        component (str): Component name to analyze.
+
+    Returns:
+        float: Range value, or None if data is empty.
+    """
     if stride_data.shape[0] == 0:
         return None
     return compute_peak_value(stride_data, component) - compute_trough_value(
