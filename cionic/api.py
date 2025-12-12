@@ -579,7 +579,7 @@ def download_file(
         print(f"already exists {destpath}", file=sys.stderr)
         return False
 
-    print(f"getting {destpath}", file=sys.stderr)
+    print(f"getting {os.path.abspath(destpath)}", file=sys.stderr)
 
     r = requests.get(url, stream=True, headers=headers)
     with destpath.open(mode='wb') as fp:
@@ -593,7 +593,7 @@ def download_npz_from_metadata(
     study_shortname: str,
     collection_num: int,
     tokenpath: str,
-    outdir: str = '.',
+    outdir: str = "recordings",
     overwrite: bool = False,
     segmented: bool = False,
     include_eulers: bool = True,
@@ -698,7 +698,7 @@ def download_files_from_metadata(
     study_shortname: str,
     collection_num: int,
     tokenpath: str,
-    outdir: str = '.',
+    outdir: str = 'recordings',
     include: list = None,
     exclude: list = None,
 ) -> tuple[str, str]:

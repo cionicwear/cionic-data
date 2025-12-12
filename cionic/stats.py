@@ -238,7 +238,7 @@ def coefficient_of_variation(sd: float, mean: float) -> float:
     Returns:
         float: Coefficient of variation in percent. Returns np.nan if mean is zero.
     """
-    return (sd / mean) * 100 if mean != 0 else np.nan
+    return (sd / np.abs(mean)) * 100 if mean != 0 else np.nan
 
 
 def bootstrap_ci(
@@ -316,6 +316,7 @@ def summarize_metric_distribution(
     robust_cv_val = coefficient_of_variation(robust_sd_val, mean_val)
 
     # Bootstrap CIs
+    mean_ci, _ = bootstrap_ci(np.mean, values, n_boot=n_boot)
     sd_ci, _ = bootstrap_ci(lambda arr: np.std(arr, ddof=1), values, n_boot=n_boot)
     cv_ci, _ = bootstrap_ci(
         lambda arr: coefficient_of_variation(np.std(arr, ddof=1), np.mean(arr)),
@@ -331,6 +332,7 @@ def summarize_metric_distribution(
         "robust_sd": robust_sd_val,
         "cv": cv_val,
         "robust_cv": robust_cv_val,
+        "mean_ci": mean_ci,
         "sd_ci": sd_ci,
         "cv_ci": cv_ci,
     }
