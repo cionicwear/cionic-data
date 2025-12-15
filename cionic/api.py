@@ -614,7 +614,7 @@ def download_npz_from_metadata(
         overwrite (bool, optional): Whether to overwrite the file if it exists.
         segmented (bool, optional): If True, loads and returns segmented data.
         include_eulers (bool, optional): Whether to include Eulers in the download.
-        include_filtered_emgs: (bool, optional): Whether to include filtered EMGs in
+        include_filtered_emgs (bool, optional): Whether to include filtered EMGs in
             the download.
         include_gait_splits (bool, optional): Whether to include gait splits in
             the download.
