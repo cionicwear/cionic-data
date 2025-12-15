@@ -895,8 +895,6 @@ def include_filtered_emgs_to_npz(destpath: str) -> None:
     Args:
         destpath (str): The file path to the .npz file to be updated.
 
-    Returns:
-        None
     """
     try:
         npz = np.load(destpath)
