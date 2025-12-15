@@ -17,6 +17,7 @@ from cionic import bno080frps, dsp, kinematics_setup, npz_utils
 
 HP_PARAMS = {"filter_order": 5, "cutoff_freq": 50, "sampling_rate": 2000}
 RMS_PARAMS = {"window_size": 301}
+N_INTERP = 100
 
 ADS119X_ID = 0xB6
 ADS129X_ID = 0x92
@@ -241,6 +242,44 @@ def process_raw_emg_stream(
     }
     stream_timestamped = np.array(list(zip(*streams_list, elapsed_s)), dtype=dtype)
     return stream_timestamped
+
+
+def get_filtered_emgs(
+    npz: np.lib.npyio.NpzFile,
+) -> tuple[dict[str, np.recarray], np.recarray]:
+    """
+    Extract filtered EMG streams from an NPZ archive.
+
+    Args:
+        npz (np.lib.npyio.NpzFile): Loaded NPZ archive.
+
+    Returns:
+        tuple:
+            - dict[str, np.recarray]: A dictionary mapping each EMG stream path to its
+                filtered data as a NumPy ndarray.
+            - np.recarray: Array of new segment metadata dicts for the filtered EMG
+                streams.
+    """
+    print("getting filtered emgs from npz", file=sys.stderr)
+    filtered_emgs = {}
+    new_emg_segments = []
+    for seg in npz_utils.change_segments_column_dtype(npz["segments"]):
+        if seg["stream"] != "emg":
+            continue
+        stream = process_raw_emg_stream(stream_timestamped=npz[seg["path"]])
+        names = seg["chanpos"].split(" ") + ["elapsed_s"]
+        new_dtype = np.dtype({"names": names, "formats": ["f8"] * len(names)})
+        stream = np.array(stream, dtype=new_dtype)
+        emg_path = f"{seg['path']}_filtered"
+        filtered_emgs[emg_path] = stream
+
+        new_segment = seg.copy()
+        new_segment["path"] = emg_path
+        new_segment["stream"] = "emg_filtered"
+        new_segment["fields"] = seg["chanpos"]
+        new_emg_segments.append(new_segment)
+
+    return filtered_emgs, np.array(new_emg_segments)
 
 
 def convert_uV(raw_data, v_ref, channel_gain):
