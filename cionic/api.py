@@ -256,14 +256,14 @@ def get_study_metadata(sxid, orgid, tokenpath=None, **kwargs):
 def download_collections(
     colls, npzdir, tokenpath=None, segfile=None, segsuffix=None, segroot=None
 ):
-    '''Download .npz files to npzdir for the given list of collections.
+    """Download .npz files to npzdir for the given list of collections.
     Return list of segment metadata dicts.
 
     colls: entries returned by meta(), possibly filtered
     npzdir: output directory to store downloaded npz data files
     tokenpath: pathname with auth token
     segfile: file of labels to segment on
-    '''
+    """
     if tokenpath is not None:
         auth(tokenpath)
 
@@ -898,9 +898,6 @@ def include_filtered_emgs_to_npz(destpath: str) -> None:
 
     Returns:
         None
-
-    Raises:
-        FileNotFoundError: If the specified file does not exist.
     """
     try:
         npz = np.load(destpath)
@@ -921,7 +918,7 @@ def include_filtered_emgs_to_npz(destpath: str) -> None:
 
 
 def include_gait_splits_to_npz(destpath: str, peak_kwargs: dict = None) -> None:
-    '''
+    """
     Loads a NumPy .npz file from the specified path, computes gait split arrays and
     updated segments, and adds them to the .npz file.
 
@@ -931,10 +928,7 @@ def include_gait_splits_to_npz(destpath: str, peak_kwargs: dict = None) -> None:
 
     Returns:
         None
-
-    Raises:
-        FileNotFoundError: If the specified file does not exist.
-    '''
+    """
     try:
         npz = np.load(destpath)
     except FileNotFoundError:
@@ -972,7 +966,7 @@ def create_new_segment_helper(segment: np.void, path: str, stream: str) -> np.vo
 def get_splits_arrays_and_segments(
     npz: np.lib.npyio.NpzFile, peak_kwargs: dict = None
 ) -> tuple[dict[str, np.recarray], np.recarray]:
-    '''
+    """
     Processes segments in the given npz file, generating new arrays and segments
     for walking intervals and paired walking splits based on segment properties.
 
@@ -983,7 +977,7 @@ def get_splits_arrays_and_segments(
     Returns:
         tuple[dict[str, np.recarray], np.recarray]: A dictionary of new arrays keyed
         by path, and an updated array of segments.
-    '''
+    """
     new_files = {}
     new_segments = []
     for segment in npz['segments']:
@@ -1042,7 +1036,7 @@ def get_grouped_walking_periods_as_array(
     component: str = "x",
     peak_kwargs: dict = None,
 ) -> np.recarray:
-    '''
+    """
     Convert grouped walking splits from time series into a structured NumPy array.
 
     Args:
@@ -1052,7 +1046,7 @@ def get_grouped_walking_periods_as_array(
 
     Returns:
         np.recarray: Structured array with start, stop, and elapsed times.
-    '''
+    """
     grouped_walking_periods = kinematics.get_grouped_walking_splits(
         kinematic_time_series=kinematic_time_series,
         component=component,
@@ -1075,7 +1069,7 @@ def get_paired_stride_splits_as_array(
     n_stop_remove: int = 0,
     peak_kwargs: dict = None,
 ) -> np.recarray:
-    '''
+    """
     Convert paired walking splits from time series into a structured NumPy array.
 
     Args:
@@ -1087,7 +1081,7 @@ def get_paired_stride_splits_as_array(
 
     Returns:
         np.recarray: Structured array with start, stop, and elapsed times.
-    '''
+    """
     paired_stride_splits = kinematics.get_paired_walking_splits(
         kinematic_time_series=kinematic_time_series,
         component=component,
