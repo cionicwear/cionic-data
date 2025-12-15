@@ -623,13 +623,13 @@ class StreamsSplitsPlotter:
 
         if individuals:
             for i in range(long_matrix.shape[0]):
-                label = label_name if i == 0 else None
+                plot_label = label_name if i == 0 else None
                 ax.plot(
                     long_matrix[i, :],
                     color=lighten(color, amount=0.05),
                     lw=0.8,
                     alpha=0.7,
-                    label=label,
+                    label=plot_label,
                 )
         else:
             ax.plot(
