@@ -680,8 +680,7 @@ def download_npz(
         urlpath (str): The URL or identifier used to locate the .npz file.
         overwrite (bool): If True, overwrite the file if it already exists.
         include_eulers (bool): Whether to include Eulers in the download.
-        include_filtered_emgs: (bool, optional): Whether to include filtered EMGs in
-            the download
+        include_filtered_emgs (bool): Whether to include filtered EMGs in the download.
         include_gait_splits (bool): Whether to include gait splits in the download.
         peak_kwargs (dict, optional): Additional parameters for peak detection.
 
