@@ -265,17 +265,36 @@ def get_filtered_emgs(
     for seg in npz_utils.change_segments_column_dtype(npz["segments"]):
         if seg["stream"] != "emg":
             continue
-        stream = process_raw_emg_stream(stream_timestamped=npz[seg["path"]])
-        names = seg["chanpos"].split(" ") + ["elapsed_s"]
-        new_dtype = np.dtype({"names": names, "formats": ["f8"] * len(names)})
-        stream = np.array(stream, dtype=new_dtype)
+
+        # Get the original stream and process it
+        processed_stream = process_raw_emg_stream(stream_timestamped=npz[seg["path"]])
+
+        new_field_names = seg["chanpos"].split(" ") + ["elapsed_s"]
+        # Validate chanpos segments entry length matches processed stream fields
+        if len(new_field_names) == len(processed_stream.dtype.names):
+            new_dtype = np.dtype(
+                {"names": new_field_names, "formats": ["f8"] * len(new_field_names)}
+            )
+            processed_stream = np.array(processed_stream, dtype=new_dtype)
+        else:
+            print(
+                (
+                    f"Warning: number chanpos fields {new_field_names} do not match "
+                    f"processed stream fields {processed_stream.dtype.names} for "
+                    f"{seg['path']}. Using processed stream fields."
+                ),
+                file=sys.stderr,
+            )
+            new_field_names = processed_stream.dtype.names
+
+        # Store the processed stream with validated field names
         emg_path = f"{seg['path']}_filtered"
-        filtered_emgs[emg_path] = stream
+        filtered_emgs[emg_path] = processed_stream
 
         new_segment = seg.copy()
         new_segment["path"] = emg_path
         new_segment["stream"] = "emg_filtered"
-        new_segment["fields"] = seg["chanpos"]
+        new_segment["fields"] = " ".join(new_field_names)
         new_emg_segments.append(new_segment)
 
     return filtered_emgs, np.array(new_emg_segments)
