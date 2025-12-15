@@ -619,6 +619,9 @@ class StreamsSplitsPlotter:
             )
             long_matrix_list.append(matrix)
 
+        if not long_matrix_list:
+            return
+
         long_matrix = np.concatenate(long_matrix_list, axis=0)
 
         if individuals:
