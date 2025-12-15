@@ -301,8 +301,8 @@ def get_filtered_emgs(
     if new_emg_segments:
         return filtered_emgs, np.array(new_emg_segments)
     else:
-        # Get the dtype from original segments array (taking the last seg is sufficient)
-        empty_segments = np.array([], dtype=seg.dtype)
+        # Get the dtype from original segments array
+        empty_segments = np.array([], dtype=npz["segments"].dtype)
         return filtered_emgs, empty_segments
 
 
