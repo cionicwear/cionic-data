@@ -496,7 +496,22 @@ def get_stride_splits(
 
 
 class StreamsSplitsPlotter:
-    """ """
+    """
+    Provides visualization tools for plotting stride splits from NPZ data files.
+
+    Key Features:
+        - Downloads and caches NPZ data using API metadata and authentication.
+        - Supports both segmented and unsegmented data.
+        - Provides methods for creating subplots of stride splits for different labels
+            and segments.
+        - Allows customization of output directory, segmentation, and stride detection
+            parameters.
+
+    Typical Usage:
+        1. Instantiate the class with organization, study, collection, and auth.
+        2. Use the `subplots` method to create custom figure layouts.
+        3. Use the `plot_splits` method to visualize stride splits.
+    """
 
     def __init__(
         self,
