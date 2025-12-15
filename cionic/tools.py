@@ -17,7 +17,6 @@ from cionic import bno080frps, dsp, kinematics_setup, npz_utils
 
 HP_PARAMS = {"filter_order": 5, "cutoff_freq": 50, "sampling_rate": 2000}
 RMS_PARAMS = {"window_size": 301}
-N_INTERP = 100
 
 ADS119X_ID = 0xB6
 ADS129X_ID = 0x92
