@@ -440,7 +440,7 @@ class StreamsPlotter:
     def clip_non_gait_edges(
         self,
         ax: Axes,
-        label_list: Union[str, List[str]],
+        label: Union[str, List[str]],
         position: str,
         stream_name: str = "walking_periods",
     ) -> None:
@@ -449,17 +449,17 @@ class StreamsPlotter:
 
         Args:
             ax: Matplotlib axes object to modify
-            label_list: Label(s) to include in analysis. Can be a single string
+            label: Label(s) to include in analysis. Can be a single string
                 or list of strings for multiple labels
             position: Anatomical position (e.g., "l_shank")
             stream_name: Stream containing walking period data."
         """
-        # Normalize label_list to always be a list
-        if isinstance(label_list, str):
-            label_list = [label_list]
+        # Normalize label to always be a list
+        if isinstance(label, str):
+            label = [label]
         segs = self.npz["segments"]
         segs = segs[segs["stream"] == stream_name]
-        segs = segs[np.isin(segs["label"], label_list)]
+        segs = segs[np.isin(segs["label"], label)]
 
         min_time = np.inf
         max_time = -np.inf
