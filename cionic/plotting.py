@@ -307,7 +307,7 @@ class StreamsPlotter:
         nrows: int = 1,
         ncols: int = 1,
         figsize: Tuple[int, int] = None,
-        dpi=DPI,
+        dpi: int = DPI,
         **kwargs,
     ):
         """
@@ -482,7 +482,11 @@ class StreamsPlotter:
 
 
 def get_stride_splits(
-    npz, label, segment_num, position, stream_name: str = "paired_stride_splits"
+    npz: np.lib.npyio.NpzFile,
+    label: str,
+    segment_num: int,
+    position: str,
+    stream_name: str = "paired_stride_splits",
 ):
     segs = npz["segments"]
     segs = segs[segs["label"] == label]
@@ -564,7 +568,7 @@ class StreamsSplitsPlotter:
         nrows: int = 1,
         ncols: int = 1,
         figsize: Tuple[int, int] = None,
-        dpi=DPI,
+        dpi: int = DPI,
         **kwargs,
     ):  # TODO: move to to generic function and share across classes
         """
