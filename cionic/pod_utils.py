@@ -3,10 +3,6 @@
 This module provides functions for loading and preprocessing IMU and sensor data
 from various file formats (CSV, NPZ). It includes utilities for:
 - Loading foot IMU data from CSV files using the Cionic API
-- Processing Euler angles
-- Loading sensor data from NPZ files
-- Visualizing IMU components
-- Loading segmented data
 """
 
 # Third-party imports
@@ -33,6 +29,9 @@ def load_imu_from_csv(
         pd.DataFrame: Processed data with columns:
             - elapsed_s: Time in seconds
             - euler: List of [roll, pitch, yaw] angles
+            - fquat_i/j/k/real: Quaternion components
+            - roll/pitch/yaw: Euler angles (optionally unwrapped)
+            - raw_roll/pitch/yaw: Raw Euler angles before unwrapping (if unwrap_euler)
             - accel_x/y/z: Acceleration components
             - gyro_x/y/z: Gyroscope components
     """
