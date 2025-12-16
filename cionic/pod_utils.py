@@ -36,8 +36,12 @@ def load_imu_from_csv(
             - gyro_x/y/z: Gyroscope components
     """
     # Load CSV files
-    imu_df = pd.read_csv(f"{path}/imu.csv")
-    other_df = pd.read_csv(f"{path}/emg.csv")
+    try:
+        imu_df = pd.read_csv(f"{path}/imu.csv")
+        other_df = pd.read_csv(f"{path}/emg.csv")
+    except FileNotFoundError as e:
+        print(f"Missing file: {e.filename}")
+        return None
 
     # Extract limb-specific data
     quat = imu_df[imu_df["limb"] == position]
@@ -45,7 +49,8 @@ def load_imu_from_csv(
     gyro = other_df[other_df["limb"] == f"{position}_gyro"]
 
     # Convert time to seconds
-    time = (quat["elapsed"] - quat["elapsed"].min()) / 10000.0
+    if not quat.empty:
+        time = (quat["elapsed"] - quat["elapsed"].min()) / 10000.0
 
     # Convert quaternions to euler angles
     eulers = [
