@@ -192,9 +192,9 @@ kinematics_setup = {
             'torso_angle': {
                 'segments': ('upright', 'torso'),
                 'angles': [
-                    {'rename': ('x', 'torso_floor_angle'), 'factor': 1.0},
-                    {'rename': ('y', 'torso_adduction'), 'factor': -1.0},
-                    {'rename': ('z', 'torso_int_rotation'), 'factor': -1.0},
+                    {'rename': ('x', 'torso_sagittal_angle'), 'factor': 1.0},
+                    {'rename': ('y', 'torso_coronal_angle'), 'factor': -1.0},
+                    {'rename': ('z', 'torso_transverse_angle'), 'factor': -1.0},
                 ],
             },
         },
@@ -262,9 +262,9 @@ kinematics_setup = {
             'torso_angle': {
                 'segments': ('upright', 'torso'),
                 'angles': [
-                    {'rename': ('x', 'torso_floor_angle'), 'factor': 1.0},
-                    {'rename': ('y', 'torso_adduction'), 'factor': -1.0},
-                    {'rename': ('z', 'torso_int_rotation'), 'factor': -1.0},
+                    {'rename': ('x', 'torso_sagittal_angle'), 'factor': 1.0},
+                    {'rename': ('y', 'torso_coronal_angle'), 'factor': -1.0},
+                    {'rename': ('z', 'torso_transverse_angle'), 'factor': -1.0},
                 ],
             },
         },
