@@ -27,16 +27,17 @@ class Unwrap:
         wrapdir (int): Established wrap direction (-1 or 1)
     """
 
-    def __init__(self):
+    def __init__(self, limit_rotation=False):
         """Initialize unwrapper with default state."""
         self.prev_x = 0
         self.curr_x = 0
         self.wrap_around = 0
+        self.limit_rotation = limit_rotation
 
-        # uncomment for applications where rotation is limited to 360 degrees
-        # # Variables for wrap direction consistency
-        # self.wrapdir_set = False
-        # self.wrapdir = 0
+        # Variables for wrap direction consistency
+        if limit_rotation:
+            self.wrapdir_set = False
+            self.wrapdir = 0
 
     def process(self, x: float) -> float:
         """Process a new angle value, unwrapping if necessary.
@@ -54,27 +55,28 @@ class Unwrap:
         threshold = 10 * np.pi / 8  # 10/8 of a full circle in radians
         if x - self.prev_x < -threshold:
             self.wrap_around += 1
-            # uncomment for applications where rotation is limited to 360 degrees
-            # if not self.wrapdir_set:
-            #     self.wrapdir = 1
-            #     self.wrapdir_set = True
+            if self.limit_rotation and not self.wrapdir_set:
+                # only for cases where rotation is limited to 360 deg
+                self.wrapdir = 1
+                self.wrapdir_set = True
         elif x - self.prev_x > threshold:
             self.wrap_around -= 1
-            # uncomment for applications where rotation is limited to 360 degrees
-            # if not self.wrapdir_set:
-            #     self.wrapdir = -1
-            #     self.wrapdir_set = True
+            if self.limit_rotation and not self.wrapdir_set:
+                # only for cases where rotation is limited to 360 deg
+                self.wrapdir = -1
+                self.wrapdir_set = True
 
-        # uncomment for applications where rotation is limited to 360 degrees
-        # # Only allow wrap in one direction once established
-        # if self.wrapdir == -1 and self.wrap_around > 0:
-        #     self.wrap_around = 0
-        # if self.wrapdir == 1 and self.wrap_around < 0:
-        #     self.wrap_around = 0
+        # for applications where rotation is limited to 360 degrees
+        if self.limit_rotation:
+            # Only allow wrap in one direction once established
+            if self.wrapdir == -1 and self.wrap_around > 0:
+                self.wrap_around = 0
+            if self.wrapdir == 1 and self.wrap_around < 0:
+                self.wrap_around = 0
 
-        # # Restrict wrap_around to -1, 0, 1
-        # self.wrap_around = min(self.wrap_around, 1)
-        # self.wrap_around = max(self.wrap_around, -1)
+            # Restrict wrap_around to -1, 0, 1
+            self.wrap_around = min(self.wrap_around, 1)
+            self.wrap_around = max(self.wrap_around, -1)
 
         # Update prev_x and curr_x values
         self.prev_x = x
