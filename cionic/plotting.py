@@ -229,6 +229,40 @@ def format_axis(ax: Axes) -> None:
     ax.spines["top"].set_visible(False)
 
 
+def create_subplots(
+    nrows: int = 1,
+    ncols: int = 1,
+    figsize: Tuple[int, int] = None,
+    dpi: int = DPI,
+    **kwargs,
+) -> Tuple[Figure, Union[Axes, np.ndarray]]:
+    """
+    Create a subplot layout with standardized formatting for stream visualization.
+
+    Args:
+        nrows: Number of subplot rows
+        ncols: Number of subplot columns
+        figsize: Figure size (width, height) in inches. If None, auto-calculated
+            as (10, 3*nrows) for optimal stream visualization
+        dpi: Figure resolution in dots per inch. Defaults to module DPI constant
+        **kwargs: Additional arguments passed to plt.subplots()
+
+    Returns:
+        tuple: (fig, axs) - matplotlib Figure and array of Axes objects
+    """
+    if figsize is None:
+        figsize = (10, 3 * nrows)
+    fig, axs = plt.subplots(
+        nrows, ncols, figsize=figsize, dpi=dpi, sharex=True, **kwargs
+    )
+    if isinstance(axs, np.ndarray):
+        for ax in axs:
+            format_axis(ax)
+    else:
+        format_axis(axs)
+    return fig, axs
+
+
 class StreamsPlotter:
     """
     Visualization class for plotting kinematic data streams with gait event annotations.
@@ -309,7 +343,7 @@ class StreamsPlotter:
         figsize: Tuple[int, int] = None,
         dpi: int = DPI,
         **kwargs,
-    ):
+    ) -> Tuple[Figure, Union[Axes, np.ndarray]]:
         """
         Create a subplot layout with standardized formatting for stream visualization.
 
@@ -324,17 +358,7 @@ class StreamsPlotter:
         Returns:
             tuple: (fig, axs) - matplotlib Figure and array of Axes objects
         """
-        if figsize is None:
-            figsize = (10, 3 * nrows)
-        fig, axs = plt.subplots(
-            nrows, ncols, figsize=figsize, dpi=dpi, sharex=True, **kwargs
-        )
-        if isinstance(axs, np.ndarray):
-            for ax in axs:
-                format_axis(ax)
-        else:
-            format_axis(axs)
-        return fig, axs
+        return create_subplots(nrows, ncols, figsize, dpi, **kwargs)
 
     def plot_stream(
         self,
@@ -583,7 +607,7 @@ class StreamsSplitsPlotter:
         figsize: Tuple[int, int] = None,
         dpi: int = DPI,
         **kwargs,
-    ):  # TODO: move to to generic function and share across classes
+    ) -> Tuple[Figure, Union[Axes, np.ndarray]]:
         """
         Create a subplot layout with standardized formatting for stream visualization.
 
@@ -598,17 +622,7 @@ class StreamsSplitsPlotter:
         Returns:
             tuple: (fig, axs) - matplotlib Figure and array of Axes objects
         """
-        if figsize is None:
-            figsize = (10, 3 * nrows)
-        fig, axs = plt.subplots(
-            nrows, ncols, figsize=figsize, dpi=dpi, sharex=True, **kwargs
-        )
-        if isinstance(axs, np.ndarray):
-            for ax in axs:
-                format_axis(ax)
-        else:
-            format_axis(axs)
-        return fig, axs
+        return create_subplots(nrows, ncols, figsize, dpi, **kwargs)
 
     def plot_splits(
         self,
