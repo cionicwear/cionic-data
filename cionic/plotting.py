@@ -667,13 +667,13 @@ class StreamsSplitsPlotter:
                     label=plot_label,
                 )
         else:
+            stride_mean = np.mean(long_matrix, axis=0)
             ax.plot(
-                np.mean(long_matrix, axis=0),
+                stride_mean,
                 color=color,
                 lw=2,
                 label=label_name,
             )
-            stride_mean = np.mean(long_matrix, axis=0)
             stride_std = np.std(long_matrix, axis=0)
             ax.fill_between(
                 np.arange(len(stride_mean)),
