@@ -483,13 +483,26 @@ class StreamsPlotter:
 
 def get_stride_splits(
     npz: np.lib.npyio.NpzFile,
-    label: str,
     segment_num: int,
     position: str,
     stream_name: str = "paired_stride_splits",
 ):
-    segs = npz["segments"]
-    segs = segs[segs["label"] == label]
+    """
+    Retrieve stride split data from an NPZ file for a specific segment and position.
+
+    Args:
+        npz: Loaded NPZ file containing segmented gait data and metadata
+        segment_num: Unique segment number to target for stride split extraction
+        position: Anatomical position identifier (e.g., "l_thigh", "r_shank")
+            specifying the sensor location for stride detection
+        stream_name: Name of the stream containing stride split data.
+            Defaults to "paired_stride_splits"
+
+    Returns:
+        np.ndarray or None: Array of stride split data containing timing information
+            for stride boundaries, or None if no matching data is found. Each element
+            typically contains 'start_s', 'stop_s', and 'duration'.
+    """
     paired_stride_splits = npz_utils.retrieve_stream(
         npz=npz,
         position=position,
