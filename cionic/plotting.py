@@ -652,7 +652,6 @@ class StreamsSplitsPlotter:
             stream = self.npz[seg["path"]]
             stride_splits = get_stride_splits(
                 npz=self.npz,
-                label=label,
                 segment_num=seg["segment_num"],
                 position=splits_position,
             )
