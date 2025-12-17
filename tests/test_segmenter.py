@@ -59,7 +59,59 @@ import zipfile
 import numpy as np
 import pytest
 
-from cionic.segmenter import segmentize_walking_periods
+from cionic.segmenter import load_boundary_times, segmentize_walking_periods
+
+
+class TestLoadBoundaryTimes:
+    """Test suite for load_boundary_times function."""
+
+    def test_empty_boundaries_creates_default_boundary(self):
+        """Test that when boundaries list is empty, a default boundary is created."""
+        # Create mock npz data with segments table
+        segments = np.array(
+            [(0.0, 10.0), (5.0, 15.0)], dtype=[('start_s', 'f8'), ('end_s', 'f8')]
+        )
+
+        # Create mock npz dict
+        mock_npz = {
+            'segments': segments,
+            # No 'gwlabels.jsonl' key - this simulates empty boundaries
+        }
+
+        result = load_boundary_times(mock_npz, segfile='gwlabels.jsonl')
+
+        # Should return a single default boundary
+        assert isinstance(result, list)
+        assert len(result) == 1
+
+        boundary = result[0]
+        assert boundary['add']['label'] == 'full'
+        assert boundary['add']['segment_num'] == 0
+        assert boundary['start_s'] == 0.0  # min time from segments
+        assert boundary['end_s'] == 15.0  # max time from segments
+        assert boundary['segment'] == 0
+
+    def test_empty_boundaries_with_existing_but_empty_segfile(self):
+        """Test when segfile exists but contains empty boundaries list."""
+        segments = np.array(
+            [
+                (1.0, 9.0),
+            ],
+            dtype=[('start_s', 'f8'), ('end_s', 'f8')],
+        )
+
+        # Mock npz with empty boundaries in the segfile
+        mock_npz = {'segments': segments, 'gwlabels.jsonl': b''}  # Empty jsonl content
+
+        result = load_boundary_times(mock_npz)
+
+        # Should return default boundary even when segfile exists but is empty
+        assert len(result) == 1
+        boundary = result[0]
+        assert boundary['add']['label'] == 'full'
+        assert boundary['add']['segment_num'] == 0
+        assert boundary['start_s'] == 1.0
+        assert boundary['end_s'] == 9.0
 
 
 class TestSegmentizeWalkingPeriods:
