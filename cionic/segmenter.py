@@ -297,7 +297,11 @@ def load_boundary_times(npz, segfile='gwlabels.jsonl'):
     times = []
     max_time = np.max(npz['segments']['end_s'])
     min_time = np.min(npz['segments']['start_s'])
-    boundaries = json2npy.from_jsonl(npz[segfile].split(b"\n"))
+    if segfile in npz:
+        boundaries = json2npy.from_jsonl(npz[segfile].split(b"\n"))
+    else:
+        boundaries = []
+
     if len(boundaries) == 0:
         # Match expected keys for a boundary
         boundary = {
