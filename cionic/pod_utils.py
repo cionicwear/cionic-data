@@ -36,8 +36,8 @@ def load_imu_from_csv(
     try:
         imu_df = pd.read_csv(f"{path}/imu.csv")
         other_df = pd.read_csv(f"{path}/emg.csv")
-    except FileNotFoundError as e:
-        print(f"Missing file: {e.filename}")
+    except (FileNotFoundError, pd.errors.EmptyDataError):
+        print(f"Missing or invalid file: {path}/imu.csv or {path}/emg.csv")
         return None
 
     # Extract limb-specific data
