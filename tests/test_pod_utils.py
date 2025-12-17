@@ -1,3 +1,20 @@
+"""
+Usage: pytest tests/test_pod_utils.py
+
+Unit tests for the `load_imu_from_csv` function in the `pod_utils` module.
+
+These tests verify the correct behavior of loading and preprocessing IMU data from CSV
+files based on specified limb positions. The tests cover the following scenarios:
+
+- Normal case with valid files and data.
+- Handling of missing or invalid input files.
+
+Test Cases:
+    - test_load_imu_from_csv_normal: Validates loading and processing of IMU data.
+    - test_load_imu_from_csv_missing_file: Ensures handling of missing input files.
+    - test_load_imu_from_csv_empty: Ensures handling of empty input files.
+"""
+
 import numpy as np
 import pandas as pd
 
@@ -5,7 +22,12 @@ from cionic.pod_utils import load_imu_from_csv
 
 
 def make_test_csvs(tmp_path, position="r_shank"):
-    """Helper to create minimal valid imu.csv and emg.csv for a given limb position."""
+    """Helper to create minimal valid imu.csv and emg.csv for a given limb position.
+
+    Args:
+        tmp_path: Temporary directory path for test files.
+        position: Limb position string for IMU data.
+    """
     imu = pd.DataFrame(
         {
             "limb": [position] * 3,
@@ -31,7 +53,16 @@ def make_test_csvs(tmp_path, position="r_shank"):
 
 
 def test_load_imu_from_csv_normal(tmp_path):
-    """Test normal case: valid files and data for a limb position."""
+    """Test normal case: valid files and data for a limb position.
+
+    Args:
+        tmp_path: Temporary directory path for test files.
+
+    Asserts:
+        Existence of loaded and processed DataFrame columns.
+        Correct values in loaded DataFrame.
+        Correct trimming to shortest input length.
+    """
     make_test_csvs(tmp_path)
     df = load_imu_from_csv(str(tmp_path), "r_shank")
     assert df is not None
@@ -77,14 +108,28 @@ def test_load_imu_from_csv_normal(tmp_path):
 
 
 def test_load_imu_from_csv_missing_file(tmp_path):
-    """Test missing emg.csv file returns None and prints error."""
+    """Test missing emg.csv file returns None and prints error.
+
+    Args:
+        tmp_path: Temporary directory path for test files.
+
+    Asserts:
+        That the function returns None when a required file is missing.
+    """
     (tmp_path / "imu.csv").write_text("")
     df = load_imu_from_csv(str(tmp_path), "r_shank")
     assert df is None
 
 
 def test_load_imu_from_csv_empty(tmp_path):
-    """Test empty files return None and print error."""
+    """Test empty files return None and print error.
+
+    Args:
+        tmp_path: Temporary directory path for test files.
+
+    Asserts:
+        That the function returns None when input files are empty.
+    """
     pd.DataFrame().to_csv(tmp_path / "imu.csv", index=False)
     pd.DataFrame().to_csv(tmp_path / "emg.csv", index=False)
     df = load_imu_from_csv(str(tmp_path), "r_shank")
