@@ -9,8 +9,8 @@ from various file formats (CSV, NPZ). It includes utilities for:
 import pandas as pd
 
 # Local imports
-from .orientation import orientation_quaternion_to_euler
-from .unwrap import Unwrap
+from cionic.orientation import orientation_quaternion_to_euler
+from cionic.unwrap import Unwrap
 
 
 def load_imu_from_csv(

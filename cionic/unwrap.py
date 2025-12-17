@@ -27,8 +27,13 @@ class Unwrap:
         wrapdir (int): Established wrap direction (-1 or 1)
     """
 
-    def __init__(self, limit_rotation=False):
-        """Initialize unwrapper with default state."""
+    def __init__(self, limit_rotation: bool = False) -> None:
+        """Initialize unwrapper with default state.
+
+        Args:
+            limit_rotation (bool): If True, restricts wrap_around to [-1, 1]
+            and enforces consistent wrap direction.
+        """
         self.prev_x = 0
         self.curr_x = 0
         self.wrap_around = 0
