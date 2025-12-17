@@ -49,8 +49,7 @@ def load_imu_from_csv(
     gyro = other_df[other_df["limb"] == f"{position}_gyro"]
 
     # Convert time to seconds
-    if not quat.empty:
-        time = (quat["elapsed"] - quat["elapsed"].min()) / 10000.0
+    time = (quat["elapsed"] - quat["elapsed"].min()) / 10000.0
 
     # Convert quaternions to euler angles
     eulers = [
