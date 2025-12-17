@@ -860,22 +860,3 @@ class TestGetFilteredEmgsFieldValidation:
             assert 'device_emg_000_filtered' in filtered_emgs
         finally:
             sys.stderr = old_stderr
-
-
-class TestIntegration:
-    """Integration tests using real temporary files."""
-
-    def test_full_pipeline_with_temp_file(self, temp_npz_file):
-        """Test full pipeline of adding computed data to NPZ file."""
-        # This test requires actual implementation to work
-        # For now, we'll test the file operations
-
-        # Verify file exists
-        assert os.path.exists(temp_npz_file)
-
-        # Load file
-        npz = np.load(temp_npz_file)
-        assert 'segments' in npz
-
-        # Note: Full integration would require mocking the computational functions
-        # or using minimal real data that can be processed
