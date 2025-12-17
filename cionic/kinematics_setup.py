@@ -189,6 +189,14 @@ kinematics_setup = {
                     {'rename': ('z', 'thigh_int_rotation'), 'factor': -1.0},
                 ],
             },
+            'torso_angle': {
+                'segments': ('upright', 'torso'),
+                'angles': [
+                    {'rename': ('x', 'torso_sagittal_angle'), 'factor': 1.0},
+                    {'rename': ('y', 'torso_coronal_angle'), 'factor': -1.0},
+                    {'rename': ('z', 'torso_transverse_angle'), 'factor': -1.0},
+                ],
+            },
         },
         'emgs': ['l_shank_emg', 'l_thigh_emg', 'l_emg'],
         'pressures': ['l_footbed'],
@@ -251,6 +259,14 @@ kinematics_setup = {
                     {'rename': ('z', 'thigh_int_rotation'), 'factor': -1.0},
                 ],
             },
+            'torso_angle': {
+                'segments': ('upright', 'torso'),
+                'angles': [
+                    {'rename': ('x', 'torso_sagittal_angle'), 'factor': 1.0},
+                    {'rename': ('y', 'torso_coronal_angle'), 'factor': -1.0},
+                    {'rename': ('z', 'torso_transverse_angle'), 'factor': -1.0},
+                ],
+            },
         },
         'emgs': ['r_shank_emg', 'r_thigh_emg', 'r_emg'],
         'pressures': ['r_footbed'],
@@ -259,6 +275,7 @@ kinematics_setup = {
 
 csv_position_streams = {
     'hips': 'fquat',
+    'torso': 'fquat',
     'l_thigh': 'fquat',
     'r_thigh': 'fquat',
     'l_shank': 'fquat',
