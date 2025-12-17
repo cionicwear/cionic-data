@@ -5,12 +5,9 @@ from various file formats (CSV, NPZ). It includes utilities for:
 - Loading foot IMU data from CSV files using the Cionic API
 """
 
-# Third-party imports
+import numpy as np
 import pandas as pd
-
-# Local imports
-from cionic.orientation import orientation_quaternion_to_euler
-from cionic.unwrap import Unwrap
+from scipy.spatial.transform import Rotation as R
 
 
 def load_imu_from_csv(
@@ -51,18 +48,13 @@ def load_imu_from_csv(
     # Convert time to seconds
     time = (quat["elapsed"] - quat["elapsed"].min()) / 10000.0
 
-    # Convert quaternions to euler angles
-    eulers = [
-        orientation_quaternion_to_euler(
-            [
-                quat["x"].iloc[i],
-                quat["y"].iloc[i],
-                quat["z"].iloc[i],
-                quat["w"].iloc[i],
-            ]
-        )
-        for i in range(len(quat))
-    ]
+    # Convert quaternions to euler angles (radians) using scipy
+    if len(quat) > 0:
+        quats = quat[["x", "y", "z", "w"]].values
+        eulers = R.from_quat(quats).as_euler('xyz', degrees=False)
+        eulers = eulers.tolist()
+    else:
+        eulers = []
 
     # Return early if all have no data
     if all(len(x) == 0 for x in [time, eulers, accel, gyro]):
@@ -117,10 +109,10 @@ def load_imu_from_csv(
         # Save raw angles
         df[["raw_roll", "raw_pitch", "raw_yaw"]] = df[["roll", "pitch", "yaw"]]
 
-        # Process each angle
+        # Use numpy.unwrap for each angle (expects radians)
         for angle in ["roll", "pitch", "yaw"]:
-            unwrapper = Unwrap()
-            df[angle] = [unwrapper.process(x) for x in df[angle]]
-            df[angle] -= df[angle].mean()  # center around 0
+            arr = df[angle].values
+            unwrapped = np.unwrap(arr)
+            df[angle] = unwrapped - np.mean(unwrapped)  # center around 0
 
     return df
