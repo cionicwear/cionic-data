@@ -655,8 +655,6 @@ def download_npz_from_metadata(
 
     if segmented:
         return segmenter.load_segmented(destpath)
-    else:
-        return np.load(destpath)
 
 
 def download_npz(

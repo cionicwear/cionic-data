@@ -296,7 +296,21 @@ def segmentize(inputs, boundaries, output, progress=progress_none):
 def load_boundary_times(npz, segfile='gwlabels.jsonl'):
     times = []
     max_time = np.max(npz['segments']['end_s'])
+    min_time = np.min(npz['segments']['start_s'])
     boundaries = json2npy.from_jsonl(npz[segfile].split(b"\n"))
+    if len(boundaries) == 0:
+        # Match expected keys for a boundary
+        boundary = {
+            'add': {'label': 'full', 'segment_num': 0},
+            'end_s': max_time,
+            'keys': {},  # keys never used by segmenter
+            'label': 'full',
+            'nsamples': 0,  # nsamples never used by segmenter
+            'segment': 0,
+            'start_s': min_time,
+        }
+        return [boundary]
+
     for i, boundary in enumerate(boundaries):
         label = boundary.get('add', {}).get('label', i).replace(" ", "_")
         segment = boundary.get('add', {}).get('segment_num', i)
@@ -317,18 +331,10 @@ def load_boundary_times(npz, segfile='gwlabels.jsonl'):
 def load_segmented(npzpath, segfile='gwlabels.jsonl', segsuffix='_seg'):
     npz = np.load(npzpath)
 
-    if isinstance(segfile, str) and segfile in npz:
-        boundaries = load_boundary_times(npz, segfile)
-    else:
-        return npz
-
-    output = os.path.splitext(npzpath)[0] + segsuffix + '.npz'
-
-    # if no boundaries in the npz return as is
-    if len(boundaries) == 0:
-        return npz
+    output = f"{os.path.splitext(npzpath)[0]}{segsuffix}.npz"
 
     # dedupe boundaries by segment num
+    boundaries = load_boundary_times(npz, segfile)
     dedupe = {b['segment']: b for b in boundaries}
     boundaries = list(dedupe.values())
 
