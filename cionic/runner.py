@@ -232,6 +232,7 @@ class MetadataListCreator:
                 tokenpath=self.tokenpath,
                 segmented=True,
                 include_eulers=False,
+                include_filtered_emgs=False,
                 include_gait_splits=False,
             )
             boundaries = json2npy.from_jsonl(npz["gwlabels.jsonl"].split(b"\n"))
