@@ -243,6 +243,69 @@ def process_raw_emg_stream(
     return stream_timestamped
 
 
+def get_filtered_emgs(
+    npz: np.lib.npyio.NpzFile,
+) -> tuple[dict[str, np.recarray], np.recarray]:
+    """
+    Extract filtered EMG streams from an NPZ archive.
+
+    Args:
+        npz (np.lib.npyio.NpzFile): Loaded NPZ archive.
+
+    Returns:
+        tuple:
+            - dict[str, np.recarray]: A dictionary mapping each EMG stream path to its
+                filtered data as a NumPy ndarray.
+            - np.recarray: Array of new segment metadata dicts for the filtered EMG
+                streams.
+    """
+    print("getting filtered emgs from npz", file=sys.stderr)
+    filtered_emgs = {}
+    new_emg_segments = []
+    for seg in npz_utils.change_segments_column_dtype(npz["segments"]):
+        if seg["stream"] != "emg":
+            continue
+
+        # Get the original stream and process it
+        processed_stream = process_raw_emg_stream(stream_timestamped=npz[seg["path"]])
+
+        new_field_names = seg["chanpos"].split(" ") + ["elapsed_s"]
+        # Validate chanpos segments entry length matches processed stream fields
+        if len(new_field_names) == len(processed_stream.dtype.names):
+            new_dtype = np.dtype(
+                {"names": new_field_names, "formats": ["f8"] * len(new_field_names)}
+            )
+            processed_stream = np.array(processed_stream, dtype=new_dtype)
+        else:
+            print(
+                (
+                    f"Warning: number chanpos fields {new_field_names} do not match "
+                    f"processed stream fields {processed_stream.dtype.names} for "
+                    f"{seg['path']}. Using processed stream fields."
+                ),
+                file=sys.stderr,
+            )
+            new_field_names = processed_stream.dtype.names
+
+        # Store the processed stream with validated field names
+        emg_path = f"{seg['path']}_filtered"
+        filtered_emgs[emg_path] = processed_stream
+
+        new_segment = seg.copy()
+        new_segment["path"] = emg_path
+        new_segment["stream"] = "emg_filtered"
+        new_segment["fields"] = " ".join(new_field_names)
+        new_emg_segments.append(new_segment)
+
+    # Handle empty case: create empty array with proper dtype
+    if new_emg_segments:
+        return filtered_emgs, np.array(new_emg_segments)
+    else:
+        # Get the dtype from original segments array
+        empty_segments = np.array([], dtype=npz["segments"].dtype)
+        return filtered_emgs, empty_segments
+
+
 def convert_uV(raw_data, v_ref, channel_gain):
     """
     Convert data from bit counts to uV.
@@ -824,12 +887,18 @@ def get_limb_eulers(
         new_segment['stream'] = 'euler'
         new_limb_segments.append(new_segment)
 
-    return limb_eulers, np.array(new_limb_segments)
+    # Handle empty case: create empty array with proper dtype
+    if new_limb_segments:
+        return limb_eulers, np.array(new_limb_segments)
+    else:
+        # Get the dtype from original segments array (taking the last seg is sufficient)
+        empty_segments = np.array([], dtype=seg.dtype)
+        return limb_eulers, empty_segments
 
 
 def get_joint_eulers(
     npz: np.lib.npyio.NpzFile,
-) -> tuple[dict[str, np.recarray], list[np.recarray]]:
+) -> tuple[dict[str, np.recarray], np.recarray]:
     '''
     Extracts joint Euler angle data and corresponding segment information from NPZ.
 
@@ -840,7 +909,8 @@ def get_joint_eulers(
         tuple:
             - joint_eulers (dict): A dictionary mapping each joint stream path to its
               Euler angle data as a NumPy ndarray.
-            - new_joint_segments (list): A list of segment metadata arrays.
+            - new_joint_segments (np.recarray): Array of new segment metadata for the
+              joint Euler streams.
     '''
     print("getting joint eulers from npz", file=sys.stderr)
     segments = npz_utils.change_segments_column_dtype(npz['segments'])
@@ -858,7 +928,13 @@ def get_joint_eulers(
         new_segment = np.array([values], dtype=seg_dtype)[0]
         new_joint_segments.append(new_segment)
 
-    return joint_eulers, new_joint_segments
+    # Handle empty case: create empty array with proper dtype
+    if new_joint_segments:
+        return joint_eulers, np.array(new_joint_segments)
+    else:
+        # Return empty array with proper dtype
+        empty_segments = np.array([], dtype=segments.dtype)
+        return joint_eulers, empty_segments
 
 
 def pandas_to_recarray(df: pd.DataFrame) -> np.recarray:

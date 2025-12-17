@@ -256,14 +256,14 @@ def get_study_metadata(sxid, orgid, tokenpath=None, **kwargs):
 def download_collections(
     colls, npzdir, tokenpath=None, segfile=None, segsuffix=None, segroot=None
 ):
-    '''Download .npz files to npzdir for the given list of collections.
+    """Download .npz files to npzdir for the given list of collections.
     Return list of segment metadata dicts.
 
     colls: entries returned by meta(), possibly filtered
     npzdir: output directory to store downloaded npz data files
     tokenpath: pathname with auth token
     segfile: file of labels to segment on
-    '''
+    """
     if tokenpath is not None:
         auth(tokenpath)
 
@@ -597,6 +597,7 @@ def download_npz_from_metadata(
     overwrite: bool = False,
     segmented: bool = False,
     include_eulers: bool = True,
+    include_filtered_emgs: bool = True,
     include_gait_splits: bool = True,
     peak_kwargs: dict = None,
 ) -> np.lib.npyio.NpzFile:
@@ -613,6 +614,8 @@ def download_npz_from_metadata(
         overwrite (bool, optional): Whether to overwrite the file if it exists.
         segmented (bool, optional): If True, loads and returns segmented data.
         include_eulers (bool, optional): Whether to include Eulers in the download.
+        include_filtered_emgs (bool, optional): Whether to include filtered EMGs in
+            the download.
         include_gait_splits (bool, optional): Whether to include gait splits in
             the download.
         peak_kwargs (dict, optional): Additional parameters for peak detection.
@@ -649,6 +652,7 @@ def download_npz_from_metadata(
         urlpath=urlpath,
         overwrite=overwrite,
         include_eulers=include_eulers,
+        include_filtered_emgs=include_filtered_emgs,
         include_gait_splits=include_gait_splits,
         peak_kwargs=peak_kwargs,
     )
@@ -664,6 +668,7 @@ def download_npz(
     urlpath: str,
     overwrite: bool = False,
     include_eulers: bool = True,
+    include_filtered_emgs: bool = True,
     include_gait_splits: bool = True,
     peak_kwargs: dict = None,
 ) -> None:
@@ -675,6 +680,7 @@ def download_npz(
         urlpath (str): The URL or identifier used to locate the .npz file.
         overwrite (bool): If True, overwrite the file if it already exists.
         include_eulers (bool): Whether to include Eulers in the download.
+        include_filtered_emgs (bool): Whether to include filtered EMGs in the download.
         include_gait_splits (bool): Whether to include gait splits in the download.
         peak_kwargs (dict, optional): Additional parameters for peak detection.
 
@@ -688,6 +694,8 @@ def download_npz(
         return
     if include_eulers:
         include_eulers_to_npz(destpath)
+    if include_filtered_emgs:
+        include_filtered_emgs_to_npz(destpath)
     if include_gait_splits:
         include_gait_splits_to_npz(destpath, peak_kwargs=peak_kwargs)
     add_side_column_to_segments(destpath)
@@ -879,8 +887,35 @@ def include_eulers_to_npz(destpath: str) -> None:
     add_arrays_to_npz_and_store(npz, array_dict, destpath)
 
 
+def include_filtered_emgs_to_npz(destpath: str) -> None:
+    """
+    Loads a NumPy .npz file from the specified path, computes filtered EMG arrays
+    and updated segments, and adds them to the .npz file.
+
+    Args:
+        destpath (str): The file path to the .npz file to be updated.
+
+    """
+    try:
+        npz = np.load(destpath)
+    except FileNotFoundError:
+        print(f"File {destpath} not found.", file=sys.stderr)
+        return
+
+    filtered_emgs, new_segments = tools.get_filtered_emgs(npz)
+    updated_segments = np.concatenate(
+        [
+            npz_utils.change_segments_column_dtype(npz['segments']),
+            new_segments,
+        ]
+    )
+
+    array_dict = {**filtered_emgs, 'segments': updated_segments}
+    add_arrays_to_npz_and_store(npz, array_dict, destpath)
+
+
 def include_gait_splits_to_npz(destpath: str, peak_kwargs: dict = None) -> None:
-    '''
+    """
     Loads a NumPy .npz file from the specified path, computes gait split arrays and
     updated segments, and adds them to the .npz file.
 
@@ -890,10 +925,7 @@ def include_gait_splits_to_npz(destpath: str, peak_kwargs: dict = None) -> None:
 
     Returns:
         None
-
-    Raises:
-        FileNotFoundError: If the specified file does not exist.
-    '''
+    """
     try:
         npz = np.load(destpath)
     except FileNotFoundError:
@@ -931,7 +963,7 @@ def create_new_segment_helper(segment: np.void, path: str, stream: str) -> np.vo
 def get_splits_arrays_and_segments(
     npz: np.lib.npyio.NpzFile, peak_kwargs: dict = None
 ) -> tuple[dict[str, np.recarray], np.recarray]:
-    '''
+    """
     Processes segments in the given npz file, generating new arrays and segments
     for walking intervals and paired walking splits based on segment properties.
 
@@ -942,7 +974,7 @@ def get_splits_arrays_and_segments(
     Returns:
         tuple[dict[str, np.recarray], np.recarray]: A dictionary of new arrays keyed
         by path, and an updated array of segments.
-    '''
+    """
     new_files = {}
     new_segments = []
     for segment in npz['segments']:
@@ -951,6 +983,7 @@ def get_splits_arrays_and_segments(
         is_euler = segment['stream'] == 'euler'
 
         if is_shank and is_euler:
+            # Walking periods from shank euler angles
             grouped_walking_periods = get_grouped_walking_periods_as_array(
                 kinematic_time_series=npz[segment['path']],
                 peak_kwargs=peak_kwargs,
@@ -964,6 +997,7 @@ def get_splits_arrays_and_segments(
             new_segments.append(new_segment)
 
         if (is_shank or is_thigh) and is_euler:
+            # Paired walking splits from shank or thigh euler angles
             paired_stride_splits = get_paired_stride_splits_as_array(
                 kinematic_time_series=npz[segment['path']],
                 component="x",
@@ -999,7 +1033,7 @@ def get_grouped_walking_periods_as_array(
     component: str = "x",
     peak_kwargs: dict = None,
 ) -> np.recarray:
-    '''
+    """
     Convert grouped walking splits from time series into a structured NumPy array.
 
     Args:
@@ -1009,7 +1043,7 @@ def get_grouped_walking_periods_as_array(
 
     Returns:
         np.recarray: Structured array with start, stop, and elapsed times.
-    '''
+    """
     grouped_walking_periods = kinematics.get_grouped_walking_splits(
         kinematic_time_series=kinematic_time_series,
         component=component,
@@ -1032,7 +1066,7 @@ def get_paired_stride_splits_as_array(
     n_stop_remove: int = 0,
     peak_kwargs: dict = None,
 ) -> np.recarray:
-    '''
+    """
     Convert paired walking splits from time series into a structured NumPy array.
 
     Args:
@@ -1044,7 +1078,7 @@ def get_paired_stride_splits_as_array(
 
     Returns:
         np.recarray: Structured array with start, stop, and elapsed times.
-    '''
+    """
     paired_stride_splits = kinematics.get_paired_walking_splits(
         kinematic_time_series=kinematic_time_series,
         component=component,
