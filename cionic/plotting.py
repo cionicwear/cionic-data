@@ -505,37 +505,6 @@ class StreamsPlotter:
         ax.set_xlim([min_time - 3, max_time + 3])
 
 
-def get_stride_splits(
-    npz: np.lib.npyio.NpzFile,
-    segment_num: int,
-    position: str,
-    stream_name: str = "paired_stride_splits",
-):
-    """
-    Retrieve stride split data from an NPZ file for a specific segment and position.
-
-    Args:
-        npz: Loaded NPZ file containing segmented gait data and metadata
-        segment_num: Unique segment number to target for stride split extraction
-        position: Anatomical position identifier (e.g., "l_thigh", "r_shank")
-            specifying the sensor location for stride detection
-        stream_name: Name of the stream containing stride split data.
-            Defaults to "paired_stride_splits"
-
-    Returns:
-        np.ndarray or None: Array of stride split data containing timing information
-            for stride boundaries, or None if no matching data is found. Each element
-            typically contains 'start_s', 'stop_s', and 'duration'.
-    """
-    paired_stride_splits = npz_utils.retrieve_stream(
-        npz=npz,
-        position=position,
-        stream=stream_name,
-        segment_num=segment_num,
-    )
-    return paired_stride_splits
-
-
 class StreamsSplitsPlotter:
     """
     Provides visualization tools for plotting stride splits from NPZ data files.
@@ -650,10 +619,11 @@ class StreamsSplitsPlotter:
         long_matrix_list = []
         for seg in segs_subset:
             stream = self.npz[seg["path"]]
-            stride_splits = get_stride_splits(
+            stride_splits = npz_utils.retrieve_stream(
                 npz=self.npz,
-                segment_num=seg["segment_num"],
                 position=splits_position,
+                stream="paired_stride_splits",
+                segment_num=seg["segment_num"],
             )
             matrix = tools.stream_splits_to_matrix(
                 stream_data=stream,
