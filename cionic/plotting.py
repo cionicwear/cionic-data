@@ -283,11 +283,35 @@ class StreamsPlotter:
     - Flexible subplot arrangements
 
     Typical Usage:
-    1. Initialize with study/collection identifiers
-    2. Create subplot layout with subplots()
-    3. Plot streams with plot_stream()
-    4. Add gait events with plot_stride_splits() and shade_walking_periods()
-    5. Clip view to relevant periods with clip_non_gait_edges()
+    # 1. Initialize with study/collection identifiers
+    plotter = plotting.StreamsPlotter(
+        org_shortname="cionic",
+        study_shortname="reference_colls",
+        collection_num=1,
+        tokenpath="/home/jovyan/cionic-data/token.json",
+    )
+
+    # 2. Create subplot layout with subplots()
+    fig, ax = plotter.subplots()
+
+    # 3. Plot streams with plot_stream()
+    plotter.plot_stream(
+        ax=ax,
+        label="unstimulated_walk",
+        position=f"r_knee_joint",
+        stream_name="euler",
+        component="knee_flexion",
+        label_name="Knee Flexion"
+    )
+
+    # 4. Add gait events with plot_stride_splits() and shade_walking_periods()
+    kwargs = {"ax": ax, "label": "unstimulated_walk", "position": "r_shank"}
+    plotter.plot_stride_splits(**kwargs)
+    plotter.shade_walking_periods(**kwargs)
+
+    # 5. Clip view to relevant periods with clip_non_gait_edges()
+    plotter.clip_non_gait_edges(**kwargs)
+    plt.show()
     """
 
     def __init__(
@@ -518,9 +542,28 @@ class StreamsSplitsPlotter:
             parameters.
 
     Typical Usage:
-        1. Instantiate the class with organization, study, collection, and auth.
-        2. Use the `subplots` method to create custom figure layouts.
-        3. Use the `plot_splits` method to visualize stride splits.
+        # 1. Instantiate the class with organization, study, collection, and auth.
+        plotter = StreamsSplitsPlotter(
+            org_shortname="cionic",
+            study_shortname="reference_colls",
+            collection_num=1,
+            tokenpath="/home/jovyan/cionic-data/token.json",
+        )
+
+        # 2. Use the `subplots` method to create custom figure layouts.
+        fig, ax = plotter.subplots()
+
+        # 3. Use the `plot_splits` method to visualize stride splits.
+        plotter.plot_splits(
+            ax=ax,
+            label="unstimulated_walk",
+            position=f"r_knee_joint",
+            stream_name="euler",
+            component="knee_flexion",
+            splits_position="r_shank",
+            label_name="Knee Flexion"
+        )
+        plt.show()
     """
 
     def __init__(
