@@ -8,7 +8,7 @@ from matplotlib.colors import to_rgb
 from matplotlib.figure import Figure
 from scipy.stats import gaussian_kde
 
-from cionic import api, npz_utils, stats
+from cionic import api, npz_utils, stats, tools
 
 FIGSIZE = (8, 5)
 DPI = 100
@@ -229,6 +229,40 @@ def format_axis(ax: Axes) -> None:
     ax.spines["top"].set_visible(False)
 
 
+def create_subplots(
+    nrows: int = 1,
+    ncols: int = 1,
+    figsize: Tuple[int, int] = None,
+    dpi: int = DPI,
+    **kwargs,
+) -> Tuple[Figure, Union[Axes, np.ndarray]]:
+    """
+    Create a subplot layout with standardized formatting for stream visualization.
+
+    Args:
+        nrows: Number of subplot rows
+        ncols: Number of subplot columns
+        figsize: Figure size (width, height) in inches. If None, auto-calculated
+            as (10, 3*nrows) for optimal stream visualization
+        dpi: Figure resolution in dots per inch. Defaults to module DPI constant
+        **kwargs: Additional arguments passed to plt.subplots()
+
+    Returns:
+        tuple: (fig, axs) - matplotlib Figure and array of Axes objects
+    """
+    if figsize is None:
+        figsize = (10, 3 * nrows)
+    fig, axs = plt.subplots(
+        nrows, ncols, figsize=figsize, dpi=dpi, sharex=True, **kwargs
+    )
+    if isinstance(axs, np.ndarray):
+        for ax in axs:
+            format_axis(ax)
+    else:
+        format_axis(axs)
+    return fig, axs
+
+
 class StreamsPlotter:
     """
     Visualization class for plotting kinematic data streams with gait event annotations.
@@ -249,11 +283,35 @@ class StreamsPlotter:
     - Flexible subplot arrangements
 
     Typical Usage:
-    1. Initialize with study/collection identifiers
-    2. Create subplot layout with subplots()
-    3. Plot streams with plot_stream()
-    4. Add gait events with plot_stride_splits() and shade_walking_periods()
-    5. Clip view to relevant periods with clip_non_gait_edges()
+    # 1. Initialize with study/collection identifiers
+    plotter = plotting.StreamsPlotter(
+        org_shortname="cionic",
+        study_shortname="reference_colls",
+        collection_num=1,
+        tokenpath="/home/jovyan/cionic-data/token.json",
+    )
+
+    # 2. Create subplot layout with subplots()
+    fig, ax = plotter.subplots()
+
+    # 3. Plot streams with plot_stream()
+    plotter.plot_stream(
+        ax=ax,
+        label="unstimulated_walk",
+        position=f"r_knee_joint",
+        stream_name="euler",
+        component="knee_flexion",
+        label_name="Knee Flexion"
+    )
+
+    # 4. Add gait events with plot_stride_splits() and shade_walking_periods()
+    kwargs = {"ax": ax, "label": "unstimulated_walk", "position": "r_shank"}
+    plotter.plot_stride_splits(**kwargs)
+    plotter.shade_walking_periods(**kwargs)
+
+    # 5. Clip view to relevant periods with clip_non_gait_edges()
+    plotter.clip_non_gait_edges(**kwargs)
+    plt.show()
     """
 
     def __init__(
@@ -307,9 +365,9 @@ class StreamsPlotter:
         nrows: int = 1,
         ncols: int = 1,
         figsize: Tuple[int, int] = None,
-        dpi=DPI,
+        dpi: int = DPI,
         **kwargs,
-    ):
+    ) -> Tuple[Figure, Union[Axes, np.ndarray]]:
         """
         Create a subplot layout with standardized formatting for stream visualization.
 
@@ -324,17 +382,7 @@ class StreamsPlotter:
         Returns:
             tuple: (fig, axs) - matplotlib Figure and array of Axes objects
         """
-        if figsize is None:
-            figsize = (10, 3 * nrows)
-        fig, axs = plt.subplots(
-            nrows, ncols, figsize=figsize, dpi=dpi, sharex=True, **kwargs
-        )
-        if isinstance(axs, np.ndarray):
-            for ax in axs:
-                format_axis(ax)
-        else:
-            format_axis(axs)
-        return fig, axs
+        return create_subplots(nrows, ncols, figsize, dpi, **kwargs)
 
     def plot_stream(
         self,
@@ -440,7 +488,7 @@ class StreamsPlotter:
     def clip_non_gait_edges(
         self,
         ax: Axes,
-        label_list: Union[str, List[str]],
+        label: Union[str, List[str]],
         position: str,
         stream_name: str = "walking_periods",
     ) -> None:
@@ -449,17 +497,17 @@ class StreamsPlotter:
 
         Args:
             ax: Matplotlib axes object to modify
-            label_list: Label(s) to include in analysis. Can be a single string
+            label: Label(s) to include in analysis. Can be a single string
                 or list of strings for multiple labels
             position: Anatomical position (e.g., "l_shank")
             stream_name: Stream containing walking period data."
         """
-        # Normalize label_list to always be a list
-        if isinstance(label_list, str):
-            label_list = [label_list]
+        # Normalize label to always be a list
+        if isinstance(label, str):
+            label = [label]
         segs = self.npz["segments"]
         segs = segs[segs["stream"] == stream_name]
-        segs = segs[np.isin(segs["label"], label_list)]
+        segs = segs[np.isin(segs["label"], label)]
 
         min_time = np.inf
         max_time = -np.inf
@@ -479,6 +527,200 @@ class StreamsPlotter:
             min_time = min(walking_periods["start_s"].min(), min_time)
             max_time = max(walking_periods["stop_s"].max(), max_time)
         ax.set_xlim([min_time - 3, max_time + 3])
+
+
+class StreamsSplitsPlotter:
+    """
+    Provides visualization tools for plotting stride splits from NPZ data files.
+
+    Key Features:
+        - Downloads and caches NPZ data using API metadata and authentication.
+        - Supports both segmented and unsegmented data.
+        - Provides methods for creating subplots of stride splits for different labels
+            and segments.
+        - Allows customization of output directory, segmentation, and stride detection
+            parameters.
+
+    Typical Usage:
+        # 1. Instantiate the class with organization, study, collection, and auth.
+        plotter = StreamsSplitsPlotter(
+            org_shortname="cionic",
+            study_shortname="reference_colls",
+            collection_num=1,
+            tokenpath="/home/jovyan/cionic-data/token.json",
+        )
+
+        # 2. Use the `subplots` method to create custom figure layouts.
+        fig, ax = plotter.subplots()
+
+        # 3. Use the `plot_splits` method to visualize stride splits.
+        plotter.plot_splits(
+            ax=ax,
+            label="unstimulated_walk",
+            position=f"r_knee_joint",
+            stream_name="euler",
+            component="knee_flexion",
+            splits_position="r_shank",
+            label_name="Knee Flexion"
+        )
+        plt.show()
+    """
+
+    def __init__(
+        self,
+        org_shortname: str,
+        study_shortname: str,
+        collection_num: int,
+        tokenpath: str,
+        outdir: str = "recordings",
+        segmented: bool = True,
+        overwrite: bool = False,
+        peak_kwargs: Optional[Dict] = None,
+    ) -> None:
+        """
+        Initialize StreamsPlotter with data source parameters and download NPZ data.
+
+        Args:
+            org_shortname: Organization identifier (e.g., "cionic")
+            study_shortname: Study protocol name (e.g., "Parkinsons")
+            collection_num: Unique collection session identifier
+            tokenpath: Path to authentication token file for API access
+            outdir: Directory for caching downloaded NPZ files. Defaults to "recordings"
+            segmented: Whether to download segmented data. Defaults to True
+            overwrite: Whether to re-download existing NPZ files. Defaults to False
+            peak_kwargs: Optional parameters for stride detection algorithms
+
+        Raises:
+            Exception: If API authentication fails or data cannot be downloaded
+            FileNotFoundError: If token file is not found
+        """
+        self.org_shortname = org_shortname
+        self.study_shortname = study_shortname
+        self.collection_num = collection_num
+        self.tokenpath = tokenpath
+        self.outdir = outdir
+        self.segmented = segmented
+        self.npz = api.download_npz_from_metadata(
+            org_shortname=self.org_shortname,
+            study_shortname=self.study_shortname,
+            collection_num=self.collection_num,
+            tokenpath=self.tokenpath,
+            outdir=self.outdir,
+            segmented=segmented,
+            overwrite=overwrite,
+            peak_kwargs=peak_kwargs,
+        )
+        self.segs = self.npz['segments']
+
+    def subplots(
+        self,
+        nrows: int = 1,
+        ncols: int = 1,
+        figsize: Tuple[int, int] = None,
+        dpi: int = DPI,
+        **kwargs,
+    ) -> Tuple[Figure, Union[Axes, np.ndarray]]:
+        """
+        Create a subplot layout with standardized formatting for stream visualization.
+
+        Args:
+            nrows: Number of subplot rows
+            ncols: Number of subplot columns
+            figsize: Figure size (width, height) in inches. If None, auto-calculated
+                as (10, 3*nrows) for optimal stream visualization
+            dpi: Figure resolution in dots per inch. Defaults to module DPI constant
+            **kwargs: Additional arguments passed to plt.subplots()
+
+        Returns:
+            tuple: (fig, axs) - matplotlib Figure and array of Axes objects
+        """
+        return create_subplots(nrows, ncols, figsize, dpi, **kwargs)
+
+    def plot_splits(
+        self,
+        ax: Axes,
+        label: str,
+        position: str,
+        stream_name: str,
+        component: str,
+        splits_position: str,
+        individuals: bool = False,
+        label_name: str = None,
+        color: str = None,
+        title: str = None,
+        x_label: str = "Elapsed Time (s)",
+        y_label: str = "Euler (deg)",
+    ) -> None:
+        """Plot kinematic stream data on the given axes."""
+        segs_subset = self.segs[
+            (self.segs["label"] == label)
+            & (self.segs["position"] == position)
+            & (self.segs["stream"] == stream_name)
+        ]
+        color = color if color else "steelblue"
+
+        long_matrix_list = []
+        for seg in segs_subset:
+            stream = self.npz[seg["path"]]
+            stride_splits = npz_utils.retrieve_stream(
+                npz=self.npz,
+                position=splits_position,
+                stream="paired_stride_splits",
+                segment_num=seg["segment_num"],
+            )
+            matrix = tools.stream_splits_to_matrix(
+                stream_data=stream,
+                splits=stride_splits,
+                ch_field=component,
+                n_interp=tools.N_INTERP,
+                paired_splits=True,
+            )
+            long_matrix_list.append(matrix)
+
+        if not long_matrix_list:
+            return
+
+        long_matrix = np.concatenate(long_matrix_list, axis=0)
+
+        if individuals:
+            for i in range(long_matrix.shape[0]):
+                plot_label = label_name if i == 0 else None
+                ax.plot(
+                    long_matrix[i, :],
+                    color=lighten(color, amount=0.05),
+                    lw=0.8,
+                    alpha=0.7,
+                    label=plot_label,
+                )
+        else:
+            stride_mean = np.mean(long_matrix, axis=0)
+            ax.plot(
+                stride_mean,
+                color=color,
+                lw=2,
+                label=label_name,
+            )
+            stride_std = np.std(long_matrix, axis=0)
+            ax.fill_between(
+                np.arange(len(stride_mean)),
+                stride_mean - stride_std,
+                stride_mean + stride_std,
+                color=color,
+                alpha=0.3,
+            )
+
+        ax.legend(loc="upper right")
+        if title:
+            ax.set_title(
+                f"  {title}",
+                loc="left",
+                fontsize=TITLE_FONT_SIZE,
+                fontweight=FONT_WEIGHT,
+            )
+        if x_label:
+            ax.set_xlabel(x_label, fontsize=LABEL_FONT_SIZE, fontweight=FONT_WEIGHT)
+        if y_label:
+            ax.set_ylabel(y_label, fontsize=LABEL_FONT_SIZE, fontweight=FONT_WEIGHT)
 
 
 def violin_jitter(
