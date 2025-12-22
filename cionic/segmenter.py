@@ -307,6 +307,7 @@ def load_boundary_times(npz, segfile='gwlabels.jsonl'):
         boundary = {
             'add': {'label': 'full', 'segment_num': 0},
             'end_s': max_time,
+            'label': 'full',
             'segment': 0,
             'start_s': min_time,
         }
