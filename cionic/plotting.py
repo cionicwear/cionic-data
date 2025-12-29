@@ -6,6 +6,7 @@ from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.colors import to_rgb
 from matplotlib.figure import Figure
+from matplotlib.ticker import FuncFormatter
 from scipy.stats import gaussian_kde
 
 from cionic import api, npz_utils, stats, tools
@@ -648,7 +649,7 @@ class StreamsSplitsPlotter:
         label_name: str = None,
         color: str = None,
         title: str = None,
-        x_label: str = "Elapsed Time (s)",
+        x_label: str = "Percent Gait Cycle (%)",
         y_label: str = "Euler (deg)",
     ) -> None:
         """Plot kinematic stream data on the given axes."""
@@ -672,7 +673,7 @@ class StreamsSplitsPlotter:
                 stream_data=stream,
                 splits=stride_splits,
                 ch_field=component,
-                n_interp=tools.N_INTERP,
+                n_interp=tools.N_INTERP + 1,
                 paired_splits=True,
             )
             long_matrix_list.append(matrix)
@@ -721,6 +722,13 @@ class StreamsSplitsPlotter:
             ax.set_xlabel(x_label, fontsize=LABEL_FONT_SIZE, fontweight=FONT_WEIGHT)
         if y_label:
             ax.set_ylabel(y_label, fontsize=LABEL_FONT_SIZE, fontweight=FONT_WEIGHT)
+
+        # Format x-axis as percentages
+        def percent_formatter(x, pos):
+            return f"{int(x / tools.N_INTERP * 100)}%"
+
+        ax.xaxis.set_major_formatter(FuncFormatter(percent_formatter))
+        ax.set_xlim(0, tools.N_INTERP)
 
 
 def violin_jitter(
