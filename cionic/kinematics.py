@@ -18,7 +18,13 @@ from scipy.spatial.distance import cdist
 from scipy.spatial.transform import Rotation, Slerp
 from scipy.stats import ttest_ind
 
-from cionic import tools
+from cionic import pod_utils, tools
+from cionic.foot_segmenter import (
+    segment_by_peaks,
+    segment_cionic,
+    segment_jasiewicz,
+    segment_seel,
+)
 
 PEAK_KWARGS = {'distance': 50, 'prominence': 30}
 
@@ -478,6 +484,121 @@ class Kinematics:
                         dtype={'names': ('elapsed_s', 'peak'), 'formats': ('f8', 'f8')},
                     ),
                 }
+
+    def calculate_footpod_splits(
+        self,
+        collection_dir,
+        segmentation_range=(0, np.inf),
+        method="peak",
+        **segment_kwargs,
+    ):
+        """Calculate and inject footpod splits using specified segmentation method.
+
+        This method automatically processes both 'left' and 'right' groups if footpod
+        data is available. It extracts foot data from the Kinematics object and loads
+        acceleration data from CSV files if needed.
+
+        Args:
+            collection_dir (str): Path to directory containing CSV files
+                (imu.csv, emg.csv) needed for acceleration data.
+            segmentation_range (tuple[float, float], optional): Time range to segment.
+                Defaults to (0, np.inf).
+            method (str, optional): Segmentation method to use. Options
+                - "peak": Basic peak/trough detection (default)
+                - "jasiewicz": Jasiewicz algorithm using roll and acceleration
+                - "mod-jasiewicz": Modified Jasiewicz (Cionic) algorithm
+                - "seel": Seel algorithm with foot-flat detection
+            **segment_kwargs: Additional kwargs passed to segmentation function
+        """
+        # Process both groups automatically
+        for group in ['left', 'right']:
+            foot_position = f'{group[0]}_foot'
+
+            # Load foot data from CSV (includes euler and acceleration data)
+            foot_df = pod_utils.load_imu_from_csv(collection_dir, foot_position)
+
+            if foot_df is None or foot_df.empty:
+                print(f"No footpod data available for {group} ({foot_position}) in CSV")
+                continue
+
+            # Ensure required columns exist for segmentation
+            if method == "seel":
+                required_cols = [
+                    'elapsed_s',
+                    'accel_x',
+                    'accel_y',
+                    'accel_z',
+                    'gyro_x',
+                    'gyro_y',
+                    'gyro_z',
+                ]
+            else:
+                required_cols = ['elapsed_s', 'roll', 'accel_x', 'accel_y', 'accel_z']
+
+            if not all(col in foot_df.columns for col in required_cols):
+                print(
+                    f"Missing required columns for {group} segmentation using "
+                    f"'{method}' method (need: {required_cols})"
+                )
+                continue
+
+            # Perform segmentation using specified method, extract initial contact (HS)
+            try:
+                if method == "peak":
+                    ic_peaks, _, _ = segment_by_peaks(
+                        foot_df,
+                        segmentation_range=segmentation_range,
+                        plot_peaks=False,
+                        verbose=False,
+                        **segment_kwargs,
+                    )
+                elif method == "jasiewicz":
+                    _, ic_peaks, _, _, _ = segment_jasiewicz(
+                        foot_df,
+                        segmentation_range=segmentation_range,
+                        plot_peaks=False,
+                        verbose=False,
+                        **segment_kwargs,
+                    )
+                elif method == "mod-jasiewicz":
+                    _, ic_peaks, _ = segment_cionic(
+                        foot_df,
+                        segmentation_range=segmentation_range,
+                        plot_peaks=False,
+                        verbose=False,
+                        **segment_kwargs,
+                    )
+                elif method == "seel":
+                    _, _, ic_peaks, _, _ = segment_seel(
+                        foot_df,
+                        segmentation_range=segmentation_range,
+                        verbose=False,
+                        **segment_kwargs,
+                    )
+                else:
+                    print(
+                        f"Unknown segmentation method: {method}. "
+                        "Valid options: 'peak', 'jasiewicz', 'mod-jasiewicz', 'seel'"
+                    )
+                    continue
+            except Exception as e:
+                print(
+                    f"Error during segmentation for {group} using {method} method: {e}"
+                )
+                continue
+
+            if len(ic_peaks) < 2:
+                print(f"Too few HS events ({len(ic_peaks)}) for {group}")
+                continue
+
+            # split format: (timestamp, height)
+            ic_timestamps = [foot_df.iloc[idx]['elapsed_s'] for idx in ic_peaks]
+            splits = [(ts, 1.0) for ts in ic_timestamps]
+
+            # Store splits
+            self.splits[group]['footpod_heel_strike'] = {'splits': splits, 'skips': []}
+
+            print(f"Calculated {len(splits)} splits for {group} footpod_heel_strike")
 
     def set_contras(self, a, b, splits):
         for split in splits:
