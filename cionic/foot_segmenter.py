@@ -6,7 +6,7 @@ using IMU data. It implements multiple segmentation algorithms:
 1. Basic segmentation using angle peaks and troughs
 2. Jasiewicz algorithm using acceleration and angle data
 3. Cionic algorithm (modified Jasiewicz) - updates the Jasiewicz algorithm's window
-detection to reduce reliance on roll angle for maxima (still uses roll angle for trough detection).
+detection to reduce reliance on roll for maxima (still uses roll for trough detection).
 4. Seel algorithm for detailed gait phase detection - computes other gait events
 such as swing foot flat start and end in addition to initial and end contact.
 
@@ -1439,7 +1439,9 @@ def get_required_columns(method: str) -> List[str]:
     Returns:
         list[str]: List of required column names.
     """
-    if method == "seel":
+    if method == "peak":
+        return ['elapsed_s', 'roll']
+    elif method == "seel":
         return [
             'elapsed_s',
             'accel_x',
