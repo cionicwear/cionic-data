@@ -836,6 +836,8 @@ def segment_cionic(
     plot_peaks: bool = False,
     verbose: bool = True,
     segmentation_range: Tuple[float, float] = (0, np.inf),
+    ic_marker_start_fraction: float = 0.15,
+    ic_marker_end_fraction: float = 0.85,
 ) -> Tuple[List[int], List[int], List[pd.DataFrame]]:
     """Segment gait cycles using roll and acceleration data with Cionic algorithm.
 
@@ -865,6 +867,12 @@ def segment_cionic(
             Defaults to True.
         segmentation_range (tuple[float, float], optional): Time range of the data to
             segment. Defaults to (0, np.inf).
+        ic_marker_start_fraction (float, optional): Fraction of the trough-to-trough
+            segment to ignore from the start when searching for IC markers.
+            Defaults to 0.15.
+        ic_marker_end_fraction (float, optional): Fraction of the trough-to-trough
+            segment to ignore from the end when searching for IC markers.
+            Defaults to 0.85.
 
     Returns:
         tuple[list[int], list[int], list[pd.DataFrame]]:
@@ -874,6 +882,12 @@ def segment_cionic(
     """
     _validate_component_inputs(ic_component, ec_component, ic_peak_type, ec_peak_type)
     data = _filter_data_by_time_range(data, segmentation_range)
+
+    if not 0 <= ic_marker_start_fraction < ic_marker_end_fraction <= 1:
+        raise ValueError(
+            "ic_marker_start_fraction and ic_marker_end_fraction must satisfy "
+            "0 <= start < end <= 1."
+        )
 
     # 1) Find troughs (peak plantarflexion)
     troughs, _ = find_peaks(
@@ -886,8 +900,10 @@ def segment_cionic(
     ic_markers = []
     for i in range(len(troughs) - 1):
         segment = data.iloc[troughs[i] : troughs[i + 1]]
-        start_idx = int(len(segment) * 0.15)
-        end_idx = int(len(segment) * 0.85)
+        start_idx = int(len(segment) * ic_marker_start_fraction)
+        end_idx = int(len(segment) * ic_marker_end_fraction)
+        if end_idx <= start_idx:
+            continue
         segment = segment.iloc[start_idx:end_idx]
 
         peaks = _find_signal_peaks(segment[ic_component], peak_type="max")
@@ -942,6 +958,7 @@ def segment_seel(
     min_phase_duration: float = 0.1,  # seconds
     jerk_threshold: float = 0.9,  # fraction of max jerk for IC detection
     segmentation_range: Tuple[float, float] = (0, np.inf),
+    jerk_window_fraction: float = 0.7,
 ) -> Tuple[List[pd.DataFrame], List[int], List[int], List[int], List[int]]:
     """Segment gait cycles using the Seel algorithm.
 
@@ -973,6 +990,9 @@ def segment_seel(
             detection. Defaults to 0.9.
         segmentation_range (tuple[float, float], optional): Time range to segment.
             Defaults to (0, np.inf).
+        jerk_window_fraction (float, optional): Fraction of the TO-to-next-foot-flat
+            interval at which to start the jerk search window for IC detection.
+            Seel et al. use 0.7. Defaults to 0.7.
 
     Returns:
         tuple[list[pd.DataFrame], list[int], list[int], list[int], list[int]]:
@@ -982,6 +1002,9 @@ def segment_seel(
             - List of foot-flat start indices
             - List of foot-flat end indices
     """
+    if not 0 <= jerk_window_fraction <= 1:
+        raise ValueError("jerk_window_fraction must be in [0, 1].")
+
     data = _filter_data_by_time_range(data, segmentation_range)
 
     # 1) Calculate signal norms and detect foot-flat phases
@@ -1107,7 +1130,6 @@ def segment_seel(
     all_jerk_norms = []
     all_ic_times = []
 
-    j_win = 0.7
     for i in range(len(tos) - 1):
         to_idx = tos[i]
         next_ff_idx = ff_starts[i + 1] if i < len(ff_starts) - 1 else len(data)
@@ -1115,8 +1137,8 @@ def segment_seel(
         if next_ff_idx - to_idx < 10:
             continue
 
-        # Search window starts at 70% of the way from TO to foot-flat
-        t_win_idx = int(to_idx + j_win * (next_ff_idx - to_idx))
+        # Search window starts at 70% of the way from TO to foot-flat in Seel et al.
+        t_win_idx = int(to_idx + jerk_window_fraction * (next_ff_idx - to_idx))
         window = data.iloc[t_win_idx:next_ff_idx]
         Ts = np.mean(np.diff(window["elapsed_s"]))
 
