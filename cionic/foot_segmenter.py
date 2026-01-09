@@ -16,16 +16,17 @@ The module can detect various gait events:
 - Foot Flat phases (Seel only)
 """
 
-# Standard library imports
 from typing import Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
-
-# Third-party imports
 import numpy as np
 import pandas as pd
 from scipy.interpolate import interp1d
 from scipy.signal import find_peaks
+
+#########################################
+# Helper Functions                      #
+#########################################
 
 
 def _filter_data_by_time_range(
@@ -73,6 +74,284 @@ def _find_events_in_segment(
     if verbose and segment_idx is not None:
         print(f"Found {len(events_in_segment)} events in segment {segment_idx}")
     return events_in_segment
+
+
+def _validate_segment_events(
+    events_dict: Dict[str, List[int]],
+    segment_start: int,
+    segment_end: int,
+    verbose: bool = False,
+    segment_idx: Optional[int] = None,
+) -> bool:
+    """Validate events within a segment.
+
+    Checks if the segment has exactly one of each event type.
+
+    Args:
+        events_dict (dict[str, list[int]]): Dictionary mapping event names to indices
+        segment_start (int): Start index of segment
+        segment_end (int): End index of segment
+        verbose (bool, optional): Whether to print validation info. Defaults to False.
+        segment_idx (int, optional): Segment index for verbose output. Defaults to None.
+
+    Returns:
+        bool: True if segment has exactly one of each event type
+    """
+    for event_name, events in events_dict.items():
+        events_in_segment = _find_events_in_segment(events, segment_start, segment_end)
+        if len(events_in_segment) != 1:
+            if verbose:
+                print(
+                    f"Skipping segment {segment_idx} due to {len(events_in_segment)} "
+                    f"{event_name} events found."
+                )
+            return False
+    return True
+
+
+def _validate_component_inputs(
+    ic_component: str, ec_component: str, ic_peak_type: str, ec_peak_type: str
+) -> None:
+    """Validate component and peak type inputs.
+
+    Args:
+        ic_component (str): Initial contact component name.
+        ec_component (str): End contact component name.
+        ic_peak_type (str): Initial contact peak type ('max' or 'min').
+        ec_peak_type (str): End contact peak type ('max' or 'min').
+
+    Raises:
+        ValueError: If component or peak type is invalid.
+    """
+    valid_components = ["accel_x", "accel_y", "accel_z"]
+    if ic_component not in valid_components or ec_component not in valid_components:
+        raise ValueError(f"Component must be one of {valid_components}")
+    if ic_peak_type not in ["max", "min"] or ec_peak_type not in ["max", "min"]:
+        raise ValueError("Peak type must be 'max' or 'min'")
+
+
+def _find_signal_peaks(
+    signal: np.ndarray,
+    peak_type: str = "max",
+    height: Optional[float] = None,
+    distance: int = 25,
+    prominence: float = 0.1,
+) -> np.ndarray:
+    """Find peaks in a signal using scipy's find_peaks.
+
+    Detects peaks with configurable parameters and sorts them by prominence.
+
+    Args:
+        signal (np.ndarray): The signal to find peaks in
+        peak_type (str, optional): 'max' for maxima or 'min' for minima.
+            Defaults to 'max'.
+        height (float, optional): Minimum/maximum height for peak detection.
+            Defaults to None.
+        distance (int, optional): Minimum distance between peaks in samples.
+            Defaults to 25.
+        prominence (float, optional): Minimum prominence of peaks.
+            Defaults to 0.1.
+
+    Returns:
+        np.ndarray: Indices of detected peaks, sorted by prominence
+    """
+    if peak_type == "min":
+        signal = -signal
+        if height is not None:
+            height = -height
+
+    peaks, properties = find_peaks(
+        signal, height=height, distance=distance, prominence=prominence
+    )
+
+    if len(peaks) > 0:
+        sorted_indices = np.argsort(properties["prominences"])[::-1]
+        peaks = peaks[sorted_indices]
+
+    return peaks
+
+
+def _find_gait_events(
+    data: pd.DataFrame,
+    component: str,
+    peak_type: str,
+    window_range: Tuple[float, float],
+    time_idx: int,
+    verbose: bool = False,
+) -> List[int]:
+    """Find gait events within a time window.
+
+    Args:
+        data (pd.DataFrame): DataFrame with time and component data.
+        component (str): Column name for event detection.
+        peak_type (str): Type of peak to detect ('max' or 'min').
+        window_range (tuple[float, float]): (pre, post) time window in seconds.
+        time_idx (int): Index to center the window around.
+        verbose (bool, optional): Whether to print detection info.
+            Defaults to False.
+
+    Returns:
+        list[int]: Detected event indices. Empty list if no events found.
+    """
+    event_time = data["elapsed_s"].iloc[time_idx]
+    pre_time = event_time + window_range[0]
+    post_time = event_time + window_range[1]
+
+    if verbose:
+        print(f"Event search window: {pre_time} to {post_time}")
+
+    segment = data[(data["elapsed_s"] >= pre_time) & (data["elapsed_s"] <= post_time)]
+    if segment.empty:
+        return []
+
+    most_prominent_peaks = _find_signal_peaks(segment[component], peak_type=peak_type)
+    if len(most_prominent_peaks) == 0:
+        if peak_type == "min":
+            most_prominent_peaks = _find_signal_peaks(
+                segment[component], peak_type="max"
+            )
+        if len(most_prominent_peaks) == 0:
+            return []
+
+    return [most_prominent_peaks[0] + segment.index[0]]
+
+
+def _create_segments_from_ic_peaks(
+    data: pd.DataFrame, ic_peaks: List[int], ec_peaks: List[int], verbose: bool = False
+) -> Tuple[List[int], List[int], List[pd.DataFrame]]:
+    """Create segments from IC peaks with EC validation.
+
+    Creates gait cycle segments from initial contact peaks, validating that each
+    segment contains exactly one end contact event within the IC window.
+
+    Args:
+        data (pd.DataFrame): DataFrame containing 'elapsed_s' and sensor columns.
+        ic_peaks (list[int]): List of initial contact peak indices.
+        ec_peaks (list[int]): List of end contact peak indices.
+        verbose (bool, optional): Whether to print segment information.
+            Defaults to False.
+
+    Returns:
+        tuple[list[int], list[int], list[pd.DataFrame]]:
+            - List of validated EC peak indices
+            - List of validated IC peak indices
+            - List of segmented DataFrames
+    """
+    segments = []
+    final_ec_peaks = []
+    final_ic_peaks = []
+
+    for i in range(len(ic_peaks) - 1):
+        segment = data.iloc[ic_peaks[i] : ic_peaks[i + 1]]
+
+        events_dict = {"EC": ec_peaks}
+        if not _validate_segment_events(
+            events_dict, ic_peaks[i], ic_peaks[i + 1], verbose, i
+        ):
+            continue
+
+        ec_in_segment = _find_events_in_segment(ec_peaks, ic_peaks[i], ic_peaks[i + 1])
+        segments.append(segment)
+        final_ec_peaks.append(ec_in_segment[0])
+        final_ic_peaks.append(ic_peaks[i])
+
+        if verbose:
+            print(
+                f"Segment {i}: Time {segment['elapsed_s'].min()} to "
+                f"{segment['elapsed_s'].max()}"
+            )
+
+    return final_ec_peaks, final_ic_peaks, segments
+
+
+def _detect_rest_phases(
+    signal: np.ndarray, threshold: float, hysteresis_factor: float
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Detect rest phases using forward-backward hysteresis.
+
+    Helper function for Seel algorithm. Detects rest phases in a signal using
+    hysteresis to avoid rapid switching between states.
+
+    Args:
+        signal (np.ndarray): Signal to analyze.
+        threshold (float): Threshold for rest detection.
+        hysteresis_factor (float): Factor to reduce threshold for phase exit.
+
+    Returns:
+        tuple[np.ndarray, np.ndarray]: (forward_mask, backward_mask) boolean arrays
+            indicating rest phases.
+    """
+    N = len(signal)
+    forward_mask = np.zeros(N)
+    backward_mask = np.zeros(N)
+
+    for k in range(1, N):
+        if signal[k] > (1 + hysteresis_factor) * threshold:
+            forward_mask[k] = 1
+        elif signal[k] < (1 - hysteresis_factor) * threshold:
+            forward_mask[k] = 0
+        else:
+            forward_mask[k] = forward_mask[k - 1]
+
+    backward_mask[-1] = forward_mask[-1]
+    for k in range(N - 2, -1, -1):
+        if forward_mask[k] == 1:
+            backward_mask[k] = 1
+        elif signal[k] < (1 - hysteresis_factor) * threshold:
+            backward_mask[k] = 0
+        else:
+            backward_mask[k] = backward_mask[k + 1]
+
+    return forward_mask, backward_mask
+
+
+def _remove_short_phases(mask: np.ndarray, min_samples: int) -> np.ndarray:
+    """Remove short phases in a boolean mask.
+
+    Helper function for Seel algorithm. Removes phases that are shorter than
+    the minimum duration to filter out noise.
+
+    Args:
+        mask (np.ndarray): Boolean mask to process.
+        min_samples (int): Minimum number of samples for a phase to be kept.
+
+    Returns:
+        np.ndarray: Processed boolean mask with short phases removed.
+    """
+    zero_regions = np.where(mask)[0]
+    if len(zero_regions) > 0:
+        zero_boundaries = np.where(np.diff(zero_regions) > 1)[0]
+        if len(zero_boundaries) > 0:
+            zero_starts = np.concatenate(
+                ([zero_regions[0]], zero_regions[zero_boundaries + 1])
+            )
+            zero_ends = np.concatenate(
+                (zero_regions[zero_boundaries], [zero_regions[-1]])
+            )
+
+            for start, end in zip(zero_starts, zero_ends):
+                if end - start < min_samples:
+                    mask[start : end + 1] = False
+
+    one_regions = np.where(~mask)[0]
+    if len(one_regions) > 0:
+        one_boundaries = np.where(np.diff(one_regions) > 1)[0]
+        if len(one_boundaries) > 0:
+            one_starts = np.concatenate(
+                ([one_regions[0]], one_regions[one_boundaries + 1])
+            )
+            one_ends = np.concatenate((one_regions[one_boundaries], [one_regions[-1]]))
+
+            for start, end in zip(one_starts, one_ends):
+                if end - start < min_samples:
+                    mask[start : end + 1] = True
+
+    return mask
+
+
+#########################################
+# Plotting Helpers                      #
+#########################################
 
 
 def _plot_orientation_with_events(
@@ -243,702 +522,37 @@ def _plot_ic_detection(
     plt.show()
 
 
-def _validate_segment_events(
-    events_dict: Dict[str, List[int]],
-    segment_start: int,
-    segment_end: int,
-    verbose: bool = False,
-    segment_idx: Optional[int] = None,
-) -> bool:
-    """Validate events within a segment.
-
-    Checks if the segment has exactly one of each event type.
-
-    Args:
-        events_dict (dict[str, list[int]]): Dictionary mapping event names to indices
-        segment_start (int): Start index of segment
-        segment_end (int): End index of segment
-        verbose (bool, optional): Whether to print validation info. Defaults to False.
-        segment_idx (int, optional): Segment index for verbose output. Defaults to None.
-
-    Returns:
-        bool: True if segment has exactly one of each event type
-    """
-    for event_name, events in events_dict.items():
-        events_in_segment = _find_events_in_segment(events, segment_start, segment_end)
-        if len(events_in_segment) != 1:
-            if verbose:
-                print(
-                    f"Skipping segment {segment_idx} due to {len(events_in_segment)} "
-                    f"{event_name} events found."
-                )
-            return False
-    return True
-
-
-def event_idxs_to_times(
-    data: pd.DataFrame, events: list, time_range: Tuple[float, float] = (0, np.inf)
-) -> np.ndarray:
-    """Convert event indices to times.
-
-    Args:
-        data (pd.DataFrame): DataFrame containing 'elapsed_s' column
-        events (list): List of event indices
-        time_range (tuple[float, float], optional): Time range to convert.
-            Defaults to (0, np.inf).
-
-    Returns:
-        np.ndarray: Array of event times
-    """
-    return _filter_data_by_time_range(data, time_range).iloc[events]['elapsed_s'].values
-
-
-def segment_by_peaks(
-    data: pd.DataFrame,
-    signal_column: str = "roll",
-    peak_height: float = 0.2,
-    peak_distance: int = 25,
-    trough_height: float = -0.1,
-    segmentation_range: Tuple[float, float] = (0, np.inf),
-    plot_peaks: bool = False,
-    verbose: bool = True,
-) -> Tuple[List[int], List[int], List[pd.DataFrame]]:
-    """Segment gait cycles using peak detection on a signal column.
-
-    Uses peak detection on the specified signal column to identify gait cycles.
-    Each cycle is defined from peak to peak, with validation that each cycle
-    contains exactly one trough.
-
-    Args:
-        data (pd.DataFrame): DataFrame containing 'elapsed_s' and signal column
-        signal_column (str, optional): Column name to use for peak detection.
-            Defaults to 'roll'.
-        peak_height (float, optional): Minimum height for peak detection.
-            Defaults to 0.2.
-        peak_distance (int, optional): Minimum distance between peaks in samples.
-            Defaults to 25.
-        trough_height (float, optional): Minimum height for trough detection.
-            Defaults to -0.1.
-        segmentation_range (tuple[float, float], optional): Time range to segment.
-            Defaults to (0, np.inf).
-        plot_peaks (bool, optional): Whether to plot peaks and troughs.
-            Defaults to False.
-        verbose (bool, optional): Whether to print segment information.
-            Defaults to True.
-
-    Returns:
-        tuple[list[int], list[int], list[pd.DataFrame]]:
-            - List of peak indices
-            - List of trough indices
-            - List of segmented DataFrames
-    """
-    data = _filter_data_by_time_range(data, segmentation_range)
-
-    # 1) Detect peaks + troughs
-    peaks, _ = find_peaks(
-        data[signal_column], height=peak_height, distance=peak_distance
-    )
-    troughs, _ = find_peaks(
-        -data[signal_column], height=trough_height, distance=peak_distance
-    )
-
-    if verbose:
-        print(
-            f"Found {len(peaks)} peaks and {len(troughs)} "
-            f"troughs in {signal_column} data."
-        )
-
-    if plot_peaks:
-        events = {"EC Peaks": (peaks, "r"), "IC Peaks": (troughs, "g")}
-        _plot_orientation_with_events(
-            data,
-            signal_column=signal_column,
-            events_dict=events,
-            title="Kinematics with EC and IC Peaks",
-        )
-
-    # 2) Create segments from peak to peak, validating each segment has 1 trough
-    segments = []
-    final_peaks = []
-    final_troughs = []
-
-    for i in range(len(peaks) - 1):
-        segment = data.iloc[peaks[i] : peaks[i + 1]]
-        events_dict = {"troughs": troughs}
-        if not _validate_segment_events(
-            events_dict, peaks[i], peaks[i + 1], verbose, i
-        ):
-            continue
-
-        troughs_in_segment = _find_events_in_segment(troughs, peaks[i], peaks[i + 1])
-        segments.append(segment)
-        final_peaks.append(peaks[i])
-        final_troughs.append(troughs_in_segment[0])
-
-        if verbose:
-            print(
-                f"Segment {i}: Time {segment['elapsed_s'].min()} to "
-                f"{segment['elapsed_s'].max()}"
-            )
-
-    return final_peaks, final_troughs, segments
-
-
-def plot_segment_analysis(
-    segments: List[pd.DataFrame],
-    tos: List[int],
-    ics: List[int],
-    ff_starts: Optional[List[int]] = None,
-    ff_ends: Optional[List[int]] = None,
-    num_samples: int = 10000,
-    plot_individual: bool = True,
-    verbose: bool = False,
-    main: str = "roll",
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Plot and analyze gait segments with normalized time.
-
-    Creates a visualization showing individual segments, average trajectory, and
-    standard deviation. Also marks gait events (TO, IC, foot-flat) if provided.
-
-    Args:
-        segments (list[pd.DataFrame]): List of segmented DataFrames
-        tos (list[int]): List of toe-off event indices
-        ics (list[int]): List of initial contact event indices
-        ff_starts (list[int], optional): List of foot-flat start indices.
-            Defaults to None.
-        ff_ends (list[int], optional): List of foot-flat end indices.
-            Defaults to None.
-        num_samples (int, optional): Number of samples for interpolation.
-            Defaults to 10000.
-        plot_individual (bool, optional): Whether to plot individual segments.
-            Defaults to True.
-        verbose (bool, optional): Whether to print segment information.
-            Defaults to False.
-        main (str, optional): Column name for the main signal to plot.
-            Defaults to 'roll'.
-
-    Returns:
-        tuple[np.ndarray, np.ndarray, np.ndarray]:
-            - Mean signal values
-            - Standard deviation of signal values
-            - Uniform time points used for interpolation
-    """
-    if verbose:
-        for i, segment in enumerate(segments):
-            segment_time = segment["elapsed_s"] - segment["elapsed_s"].min()
-            print(f"Segment {i} saved with time normalized to start at 0.")
-
-    plt.figure(figsize=(12, 6))
-
-    if plot_individual:
-        to_times = []
-        ic_times = []
-        to_vals = []
-        ic_vals = []
-
-        ff_start_times = []
-        ff_start_vals = []
-        ff_end_times = []
-        ff_end_vals = []
-
-        for i, segment in enumerate(segments):
-            seg_start = segment.index[0]
-            seg_end = segment.index[-1]
-            segment_time = segment["elapsed_s"] - segment["elapsed_s"].min()
-            segment_time = segment_time / segment_time.max()
-
-            plt.plot(segment_time, segment[main], alpha=0.5)
-
-            seg_tos = [to for to in tos if seg_start <= to <= seg_end]
-            if len(seg_tos) > 0:
-                rel_to_idx = seg_tos[0] - seg_start
-                to_times.append(segment_time.iloc[rel_to_idx])
-                to_vals.append(segment[main].iloc[rel_to_idx])
-
-            seg_ics = [ic for ic in ics if seg_start <= ic <= seg_end]
-            if len(seg_ics) > 0:
-                rel_ic_idx = seg_ics[0] - seg_start
-                ic_times.append(segment_time.iloc[rel_ic_idx])
-                ic_vals.append(segment[main].iloc[rel_ic_idx])
-
-            if ff_starts is not None:
-                seg_ff_starts = [
-                    idx for idx in ff_starts if seg_start <= idx <= seg_end
-                ]
-                if len(seg_ff_starts) > 0:
-                    rel_ff_start_idx = seg_ff_starts[0] - seg_start
-                    ff_start_times.append(segment_time.iloc[rel_ff_start_idx])
-                    ff_start_vals.append(segment[main].iloc[rel_ff_start_idx])
-
-            if ff_ends is not None:
-                seg_ff_ends = [idx for idx in ff_ends if seg_start <= idx <= seg_end]
-                if len(seg_ff_ends) > 0:
-                    rel_ff_end_idx = seg_ff_ends[0] - seg_start
-                    ff_end_times.append(segment_time.iloc[rel_ff_end_idx])
-                    ff_end_vals.append(segment[main].iloc[rel_ff_end_idx])
-
-        plt.scatter(to_times, to_vals, color="orange", label="Toe-Off")
-        plt.scatter(ic_times, ic_vals, color="purple", label="Initial Contact")
-        if ff_starts is not None and len(ff_start_times) > 0:
-            plt.scatter(
-                ff_start_times, ff_start_vals, color="green", label="Foot-Flat Start"
-            )
-        if ff_ends is not None and len(ff_end_times) > 0:
-            plt.scatter(ff_end_times, ff_end_vals, color="red", label="Foot-Flat End")
-
-    interpolated_rolls = []
-    for segment in segments:
-        segment_filtered = segment.dropna(subset=[main])
-        seg_time = segment_filtered["elapsed_s"] - segment_filtered["elapsed_s"].min()
-        seg_time = seg_time / seg_time.max()
-        seg_roll = segment_filtered[main].values
-
-        interp_func = interp1d(
-            seg_time, seg_roll, kind="linear", fill_value="extrapolate"
-        )
-        uniform_time = np.linspace(0, 1, num_samples)
-        interp_roll = interp_func(uniform_time)
-        interpolated_rolls.append(interp_roll)
-
-    interpolated_rolls = np.array(interpolated_rolls)
-    mean_roll = np.mean(interpolated_rolls, axis=0)
-    std_roll = np.std(interpolated_rolls, axis=0)
-
-    uniform_time = np.linspace(0, 1, num_samples)
-    plt.plot(uniform_time, mean_roll, color="k", label=f"Average {main}", linewidth=2)
-    plt.fill_between(
-        uniform_time,
-        mean_roll - std_roll,
-        mean_roll + std_roll,
-        color="k",
-        alpha=0.2,
-        label="Std Dev",
-    )
-
-    plt.legend()
-    plt.title("All Segments Over Time")
-    plt.xlabel("Normalized Time")
-    plt.ylabel(f"{main} Angle (radians)")
-    plt.grid()
-    plt.show()
-
-    return mean_roll, std_roll, uniform_time
-
-
-def _find_signal_peaks(
-    signal: np.ndarray,
-    peak_type: str = "max",
-    height: Optional[float] = None,
-    distance: int = 25,
-    prominence: float = 0.1,
-) -> np.ndarray:
-    """Find peaks in a signal using scipy's find_peaks.
-
-    Detects peaks with configurable parameters and sorts them by prominence.
-
-    Args:
-        signal (np.ndarray): The signal to find peaks in
-        peak_type (str, optional): 'max' for maxima or 'min' for minima.
-            Defaults to 'max'.
-        height (float, optional): Minimum/maximum height for peak detection.
-            Defaults to None.
-        distance (int, optional): Minimum distance between peaks in samples.
-            Defaults to 25.
-        prominence (float, optional): Minimum prominence of peaks.
-            Defaults to 0.1.
-
-    Returns:
-        np.ndarray: Indices of detected peaks, sorted by prominence
-    """
-    if peak_type == "min":
-        signal = -signal
-        if height is not None:
-            height = -height
-
-    peaks, properties = find_peaks(
-        signal, height=height, distance=distance, prominence=prominence
-    )
-
-    if len(peaks) > 0:
-        sorted_indices = np.argsort(properties["prominences"])[::-1]
-        peaks = peaks[sorted_indices]
-
-    return peaks
-
-
-def _validate_component_inputs(ic_component, ec_component, ic_peak_type, ec_peak_type):
-    """Validate component and peak type inputs."""
-    valid_components = ["accel_x", "accel_y", "accel_z"]
-    if ic_component not in valid_components or ec_component not in valid_components:
-        raise ValueError(f"Component must be one of {valid_components}")
-    if ic_peak_type not in ["max", "min"] or ec_peak_type not in ["max", "min"]:
-        raise ValueError("Peak type must be 'max' or 'min'")
-
-
-def _create_segments_from_ic_peaks(data, ic_peaks, ec_peaks, verbose=False):
-    """Create segments from IC peaks with EC validation."""
-    segments = []
-    final_ec_peaks = []
-    final_ic_peaks = []
-
-    for i in range(len(ic_peaks) - 1):
-        segment = data.iloc[ic_peaks[i] : ic_peaks[i + 1]]
-
-        events_dict = {"EC": ec_peaks}
-        if not _validate_segment_events(
-            events_dict, ic_peaks[i], ic_peaks[i + 1], verbose, i
-        ):
-            continue
-
-        ec_in_segment = _find_events_in_segment(ec_peaks, ic_peaks[i], ic_peaks[i + 1])
-        segments.append(segment)
-        final_ec_peaks.append(ec_in_segment[0])
-        final_ic_peaks.append(ic_peaks[i])
-
-        if verbose:
-            print(
-                f"Segment {i}: Time {segment['elapsed_s'].min()} to "
-                f"{segment['elapsed_s'].max()}"
-            )
-
-    return final_ec_peaks, final_ic_peaks, segments
-
-
-def _find_gait_events(
-    data, component, peak_type, window_range, time_idx, verbose=False
-):
-    """Find gait events within a time window.
-
-    Args:
-        data: DataFrame with time and component data
-        component: Column name for event detection
-        peak_type: Type of peak to detect ('max' or 'min')
-        window_range: (pre, post) time window in seconds
-        time_idx: Index to center the window around
-        verbose: Whether to print detection info
-
-    Returns:
-        list: Detected event indices
-    """
-    event_time = data["elapsed_s"].iloc[time_idx]
-    pre_time = event_time + window_range[0]
-    post_time = event_time + window_range[1]
-
-    if verbose:
-        print(f"Event search window: {pre_time} to {post_time}")
-
-    segment = data[(data["elapsed_s"] >= pre_time) & (data["elapsed_s"] <= post_time)]
-    if segment.empty:
-        return []
-
-    most_prominent_peaks = _find_signal_peaks(segment[component], peak_type=peak_type)
-    if len(most_prominent_peaks) == 0:
-        if peak_type == "min":
-            most_prominent_peaks = _find_signal_peaks(
-                segment[component], peak_type="max"
-            )
-        if len(most_prominent_peaks) == 0:
-            return []
-
-    return [most_prominent_peaks[0] + segment.index[0]]
-
-
-def segment_jasiewicz(
-    data,
-    ic_component="accel_z",
-    ic_peak_type="min",
-    ec_component="accel_x",
-    ec_peak_type="max",
-    roll_peak_height=0.1,
-    roll_distance=25,
-    ic_window=(-0.1, 0.1),
-    ec_window=(-0.25, 0.05),
-    plot_peaks=False,
-    verbose=True,
-    segmentation_range=(0, np.inf),
-):
-    """Segment gait cycles using roll and acceleration data.
-
-    EC search windows should be around peak plantarflexion (trough in roll).
-    IC search windows should be around peak dorsiflexion (peak in roll).
-
-    Args:
-        data (pd.DataFrame): DataFrame containing 'elapsed_s', 'roll', and accel
-            columns
-        ic_component (str): Column name for initial contact detection ('accel_x',
-            'accel_y', or 'accel_z')
-        ic_peak_type (str): Type of peak to detect for IC ('max' or 'min')
-        ec_component (str): Column name for end contact detection ('accel_x',
-            'accel_y', or 'accel_z')
-        ec_peak_type (str): Type of peak to detect for EC ('max' or 'min')
-        roll_peak_height (float): Height threshold for roll peaks
-        roll_distance (int): Minimum distance between roll peaks/troughs
-        ic_window (tuple): Time window around trough for IC detection (pre, post)
-            in seconds
-        ec_window (tuple): Time window around maxima for EC detection (pre, post)
-            in seconds
-        plot_peaks (bool): Whether to plot the detected peaks
-        verbose (bool): Whether to print detection information
-        segmentation_range (tuple): Time range of the data to segment
-
-    Returns:
-        tuple: (ec_peaks, ic_peaks, segments, maxima, troughs)
-    """
-    _validate_component_inputs(ic_component, ec_component, ic_peak_type, ec_peak_type)
-    data = _filter_data_by_time_range(data, segmentation_range)
-
-    # 1) troughs (peak plantarflexion) and peaks/maxima (peak dorsiflexion)
-    troughs, _ = find_peaks(
-        -data["roll"], height=roll_peak_height, distance=roll_distance
-    )
-    if verbose:
-        print(f"Found {len(troughs)} troughs in roll data.")
-
-    maxima = []
-    if len(troughs) > 1:
-        for i in range(len(troughs) - 1):
-            segment = data.iloc[troughs[i] : troughs[i + 1]]
-            peak, _ = find_peaks(segment["roll"], distance=roll_distance)
-            if len(peak) > 0:
-                maxima.append(peak[0] + troughs[i])
-
-    if verbose:
-        print(f"Found {len(maxima)} maxima in roll data.")
-
-    # 2) Detect EC events by searching for peaks in acceleration around roll troughs
-    ec_peaks = []
-    for trough_idx in troughs:
-        ec_peaks.extend(
-            _find_gait_events(
-                data, ec_component, ec_peak_type, ec_window, trough_idx, verbose
-            )
-        )
-
-    # 3) Detect IC events by searching for peaks in acceleration around roll maxima
-    ic_peaks = []
-    for max_idx in maxima:
-        ic_peaks.extend(
-            _find_gait_events(
-                data, ic_component, ic_peak_type, ic_window, max_idx, verbose
-            )
-        )
-
-    if plot_peaks:
-        events = {"EC Peaks": (ec_peaks, "orange"), "IC Peaks": (ic_peaks, "purple")}
-        _plot_orientation_with_events(
-            data,
-            signal_column="roll",
-            events_dict=events,
-            ic_component=ic_component,
-            ec_component=ec_component,
-            title="Roll with EC and IC Peaks",
-        )
-
-    final_ec_peaks, final_ic_peaks, segments = _create_segments_from_ic_peaks(
-        data, ic_peaks, ec_peaks, verbose
-    )
-
-    return final_ec_peaks, final_ic_peaks, segments, maxima, troughs
-
-
-def segment_cionic(
-    data,
-    ic_component="accel_z",
-    ic_peak_type="min",
-    ec_component="accel_x",
-    ec_peak_type="max",
-    roll_peak_height=0.1,
-    roll_distance=25,
-    ic_window=(-0.25, 0.05),
-    ec_window=(-0.25, 0.05),
-    plot_peaks=False,
-    verbose=True,
-    segmentation_range=(0, np.inf),
-):
-    """Segment gait cycles using roll and acceleration data with Cionic algorithm.
-
-    Modified Jasiewicz algorithm that uses IC component markers instead of roll maxima.
-
-    Args:
-        data (pd.DataFrame): DataFrame with 'elapsed_s', 'roll', and accel columns
-        ic_component (str): colname for IC detection ('accel_x', 'accel_y', 'accel_z')
-        ic_peak_type (str): Type of peak to detect for IC ('max' or 'min')
-        ec_component (str): colname for EC detection ('accel_x', 'accel_y', 'accel_z')
-        ec_peak_type (str): Type of peak to detect for EC ('max' or 'min')
-        roll_peak_height (float): Height threshold for roll peaks
-        roll_distance (int): Minimum distance between roll peaks/troughs
-        ic_window (tuple): Time window around marker for IC detection (pre, post) (s)
-        ec_window (tuple): Time window around trough for EC detection (pre, post) (s)
-        plot_peaks (bool): Whether to plot the detected peaks
-        verbose (bool): Whether to print detection information
-        segmentation_range (tuple): Time range of the data to segment
-
-    Returns:
-        tuple: (ec_peaks, ic_peaks, segments)
-    """
-    _validate_component_inputs(ic_component, ec_component, ic_peak_type, ec_peak_type)
-    data = _filter_data_by_time_range(data, segmentation_range)
-
-    # 1) Find troughs (peak plantarflexion)
-    troughs, _ = find_peaks(
-        -data["roll"], height=roll_peak_height, distance=roll_distance
-    )
-    if verbose:
-        print(f"Found {len(troughs)} troughs in roll data.")
-
-    # 2) Find IC markers in accel between troughs (instead of using maxima)
-    ic_markers = []
-    for i in range(len(troughs) - 1):
-        segment = data.iloc[troughs[i] : troughs[i + 1]]
-        start_idx = int(len(segment) * 0.15)
-        end_idx = int(len(segment) * 0.85)
-        segment = segment.iloc[start_idx:end_idx]
-
-        peaks = _find_signal_peaks(segment[ic_component], peak_type="max")
-        if len(peaks) > 0:
-            ic_markers.append(peaks[0] + segment.index[0])
-
-    if verbose:
-        print(f"Found {len(ic_markers)} markers in {ic_component} data.")
-
-    # 3) Detect EC events by searching for peaks in acceleration around roll troughs
-    ec_peaks = []
-    for trough_idx in troughs:
-        ec_peaks.extend(
-            _find_gait_events(
-                data, ec_component, ec_peak_type, ec_window, trough_idx, verbose
-            )
-        )
-
-    # 4) Detect IC events by searching for peaks in acceleration around IC markers
-    ic_peaks = []
-    for marker_idx in ic_markers:
-        ic_peaks.extend(
-            _find_gait_events(
-                data, ic_component, ic_peak_type, ic_window, marker_idx, verbose
-            )
-        )
-
-    if plot_peaks:
-        events = {"EC Peaks": (ec_peaks, "orange"), "IC Peaks": (ic_peaks, "purple")}
-        _plot_orientation_with_events(
-            data,
-            signal_column="roll",
-            events_dict=events,
-            ic_component=ic_component,
-            ec_component=ec_component,
-            title="Roll with EC and IC Peaks",
-        )
-
-    final_ec_peaks, final_ic_peaks, segments = _create_segments_from_ic_peaks(
-        data, ic_peaks, ec_peaks, verbose
-    )
-
-    return final_ec_peaks, final_ic_peaks, segments
-
-
-def _detect_rest_phases(signal: np.ndarray, threshold: float, hysteresis_factor: float):
-    """Helper function to detect rest phases using forward-backward hysteresis.
-    For Seel algorithm.
-
-    Args:
-        signal: Signal to analyze
-        threshold: Threshold for rest detection
-        hysteresis_factor: Factor to reduce threshold for phase exit
-
-    Returns:
-        tuple: (forward_mask, backward_mask) boolean arrays
-    """
-    N = len(signal)
-    forward_mask = np.zeros(N)
-    backward_mask = np.zeros(N)
-
-    for k in range(1, N):
-        if signal[k] > (1 + hysteresis_factor) * threshold:
-            forward_mask[k] = 1
-        elif signal[k] < (1 - hysteresis_factor) * threshold:
-            forward_mask[k] = 0
-        else:
-            forward_mask[k] = forward_mask[k - 1]
-
-    backward_mask[-1] = forward_mask[-1]
-    for k in range(N - 2, -1, -1):
-        if forward_mask[k] == 1:
-            backward_mask[k] = 1
-        elif signal[k] < (1 - hysteresis_factor) * threshold:
-            backward_mask[k] = 0
-        else:
-            backward_mask[k] = backward_mask[k + 1]
-
-    return forward_mask, backward_mask
-
-
-def _remove_short_phases(mask: np.ndarray, min_samples: int):
-    """Remove short phases in a boolean mask. For Seel algorithm.
-
-    Args:
-        mask: Boolean mask to process
-        min_samples: Minimum number of samples for a phase to be kept
-
-    Returns:
-        array: Processed boolean mask with short phases removed
-    """
-    zero_regions = np.where(mask)[0]
-    if len(zero_regions) > 0:
-        zero_boundaries = np.where(np.diff(zero_regions) > 1)[0]
-        if len(zero_boundaries) > 0:
-            zero_starts = np.concatenate(
-                ([zero_regions[0]], zero_regions[zero_boundaries + 1])
-            )
-            zero_ends = np.concatenate(
-                (zero_regions[zero_boundaries], [zero_regions[-1]])
-            )
-
-            for start, end in zip(zero_starts, zero_ends):
-                if end - start < min_samples:
-                    mask[start : end + 1] = False
-
-    one_regions = np.where(~mask)[0]
-    if len(one_regions) > 0:
-        one_boundaries = np.where(np.diff(one_regions) > 1)[0]
-        if len(one_boundaries) > 0:
-            one_starts = np.concatenate(
-                ([one_regions[0]], one_regions[one_boundaries + 1])
-            )
-            one_ends = np.concatenate((one_regions[one_boundaries], [one_regions[-1]]))
-
-            for start, end in zip(one_starts, one_ends):
-                if end - start < min_samples:
-                    mask[start : end + 1] = True
-
-    return mask
-
-
 def _plot_seel_detection(
-    data,
-    accel_norm,
-    gyro_norm,
-    ra_backward,
-    rg_backward,
-    ff_mask,
-    ff_starts,
-    ff_ends,
-    accel_thresholds,
-    gyro_thresholds,
-    verbose=False,
-):
+    data: pd.DataFrame,
+    accel_norm: np.ndarray,
+    gyro_norm: np.ndarray,
+    ra_backward: np.ndarray,
+    rg_backward: np.ndarray,
+    ff_mask: np.ndarray,
+    ff_starts: np.ndarray,
+    ff_ends: np.ndarray,
+    accel_thresholds: List[float],
+    gyro_thresholds: List[float],
+    verbose: bool = False,
+) -> None:
     """Plot Seel algorithm detection process.
 
+    Creates visualization of the Seel algorithm's foot-flat detection process,
+    showing acceleration, gyroscope, rest signals, and detected events.
+
     Args:
-        data: DataFrame with time and sensor data
-        accel_norm: Acceleration norm signal
-        gyro_norm: Gyroscope norm signal
-        ra_backward: Rest signal from acceleration
-        rg_backward: Rest signal from gyroscope
-        ff_mask: Foot-flat mask
-        ff_starts: Foot-flat start indices
-        ff_ends: Foot-flat end indices
-        verbose: Whether to print detection info
+        data (pd.DataFrame): DataFrame with time and sensor data.
+        accel_norm (np.ndarray): Acceleration norm signal.
+        gyro_norm (np.ndarray): Gyroscope norm signal.
+        ra_backward (np.ndarray): Rest signal from acceleration.
+        rg_backward (np.ndarray): Rest signal from gyroscope.
+        ff_mask (np.ndarray): Foot-flat mask.
+        ff_starts (np.ndarray): Foot-flat start indices.
+        ff_ends (np.ndarray): Foot-flat end indices.
+        accel_thresholds (list[float]): Acceleration threshold values.
+        gyro_thresholds (list[float]): Gyroscope threshold values.
+        verbose (bool, optional): Whether to print detection info.
+            Defaults to False.
     """
     mask_20s = data["elapsed_s"] <= 20
     data_20s = data[mask_20s]
@@ -1001,6 +615,322 @@ def _plot_seel_detection(
         print("\nEvents in first 20 seconds:")
         print(f"FF starts: {ff_starts_20s}")
         print(f"FF ends: {ff_ends_20s}")
+
+
+#########################################
+# Segmentation Algorithms               #
+#########################################
+
+
+def segment_by_peaks(
+    data: pd.DataFrame,
+    signal_column: str = "roll",
+    peak_height: float = 0.1,
+    peak_distance: int = 10,
+    trough_height: float = -0.1,
+    segmentation_range: Tuple[float, float] = (0, np.inf),
+    plot_peaks: bool = False,
+    verbose: bool = True,
+) -> Tuple[List[int], List[int], List[pd.DataFrame]]:
+    """Segment gait cycles using peak detection on a signal column.
+
+    Uses peak detection on the specified signal column to identify gait cycles.
+    Each cycle is defined from peak to peak, with validation that each cycle
+    contains exactly one trough.
+
+    Args:
+        data (pd.DataFrame): DataFrame containing 'elapsed_s' and signal column
+        signal_column (str, optional): Column name to use for peak detection.
+            Defaults to 'roll'.
+        peak_height (float, optional): Minimum height for peak detection.
+            Defaults to 0.2.
+        peak_distance (int, optional): Minimum distance between peaks in samples.
+            Defaults to 10.
+        trough_height (float, optional): Minimum height for trough detection.
+            Defaults to -0.1.
+        segmentation_range (tuple[float, float], optional): Time range to segment.
+            Defaults to (0, np.inf).
+        plot_peaks (bool, optional): Whether to plot peaks and troughs.
+            Defaults to False.
+        verbose (bool, optional): Whether to print segment information.
+            Defaults to True.
+
+    Returns:
+        tuple[list[int], list[int], list[pd.DataFrame]]:
+            - List of peak indices
+            - List of trough indices
+            - List of segmented DataFrames
+    """
+    data = _filter_data_by_time_range(data, segmentation_range)
+
+    # 1) Detect peaks + troughs
+    peaks, _ = find_peaks(
+        data[signal_column], height=peak_height, distance=peak_distance
+    )
+    troughs, _ = find_peaks(
+        -data[signal_column], height=-trough_height, distance=peak_distance
+    )
+
+    if verbose:
+        print(
+            f"Found {len(peaks)} peaks and {len(troughs)} "
+            f"troughs in {signal_column} data."
+        )
+
+    if plot_peaks:
+        events = {"EC Peaks": (peaks, "r"), "IC Peaks": (troughs, "g")}
+        _plot_orientation_with_events(
+            data,
+            signal_column=signal_column,
+            events_dict=events,
+            title="Kinematics with EC and IC Peaks",
+        )
+
+    # 2) Create segments from peak to peak, validating each segment has 1 trough
+    segments = []
+    final_peaks = []
+    final_troughs = []
+
+    for i in range(len(peaks) - 1):
+        segment = data.iloc[peaks[i] : peaks[i + 1]]
+        events_dict = {"troughs": troughs}
+        if not _validate_segment_events(
+            events_dict, peaks[i], peaks[i + 1], verbose, i
+        ):
+            continue
+
+        troughs_in_segment = _find_events_in_segment(troughs, peaks[i], peaks[i + 1])
+        segments.append(segment)
+        final_peaks.append(peaks[i])
+        final_troughs.append(troughs_in_segment[0])
+
+        if verbose:
+            print(
+                f"Segment {i}: Time {segment['elapsed_s'].min()} to "
+                f"{segment['elapsed_s'].max()}"
+            )
+
+    return final_peaks, final_troughs, segments
+
+
+def segment_jasiewicz(
+    data: pd.DataFrame,
+    ic_component: str = "accel_z",
+    ic_peak_type: str = "min",
+    ec_component: str = "accel_x",
+    ec_peak_type: str = "max",
+    roll_peak_height: float = 0.1,
+    roll_distance: int = 10,
+    ic_window: Tuple[float, float] = (-0.1, 0.1),
+    ec_window: Tuple[float, float] = (-0.25, 0.05),
+    plot_peaks: bool = False,
+    verbose: bool = True,
+    segmentation_range: Tuple[float, float] = (0, np.inf),
+) -> Tuple[List[int], List[int], List[pd.DataFrame], List[int], List[int]]:
+    """Segment gait cycles using roll and acceleration data.
+
+    EC search windows should be around peak plantarflexion (trough in roll).
+    IC search windows should be around peak dorsiflexion (peak in roll).
+
+    Args:
+        data (pd.DataFrame): DataFrame containing 'elapsed_s', 'roll', and accel
+            columns.
+        ic_component (str, optional): Column name for initial contact detection
+            ('accel_x', 'accel_y', or 'accel_z'). Defaults to 'accel_z'.
+        ic_peak_type (str, optional): Type of peak to detect for IC ('max' or 'min').
+            Defaults to 'min'.
+        ec_component (str, optional): Column name for end contact detection
+            ('accel_x', 'accel_y', or 'accel_z'). Defaults to 'accel_x'.
+        ec_peak_type (str, optional): Type of peak to detect for EC ('max' or 'min').
+            Defaults to 'max'.
+        roll_peak_height (float, optional): Height threshold for roll peaks.
+            Defaults to 0.1.
+        roll_distance (int, optional): Minimum distance between roll peaks/troughs.
+            Defaults to 10.
+        ic_window (tuple[float, float], optional): Time window around trough for IC
+            detection (pre, post) in seconds. Defaults to (-0.1, 0.1).
+        ec_window (tuple[float, float], optional): Time window around maxima for EC
+            detection (pre, post) in seconds. Defaults to (-0.25, 0.05).
+        plot_peaks (bool, optional): Whether to plot the detected peaks.
+            Defaults to False.
+        verbose (bool, optional): Whether to print detection information.
+            Defaults to True.
+        segmentation_range (tuple[float, float], optional): Time range of the data to
+            segment. Defaults to (0, np.inf).
+
+    Returns:
+        tuple[list[int], list[int], list[pd.DataFrame], list[int], list[int]]:
+            - List of validated EC peak indices
+            - List of validated IC peak indices
+            - List of segmented DataFrames
+            - List of roll maxima indices
+            - List of roll trough indices
+    """
+    _validate_component_inputs(ic_component, ec_component, ic_peak_type, ec_peak_type)
+    data = _filter_data_by_time_range(data, segmentation_range)
+
+    # 1) troughs (peak plantarflexion) and peaks/maxima (peak dorsiflexion)
+    troughs, _ = find_peaks(
+        -data["roll"], height=roll_peak_height, distance=roll_distance
+    )
+    if verbose:
+        print(f"Found {len(troughs)} troughs in roll data.")
+
+    maxima = []
+    if len(troughs) > 1:
+        for i in range(len(troughs) - 1):
+            segment = data.iloc[troughs[i] : troughs[i + 1]]
+            peak, _ = find_peaks(segment["roll"], distance=roll_distance)
+            if len(peak) > 0:
+                maxima.append(peak[0] + troughs[i])
+
+    if verbose:
+        print(f"Found {len(maxima)} maxima in roll data.")
+
+    # 2) Detect EC events by searching for peaks in acceleration around roll troughs
+    ec_peaks = []
+    for trough_idx in troughs:
+        ec_peaks.extend(
+            _find_gait_events(
+                data, ec_component, ec_peak_type, ec_window, trough_idx, verbose
+            )
+        )
+
+    # 3) Detect IC events by searching for peaks in acceleration around roll maxima
+    ic_peaks = []
+    for max_idx in maxima:
+        ic_peaks.extend(
+            _find_gait_events(
+                data, ic_component, ic_peak_type, ic_window, max_idx, verbose
+            )
+        )
+
+    if plot_peaks:
+        events = {"EC Peaks": (ec_peaks, "orange"), "IC Peaks": (ic_peaks, "purple")}
+        _plot_orientation_with_events(
+            data,
+            signal_column="roll",
+            events_dict=events,
+            ic_component=ic_component,
+            ec_component=ec_component,
+            title="Roll with EC and IC Peaks",
+        )
+
+    final_ec_peaks, final_ic_peaks, segments = _create_segments_from_ic_peaks(
+        data, ic_peaks, ec_peaks, verbose
+    )
+
+    return final_ec_peaks, final_ic_peaks, segments, maxima, troughs
+
+
+def segment_cionic(
+    data: pd.DataFrame,
+    ic_component: str = "accel_z",
+    ic_peak_type: str = "min",
+    ec_component: str = "accel_x",
+    ec_peak_type: str = "max",
+    roll_peak_height: float = 0.1,
+    roll_distance: int = 10,
+    ic_window: Tuple[float, float] = (-0.25, 0.05),
+    ec_window: Tuple[float, float] = (-0.25, 0.05),
+    plot_peaks: bool = False,
+    verbose: bool = True,
+    segmentation_range: Tuple[float, float] = (0, np.inf),
+) -> Tuple[List[int], List[int], List[pd.DataFrame]]:
+    """Segment gait cycles using roll and acceleration data with Cionic algorithm.
+
+    Modified Jasiewicz algorithm that uses IC component markers instead of roll maxima.
+
+    Args:
+        data (pd.DataFrame): DataFrame with 'elapsed_s', 'roll', and accel columns.
+        ic_component (str, optional): Column name for IC detection
+            ('accel_x', 'accel_y', 'accel_z'). Defaults to 'accel_z'.
+        ic_peak_type (str, optional): Type of peak to detect for IC ('max' or 'min').
+            Defaults to 'min'.
+        ec_component (str, optional): Column name for EC detection
+            ('accel_x', 'accel_y', 'accel_z'). Defaults to 'accel_x'.
+        ec_peak_type (str, optional): Type of peak to detect for EC ('max' or 'min').
+            Defaults to 'max'.
+        roll_peak_height (float, optional): Height threshold for roll peaks.
+            Defaults to 0.1.
+        roll_distance (int, optional): Minimum distance between roll peaks/troughs.
+            Defaults to 10.
+        ic_window (tuple[float, float], optional): Time window around marker for IC
+            detection (pre, post) in seconds. Defaults to (-0.25, 0.05).
+        ec_window (tuple[float, float], optional): Time window around trough for EC
+            detection (pre, post) in seconds. Defaults to (-0.25, 0.05).
+        plot_peaks (bool, optional): Whether to plot the detected peaks.
+            Defaults to False.
+        verbose (bool, optional): Whether to print detection information.
+            Defaults to True.
+        segmentation_range (tuple[float, float], optional): Time range of the data to
+            segment. Defaults to (0, np.inf).
+
+    Returns:
+        tuple[list[int], list[int], list[pd.DataFrame]]:
+            - List of validated EC peak indices
+            - List of validated IC peak indices
+            - List of segmented DataFrames
+    """
+    _validate_component_inputs(ic_component, ec_component, ic_peak_type, ec_peak_type)
+    data = _filter_data_by_time_range(data, segmentation_range)
+
+    # 1) Find troughs (peak plantarflexion)
+    troughs, _ = find_peaks(
+        -data["roll"], height=roll_peak_height, distance=roll_distance
+    )
+    if verbose:
+        print(f"Found {len(troughs)} troughs in roll data.")
+
+    # 2) Find IC markers in accel between troughs (instead of using maxima)
+    ic_markers = []
+    for i in range(len(troughs) - 1):
+        segment = data.iloc[troughs[i] : troughs[i + 1]]
+        start_idx = int(len(segment) * 0.15)
+        end_idx = int(len(segment) * 0.85)
+        segment = segment.iloc[start_idx:end_idx]
+
+        peaks = _find_signal_peaks(segment[ic_component], peak_type="max")
+        if len(peaks) > 0:
+            ic_markers.append(peaks[0] + segment.index[0])
+
+    if verbose:
+        print(f"Found {len(ic_markers)} markers in {ic_component} data.")
+
+    # 3) Detect EC events by searching for peaks in acceleration around roll troughs
+    ec_peaks = []
+    for trough_idx in troughs:
+        ec_peaks.extend(
+            _find_gait_events(
+                data, ec_component, ec_peak_type, ec_window, trough_idx, verbose
+            )
+        )
+
+    # 4) Detect IC events by searching for peaks in acceleration around IC markers
+    ic_peaks = []
+    for marker_idx in ic_markers:
+        ic_peaks.extend(
+            _find_gait_events(
+                data, ic_component, ic_peak_type, ic_window, marker_idx, verbose
+            )
+        )
+
+    if plot_peaks:
+        events = {"EC Peaks": (ec_peaks, "orange"), "IC Peaks": (ic_peaks, "purple")}
+        _plot_orientation_with_events(
+            data,
+            signal_column="roll",
+            events_dict=events,
+            ic_component=ic_component,
+            ec_component=ec_component,
+            title="Roll with EC and IC Peaks",
+        )
+
+    final_ec_peaks, final_ic_peaks, segments = _create_segments_from_ic_peaks(
+        data, ic_peaks, ec_peaks, verbose
+    )
+
+    return final_ec_peaks, final_ic_peaks, segments
 
 
 def segment_seel(
@@ -1170,7 +1100,7 @@ def segment_seel(
     if verbose:
         print(f"Number of TOs: {len(tos)}")
 
-    # 5)Detect initial contact (IC) events using jerk between TO and next foot-flat
+    # 5) Detect initial contact (IC) events using jerk between TO and next foot-flat
     all_accel_times = []
     all_accel_norms = []
     all_jerk_times = []
@@ -1261,3 +1191,262 @@ def segment_seel(
             )
 
     return segments, final_tos, final_ics, final_ff_starts, final_ff_ends
+
+
+#########################################
+# Gait Notebook Utilities               #
+#########################################
+
+
+def event_idxs_to_times(
+    data: pd.DataFrame, events: List[int], time_range: Tuple[float, float] = (0, np.inf)
+) -> np.ndarray:
+    """Convert event indices to times.
+
+    Args:
+        data (pd.DataFrame): DataFrame containing 'elapsed_s' column.
+        events (list[int]): List of event indices.
+        time_range (tuple[float, float], optional): Time range to convert.
+            Defaults to (0, np.inf).
+
+    Returns:
+        np.ndarray: Array of event times in seconds.
+    """
+    return _filter_data_by_time_range(data, time_range).iloc[events]['elapsed_s'].values
+
+
+def plot_segment_analysis(
+    segments: List[pd.DataFrame],
+    tos: List[int],
+    ics: List[int],
+    ff_starts: Optional[List[int]] = None,
+    ff_ends: Optional[List[int]] = None,
+    num_samples: int = 100,
+    plot_individual: bool = True,
+    verbose: bool = False,
+    main: str = "roll",
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Plot and analyze gait segments with normalized time.
+
+    Creates a visualization showing individual segments, average trajectory, and
+    standard deviation. Also marks gait events (TO, IC, foot-flat) if provided.
+
+    Args:
+        segments (list[pd.DataFrame]): List of segmented DataFrames
+        tos (list[int]): List of toe-off event indices
+        ics (list[int]): List of initial contact event indices
+        ff_starts (list[int], optional): List of foot-flat start indices.
+            Defaults to None.
+        ff_ends (list[int], optional): List of foot-flat end indices.
+            Defaults to None.
+        num_samples (int, optional): Number of samples for interpolation.
+            Defaults to 100.
+        plot_individual (bool, optional): Whether to plot individual segments.
+            Defaults to True.
+        verbose (bool, optional): Whether to print segment information.
+            Defaults to False.
+        main (str, optional): Column name for the main signal to plot.
+            Defaults to 'roll'.
+
+    Returns:
+        tuple[np.ndarray, np.ndarray, np.ndarray]:
+            - Mean signal values
+            - Standard deviation of signal values
+            - Uniform time points used for interpolation
+    """
+    if verbose:
+        for i, segment in enumerate(segments):
+            segment_time = segment["elapsed_s"] - segment["elapsed_s"].min()
+            print(f"Segment {i} saved with time normalized to start at 0.")
+
+    plt.figure(figsize=(12, 6))
+
+    if plot_individual:
+        to_times = []
+        ic_times = []
+        to_vals = []
+        ic_vals = []
+
+        ff_start_times = []
+        ff_start_vals = []
+        ff_end_times = []
+        ff_end_vals = []
+
+        for i, segment in enumerate(segments):
+            seg_start = segment.index[0]
+            seg_end = segment.index[-1]
+            segment_time = segment["elapsed_s"] - segment["elapsed_s"].min()
+            segment_time = segment_time / segment_time.max()
+
+            plt.plot(segment_time, segment[main], alpha=0.5)
+
+            seg_tos = [to for to in tos if seg_start <= to <= seg_end]
+            if len(seg_tos) > 0:
+                rel_to_idx = seg_tos[0] - seg_start
+                to_times.append(segment_time.iloc[rel_to_idx])
+                to_vals.append(segment[main].iloc[rel_to_idx])
+
+            seg_ics = [ic for ic in ics if seg_start <= ic <= seg_end]
+            if len(seg_ics) > 0:
+                rel_ic_idx = seg_ics[0] - seg_start
+                ic_times.append(segment_time.iloc[rel_ic_idx])
+                ic_vals.append(segment[main].iloc[rel_ic_idx])
+
+            if ff_starts is not None:
+                seg_ff_starts = [
+                    idx for idx in ff_starts if seg_start <= idx <= seg_end
+                ]
+                if len(seg_ff_starts) > 0:
+                    rel_ff_start_idx = seg_ff_starts[0] - seg_start
+                    ff_start_times.append(segment_time.iloc[rel_ff_start_idx])
+                    ff_start_vals.append(segment[main].iloc[rel_ff_start_idx])
+
+            if ff_ends is not None:
+                seg_ff_ends = [idx for idx in ff_ends if seg_start <= idx <= seg_end]
+                if len(seg_ff_ends) > 0:
+                    rel_ff_end_idx = seg_ff_ends[0] - seg_start
+                    ff_end_times.append(segment_time.iloc[rel_ff_end_idx])
+                    ff_end_vals.append(segment[main].iloc[rel_ff_end_idx])
+
+        plt.scatter(to_times, to_vals, color="orange", label="Toe-Off")
+        plt.scatter(ic_times, ic_vals, color="purple", label="Initial Contact")
+        if ff_starts is not None and len(ff_start_times) > 0:
+            plt.scatter(
+                ff_start_times, ff_start_vals, color="green", label="Foot-Flat Start"
+            )
+        if ff_ends is not None and len(ff_end_times) > 0:
+            plt.scatter(ff_end_times, ff_end_vals, color="red", label="Foot-Flat End")
+
+    interpolated_rolls = []
+    for segment in segments:
+        segment_filtered = segment.dropna(subset=[main])
+        seg_time = segment_filtered["elapsed_s"] - segment_filtered["elapsed_s"].min()
+
+        # Check if segment has valid time range
+        if len(seg_time) < 2 or seg_time.max() == 0:
+            continue  # Skip segments with insufficient data
+
+        seg_time = seg_time / seg_time.max()
+        seg_roll = segment_filtered[main].values
+
+        interp_func = interp1d(
+            seg_time, seg_roll, kind="linear", fill_value="extrapolate"
+        )
+        uniform_time = np.linspace(0, 1, num_samples)
+        interp_roll = interp_func(uniform_time)
+
+        # Ensure interp_roll is 1D array
+        if np.isscalar(interp_roll):
+            continue
+        interp_roll = np.atleast_1d(interp_roll)
+
+        interpolated_rolls.append(interp_roll)
+
+    if len(interpolated_rolls) == 0:
+        print("Warning: No valid segments for interpolation")
+        return np.array([]), np.array([]), np.linspace(0, 1, num_samples)
+
+    interpolated_rolls = np.array(interpolated_rolls)
+    # Ensure correct shape: (n_segments, num_samples)
+    if interpolated_rolls.ndim == 1:
+        interpolated_rolls = interpolated_rolls.reshape(1, -1)
+
+    mean_roll = np.mean(interpolated_rolls, axis=0)
+    std_roll = np.std(interpolated_rolls, axis=0)
+
+    uniform_time = np.linspace(0, 1, num_samples)
+    plt.plot(uniform_time, mean_roll, color="k", label=f"Average {main}", linewidth=2)
+    plt.fill_between(
+        uniform_time,
+        mean_roll - std_roll,
+        mean_roll + std_roll,
+        color="k",
+        alpha=0.2,
+        label="Std Dev",
+    )
+
+    plt.legend()
+    plt.title("All Segments Over Time")
+    plt.xlabel("Normalized Time")
+    plt.ylabel(f"{main} Angle (radians)")
+    plt.grid()
+    plt.show()
+
+    return mean_roll, std_roll, uniform_time
+
+
+def segment_footpod(
+    data: pd.DataFrame,
+    method: str = "peak",
+    segmentation_range: Tuple[float, float] = (0, np.inf),
+    **segment_kwargs,
+) -> Tuple[List[int], List[int]]:
+    """Segment footpod data using specified method and return IC and EC peaks.
+
+    This is a convenience function that wraps the different segmentation algorithms
+    and returns a consistent interface (IC peaks, EC peaks).
+
+    Args:
+        data (pd.DataFrame): DataFrame containing foot sensor data with required columns
+            based on method.
+        method (str, optional): Segmentation method to use. Options:
+            - "peak": Basic peak/trough detection (default)
+            - "jasiewicz": Jasiewicz algorithm using roll and acceleration
+            - "mod-jasiewicz": Modified Jasiewicz (Cionic) algorithm
+            - "seel": Seel algorithm with foot-flat detection
+        segmentation_range (tuple[float, float], optional): Time range to segment.
+            Defaults to (0, np.inf).
+        **segment_kwargs: Additional kwargs passed to segmentation function.
+
+    Returns:
+        tuple[list[int], list[int]]: (ic_peaks, ec_peaks) indices.
+
+    Raises:
+        ValueError: If method is unknown or required columns are missing.
+    """
+    common_kwargs = {
+        'segmentation_range': segmentation_range,
+        'plot_peaks': False,
+        'verbose': False,
+        **segment_kwargs,
+    }
+
+    if method == "peak":
+        ic_peaks, ec_peaks, _ = segment_by_peaks(data, **common_kwargs)
+    elif method == "jasiewicz":
+        ec_peaks, ic_peaks, _, _, _ = segment_jasiewicz(data, **common_kwargs)
+    elif method == "mod-jasiewicz":
+        ec_peaks, ic_peaks, _ = segment_cionic(data, **common_kwargs)
+    elif method == "seel":
+        _, ec_peaks, ic_peaks, _, _ = segment_seel(
+            data, segmentation_range=segmentation_range, verbose=False, **segment_kwargs
+        )
+    else:
+        raise ValueError(
+            f"Unknown segmentation method: {method}. "
+            "Valid options: 'peak', 'jasiewicz', 'mod-jasiewicz', 'seel'"
+        )
+
+    return ic_peaks, ec_peaks
+
+
+def get_required_columns(method: str) -> List[str]:
+    """Get required columns for a segmentation method.
+
+    Args:
+        method (str): Segmentation method name.
+
+    Returns:
+        list[str]: List of required column names.
+    """
+    if method == "seel":
+        return [
+            'elapsed_s',
+            'accel_x',
+            'accel_y',
+            'accel_z',
+            'gyro_x',
+            'gyro_y',
+            'gyro_z',
+        ]
+    return ['elapsed_s', 'roll', 'accel_x', 'accel_y', 'accel_z']
