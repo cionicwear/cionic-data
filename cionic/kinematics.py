@@ -537,13 +537,13 @@ class Kinematics:
                 splits.append((ts, height))
             return splits
 
-        def create_visualization_stream(splits, skips):
+        def create_visualization_stream(splits, skips, elapsed_values):
             """Create visualization stream for splits."""
             stream = []
             if splits:
                 s = 0
                 (ts, height) = splits[s]
-                for _, t in enumerate(elapsed):
+                for _, t in enumerate(elapsed_values):
                     if t == ts:
                         if s in skips:
                             stream.append((t, -1.0))
@@ -562,7 +562,13 @@ class Kinematics:
                 dtype={'names': ('elapsed_s', 'peak'), 'formats': ('f8', 'f8')},
             )
 
-        def process_and_store_splits(peak_indices, split_name, skip_first=True):
+        def process_and_store_splits(
+            peak_indices,
+            split_name,
+            skip_first=True,
+            height_column=None,
+            elapsed_values=None,
+        ):
             """Create splits, streams, store them, and print summary."""
             splits = create_splits_from_peaks(peak_indices, height_column)
 
@@ -578,7 +584,7 @@ class Kinematics:
                     ):
                         skips.append(idx)
 
-            stream = create_visualization_stream(splits, skips)
+            stream = create_visualization_stream(splits, skips, elapsed_values)
             self.splits[group][split_name] = {
                 'splits': splits,
                 'skips': skips,
@@ -629,10 +635,21 @@ class Kinematics:
                 continue
 
             height_column = 'roll' if 'roll' in foot_df.columns else None
-            elapsed = foot_df['elapsed_s'].values
-
-            process_and_store_splits(ic_peaks, 'footpod_heel_strike', skip_first=True)
-            process_and_store_splits(ec_peaks, 'footpod_toe_off', skip_first=False)
+            elapsed_values = foot_df['elapsed_s'].values
+            process_and_store_splits(
+                ic_peaks,
+                'footpod_heel_strike',
+                skip_first=True,
+                height_column=height_column,
+                elapsed_values=elapsed_values,
+            )
+            process_and_store_splits(
+                ec_peaks,
+                'footpod_toe_off',
+                skip_first=False,
+                height_column=height_column,
+                elapsed_values=elapsed_values,
+            )
 
     def set_contras(self, a, b, splits):
         for split in splits:
