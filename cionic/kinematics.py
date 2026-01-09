@@ -587,7 +587,7 @@ class Kinematics:
 
             valid_count = len(splits) - len(skips)
             print(
-                f"Calculated {len(splits)} splits ({valid_count} valid)"
+                f"Calculated {len(splits)} splits ({valid_count} valid) "
                 f"for {group} {split_name}"
             )
 

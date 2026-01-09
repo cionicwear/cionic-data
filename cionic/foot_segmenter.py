@@ -6,7 +6,7 @@ using IMU data. It implements multiple segmentation algorithms:
 1. Basic segmentation using angle peaks and troughs
 2. Jasiewicz algorithm using acceleration and angle data
 3. Cionic algorithm (modified Jasiewicz) - updates the Jasiewicz algorithm's window
-detection to avoid dependency on roll angle.
+detection to reduce reliance on roll angle for maxima (still uses roll angle for trough detection).
 4. Seel algorithm for detailed gait phase detection - computes other gait events
 such as swing foot flat start and end in addition to initial and end contact.
 
@@ -1256,7 +1256,7 @@ def plot_segment_analysis(
     """
     if verbose:
         for i, segment in enumerate(segments):
-            segment_time = segment["elapsed_s"] - segment["elapsed_s"].min()
+
             print(f"Segment {i} saved with time normalized to start at 0.")
 
     plt.figure(figsize=(12, 6))
