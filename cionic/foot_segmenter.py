@@ -1082,8 +1082,7 @@ def segment_seel(
         cum_omega = np.cumsum(omega, axis=0)
         tilt_rate = np.zeros(len(omega))
 
-        for t in range(len(omega)):
-            cum_omega_t = cum_omega[t]
+        for t, cum_omega_t in enumerate(cum_omega):
             cum_omega_norm = np.linalg.norm(cum_omega_t)
             if cum_omega_norm > 0:
                 tilt_rate[t] = np.dot(omega[t], cum_omega_t) / cum_omega_norm
@@ -1140,11 +1139,11 @@ def segment_seel(
         # Search window starts at 70% of the way from TO to foot-flat in Seel et al.
         t_win_idx = int(to_idx + jerk_window_fraction * (next_ff_idx - to_idx))
         window = data.iloc[t_win_idx:next_ff_idx]
-        Ts = np.mean(np.diff(window["elapsed_s"]))
+        ts = np.mean(np.diff(window["elapsed_s"]))
 
         # Calculate jerk (rate of change of acceleration) - IC causes large jerk spike
         accel = window[["accel_x", "accel_y", "accel_z"]].values
-        jerk = (accel[1:] - accel[:-1]) / Ts
+        jerk = (accel[1:] - accel[:-1]) / ts
         jerk_norm = np.linalg.norm(jerk, axis=1)
 
         j_max = np.max(jerk_norm)
