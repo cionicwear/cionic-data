@@ -719,7 +719,7 @@ def segment_jasiewicz(
     ic_peak_type: str = "min",
     ec_component: str = "accel_x",
     ec_peak_type: str = "max",
-    roll_peak_height: float = 0.1,
+    roll_trough_magnitude: float = 0.1,
     roll_distance: int = 10,
     ic_window: Tuple[float, float] = (-0.1, 0.1),
     ec_window: Tuple[float, float] = (-0.25, 0.05),
@@ -743,7 +743,7 @@ def segment_jasiewicz(
             ('accel_x', 'accel_y', or 'accel_z'). Defaults to 'accel_x'.
         ec_peak_type (str, optional): Type of peak to detect for EC ('max' or 'min').
             Defaults to 'max'.
-        roll_peak_height (float, optional): Height threshold for roll peaks.
+        roll_trough_magnitude (float, optional): Height threshold for roll peaks.
             Defaults to 0.1.
         roll_distance (int, optional): Minimum distance between roll peaks/troughs.
             Defaults to 10.
@@ -771,7 +771,7 @@ def segment_jasiewicz(
 
     # 1) troughs (peak plantarflexion) and peaks/maxima (peak dorsiflexion)
     troughs, _ = find_peaks(
-        -data["roll"], height=roll_peak_height, distance=roll_distance
+        -data["roll"], height=roll_trough_magnitude, distance=roll_distance
     )
     if verbose:
         print(f"Found {len(troughs)} troughs in roll data.")
@@ -829,7 +829,7 @@ def segment_cionic(
     ic_peak_type: str = "min",
     ec_component: str = "accel_x",
     ec_peak_type: str = "max",
-    roll_peak_height: float = 0.1,
+    roll_trough_magnitude: float = 0.1,
     roll_distance: int = 10,
     ic_window: Tuple[float, float] = (-0.25, 0.05),
     ec_window: Tuple[float, float] = (-0.25, 0.05),
@@ -851,7 +851,7 @@ def segment_cionic(
             ('accel_x', 'accel_y', 'accel_z'). Defaults to 'accel_x'.
         ec_peak_type (str, optional): Type of peak to detect for EC ('max' or 'min').
             Defaults to 'max'.
-        roll_peak_height (float, optional): Height threshold for roll peaks.
+        roll_trough_magnitude (float, optional): Height threshold for roll peaks.
             Defaults to 0.1.
         roll_distance (int, optional): Minimum distance between roll peaks/troughs.
             Defaults to 10.
@@ -877,7 +877,7 @@ def segment_cionic(
 
     # 1) Find troughs (peak plantarflexion)
     troughs, _ = find_peaks(
-        -data["roll"], height=roll_peak_height, distance=roll_distance
+        -data["roll"], height=roll_trough_magnitude, distance=roll_distance
     )
     if verbose:
         print(f"Found {len(troughs)} troughs in roll data.")
