@@ -281,11 +281,11 @@ def _detect_rest_phases(
         tuple[np.ndarray, np.ndarray]: (forward_mask, backward_mask) boolean arrays
             indicating rest phases.
     """
-    N = len(signal)
-    forward_mask = np.zeros(N)
-    backward_mask = np.zeros(N)
+    n = len(signal)
+    forward_mask = np.zeros(n)
+    backward_mask = np.zeros(n)
 
-    for k in range(1, N):
+    for k in range(1, n):
         if signal[k] > (1 + hysteresis_factor) * threshold:
             forward_mask[k] = 1
         elif signal[k] < (1 - hysteresis_factor) * threshold:
@@ -294,7 +294,7 @@ def _detect_rest_phases(
             forward_mask[k] = forward_mask[k - 1]
 
     backward_mask[-1] = forward_mask[-1]
-    for k in range(N - 2, -1, -1):
+    for k in range(n - 2, -1, -1):
         if forward_mask[k] == 1:
             backward_mask[k] = 1
         elif signal[k] < (1 - hysteresis_factor) * threshold:
@@ -330,7 +330,7 @@ def _remove_short_phases(mask: np.ndarray, min_samples: int) -> np.ndarray:
             )
 
             for start, end in zip(zero_starts, zero_ends):
-                if end - start < min_samples:
+                if end - start + 1 < min_samples:
                     mask[start : end + 1] = False
 
     one_regions = np.where(~mask)[0]
@@ -1427,7 +1427,6 @@ def segment_footpod(
     """
     common_kwargs = {
         'segmentation_range': segmentation_range,
-        'plot_peaks': False,
         'verbose': False,
         **segment_kwargs,
     }
@@ -1439,9 +1438,7 @@ def segment_footpod(
     elif method == "mod-jasiewicz":
         ec_peaks, ic_peaks, _ = segment_cionic(data, **common_kwargs)
     elif method == "seel":
-        _, ec_peaks, ic_peaks, _, _ = segment_seel(
-            data, segmentation_range=segmentation_range, verbose=False, **segment_kwargs
-        )
+        _, ec_peaks, ic_peaks, _, _ = segment_seel(data, **common_kwargs)
     else:
         raise ValueError(
             f"Unknown segmentation method: {method}. "
