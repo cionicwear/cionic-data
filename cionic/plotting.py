@@ -324,6 +324,9 @@ class StreamsPlotter:
         outdir: str = "recordings",
         segmented: bool = True,
         overwrite: bool = False,
+        include_eulers: bool = True,
+        include_filtered_emgs: bool = False,
+        include_gait_splits: bool = True,
         peak_kwargs: Optional[Dict] = None,
     ) -> None:
         """
@@ -357,6 +360,9 @@ class StreamsPlotter:
             outdir=self.outdir,
             segmented=segmented,
             overwrite=overwrite,
+            include_eulers=include_eulers,
+            include_filtered_emgs=include_filtered_emgs,
+            include_gait_splits=include_gait_splits,
             peak_kwargs=peak_kwargs,
         )
         self.segs = self.npz['segments']
