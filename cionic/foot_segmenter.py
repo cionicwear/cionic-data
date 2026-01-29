@@ -172,15 +172,15 @@ def _find_signal_peaks(
     return peaks
 
 
-def _find_gait_events(
+def _find_gait_event(
     data: pd.DataFrame,
     component: str,
     peak_type: str,
     window_range: Tuple[float, float],
     time_idx: int,
     verbose: bool = False,
-) -> List[int]:
-    """Find gait events within a time window.
+) -> Optional[int]:
+    """Find a gait event within a time window.
 
     Args:
         data (pd.DataFrame): DataFrame with time and component data.
@@ -192,7 +192,7 @@ def _find_gait_events(
             Defaults to False.
 
     Returns:
-        list[int]: Detected event indices. Empty list if no events found.
+        Optional[int]: Detected event index, or None if no event found.
     """
     event_time = data["elapsed_s"].iloc[time_idx]
     pre_time = event_time + window_range[0]
@@ -203,18 +203,13 @@ def _find_gait_events(
 
     segment = data[(data["elapsed_s"] >= pre_time) & (data["elapsed_s"] <= post_time)]
     if segment.empty:
-        return []
+        return None
 
     most_prominent_peaks = _find_signal_peaks(segment[component], peak_type=peak_type)
     if len(most_prominent_peaks) == 0:
-        if peak_type == "min":
-            most_prominent_peaks = _find_signal_peaks(
-                segment[component], peak_type="max"
-            )
-        if len(most_prominent_peaks) == 0:
-            return []
+        return None
 
-    return [most_prominent_peaks[0] + segment.index[0]]
+    return most_prominent_peaks[0] + segment.index[0]
 
 
 def _create_segments_from_ic_peaks(
@@ -793,20 +788,20 @@ def segment_jasiewicz(
     # 2) Detect EC events by searching for peaks in acceleration around roll troughs
     ec_peaks = []
     for trough_idx in troughs:
-        ec_peaks.extend(
-            _find_gait_events(
-                data, ec_component, ec_peak_type, ec_window, trough_idx, verbose
-            )
+        ec_peak = _find_gait_event(
+            data, ec_component, ec_peak_type, ec_window, trough_idx, verbose
         )
+        if ec_peak is not None:
+            ec_peaks.append(ec_peak)
 
     # 3) Detect IC events by searching for peaks in acceleration around roll maxima
     ic_peaks = []
     for max_idx in maxima:
-        ic_peaks.extend(
-            _find_gait_events(
-                data, ic_component, ic_peak_type, ic_window, max_idx, verbose
-            )
+        ic_peak = _find_gait_event(
+            data, ic_component, ic_peak_type, ic_window, max_idx, verbose
         )
+        if ic_peak is not None:
+            ic_peaks.append(ic_peak)
 
     if plot_peaks:
         events = {"EC Peaks": (ec_peaks, "orange"), "IC Peaks": (ic_peaks, "purple")}
@@ -921,20 +916,20 @@ def segment_cionic(
     # 3) Detect EC events by searching for peaks in acceleration around roll troughs
     ec_peaks = []
     for trough_idx in troughs:
-        ec_peaks.extend(
-            _find_gait_events(
-                data, ec_component, ec_peak_type, ec_window, trough_idx, verbose
-            )
+        ec_peak = _find_gait_event(
+            data, ec_component, ec_peak_type, ec_window, trough_idx, verbose
         )
+        if ec_peak is not None:
+            ec_peaks.append(ec_peak)
 
     # 4) Detect IC events by searching for peaks in acceleration around IC markers
     ic_peaks = []
     for marker_idx in ic_markers:
-        ic_peaks.extend(
-            _find_gait_events(
-                data, ic_component, ic_peak_type, ic_window, marker_idx, verbose
-            )
+        ic_peak = _find_gait_event(
+            data, ic_component, ic_peak_type, ic_window, marker_idx, verbose
         )
+        if ic_peak is not None:
+            ic_peaks.append(ic_peak)
 
     if plot_peaks:
         events = {"EC Peaks": (ec_peaks, "orange"), "IC Peaks": (ic_peaks, "purple")}
