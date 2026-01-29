@@ -109,7 +109,7 @@ def _validate_segment_events(
     return True
 
 
-def _validate_component_inputs(
+def _validate_component_inputs_jasiewicz(
     ic_component: str, ec_component: str, ic_peak_type: str, ec_peak_type: str
 ) -> None:
     """Validate component and peak type inputs.
@@ -124,10 +124,11 @@ def _validate_component_inputs(
         ValueError: If component or peak type is invalid.
     """
     valid_components = ["accel_x", "accel_y", "accel_z"]
+    valid_peak_types = ["max", "min"]
     if ic_component not in valid_components or ec_component not in valid_components:
         raise ValueError(f"Component must be one of {valid_components}")
-    if ic_peak_type not in ["max", "min"] or ec_peak_type not in ["max", "min"]:
-        raise ValueError("Peak type must be 'max' or 'min'")
+    if ic_peak_type not in valid_peak_types or ec_peak_type not in valid_peak_types:
+        raise ValueError(f"Peak type must be one of {valid_peak_types}")
 
 
 def _find_signal_peaks(
@@ -766,7 +767,9 @@ def segment_jasiewicz(
             - List of roll maxima indices
             - List of roll trough indices
     """
-    _validate_component_inputs(ic_component, ec_component, ic_peak_type, ec_peak_type)
+    _validate_component_inputs_jasiewicz(
+        ic_component, ec_component, ic_peak_type, ec_peak_type
+    )
     data = _filter_data_by_time_range(data, segmentation_range)
 
     # 1) troughs (peak plantarflexion) and peaks/maxima (peak dorsiflexion)
@@ -880,7 +883,9 @@ def segment_cionic(
             - List of validated IC peak indices
             - List of segmented DataFrames
     """
-    _validate_component_inputs(ic_component, ec_component, ic_peak_type, ec_peak_type)
+    _validate_component_inputs_jasiewicz(
+        ic_component, ec_component, ic_peak_type, ec_peak_type
+    )
     data = _filter_data_by_time_range(data, segmentation_range)
 
     if not 0 <= ic_marker_start_fraction < ic_marker_end_fraction <= 1:
