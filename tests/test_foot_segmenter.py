@@ -21,10 +21,10 @@ from cionic.foot_segmenter import (
     _detect_rest_phases,
     _filter_data_by_time_range,
     _find_events_in_segment,
-    _find_gait_events,
+    _find_gait_event,
     _find_signal_peaks,
     _remove_short_phases,
-    _validate_component_inputs,
+    _validate_component_inputs_jasiewicz,
     _validate_segment_events,
     event_idxs_to_times,
     get_required_columns,
@@ -200,18 +200,18 @@ class TestHelperFunctions:
     def test_validate_component_inputs(self):
         """Test component input validation."""
         # Test valid inputs
-        _validate_component_inputs("accel_x", "accel_y", "max", "min")
+        _validate_component_inputs_jasiewicz("accel_x", "accel_y", "max", "min")
 
         # Test invalid component
         with pytest.raises(ValueError, match="Component must be one of"):
-            _validate_component_inputs("invalid", "accel_y", "max", "min")
+            _validate_component_inputs_jasiewicz("invalid", "accel_y", "max", "min")
 
         # Test invalid peak type
         with pytest.raises(ValueError, match="Peak type must be"):
-            _validate_component_inputs("accel_x", "accel_y", "invalid", "min")
+            _validate_component_inputs_jasiewicz("accel_x", "accel_y", "invalid", "min")
 
         with pytest.raises(ValueError, match="Peak type must be"):
-            _validate_component_inputs("accel_x", "accel_y", "max", "invalid")
+            _validate_component_inputs_jasiewicz("accel_x", "accel_y", "max", "invalid")
 
     def test_find_signal_peaks(self):
         """Test finding peaks in a signal."""
@@ -264,8 +264,8 @@ class TestHelperFunctions:
         peaks = _find_signal_peaks(np.ones(10), peak_type="max", distance=2)
         assert len(peaks) == 0
 
-    def test_find_gait_events(self):
-        """Test finding gait events within a time window."""
+    def test_find_gait_event(self):
+        """Test finding a gait event within a time window."""
         # Create deterministic signal with clear peaks at known locations
         t = np.linspace(0, 10, 100)
 
@@ -292,7 +292,7 @@ class TestHelperFunctions:
         )
 
         # Test finding max peak - should find exactly 1 event at index 50
-        events = _find_gait_events(
+        event = _find_gait_event(
             data,
             component='accel_x',
             peak_type='max',
@@ -300,11 +300,11 @@ class TestHelperFunctions:
             time_idx=50,
             verbose=False,
         )
-        assert len(events) == 1, f"Expected 1 event, got {len(events)}"
-        assert events[0] == 50, f"Expected event at index 50, got {events[0]}"
+        assert event is not None, "Expected an event, got None"
+        assert event == 50, f"Expected event at index 50, got {event}"
 
         # Test finding min peak (trough) - should find exactly 1 event at index 50
-        events = _find_gait_events(
+        event = _find_gait_event(
             data,
             component='accel_z',
             peak_type='min',
@@ -312,11 +312,11 @@ class TestHelperFunctions:
             time_idx=50,
             verbose=False,
         )
-        assert len(events) == 1, f"Expected 1 event, got {len(events)}"
-        assert events[0] == 50, f"Expected event at index 50, got {events[0]}"
+        assert event is not None, "Expected an event, got None"
+        assert event == 50, f"Expected event at index 50, got {event}"
 
-        # Test empty window - should return empty list
-        events = _find_gait_events(
+        # Test empty window - should return None
+        event = _find_gait_event(
             data,
             component='accel_x',
             peak_type='max',
@@ -324,18 +324,16 @@ class TestHelperFunctions:
             time_idx=50,
             verbose=False,
         )
-        assert (
-            len(events) == 0
-        ), f"Expected 0 events for empty window, got {len(events)}"
+        assert event is None, f"Expected None for empty window, got {event}"
 
-        # Test signal with no peaks - should return empty list
+        # Test signal with no peaks - should return None
         data_no_peak = pd.DataFrame(
             {
                 'elapsed_s': t,
                 'accel_x': np.ones(100) * 0.5,  # Flat signal, no peaks
             }
         )
-        events = _find_gait_events(
+        event = _find_gait_event(
             data_no_peak,
             component='accel_x',
             peak_type='max',
@@ -343,10 +341,10 @@ class TestHelperFunctions:
             time_idx=50,
             verbose=False,
         )
-        assert len(events) == 0, f"Expected 0 events for flat signal, got {len(events)}"
+        assert event is None, f"Expected None for flat signal, got {event}"
 
         # Test verbose mode - should still find exactly 1 event
-        events = _find_gait_events(
+        event = _find_gait_event(
             data,
             component='accel_x',
             peak_type='max',
@@ -354,8 +352,8 @@ class TestHelperFunctions:
             time_idx=50,
             verbose=True,
         )
-        assert len(events) == 1, f"Expected 1 event in verbose mode, got {len(events)}"
-        assert events[0] == 50, f"Expected event at index 50, got {events[0]}"
+        assert event is not None, "Expected an event in verbose mode, got None"
+        assert event == 50, f"Expected event at index 50, got {event}"
 
         # Test with multiple peaks in window - should return the most prominent one
         # Create signal with 2 peaks: smaller at index 48, larger at index 52
@@ -378,7 +376,7 @@ class TestHelperFunctions:
             }
         )
 
-        events = _find_gait_events(
+        event = _find_gait_event(
             data_multi,
             component='accel_x',
             peak_type='max',
@@ -386,10 +384,8 @@ class TestHelperFunctions:
             time_idx=50,
             verbose=False,
         )
-        assert len(events) == 1, f"Expected 1 event (most prominent), got {len(events)}"
-        assert (
-            events[0] == 52
-        ), f"Expected most prominent peak at index 52, got {events[0]}"
+        assert event is not None, "Expected an event (most prominent), got None"
+        assert event == 52, f"Expected most prominent peak at index 52, got {event}"
 
         # Test with multiple troughs in window - should return the most prominent one
         accel_multi_trough = np.ones(100) * 0.5
@@ -411,7 +407,7 @@ class TestHelperFunctions:
             }
         )
 
-        events = _find_gait_events(
+        event = _find_gait_event(
             data_multi_trough,
             component='accel_z',
             peak_type='min',
@@ -419,10 +415,8 @@ class TestHelperFunctions:
             time_idx=50,
             verbose=False,
         )
-        assert len(events) == 1, f"Expected 1 event (most prominent), got {len(events)}"
-        assert (
-            events[0] == 52
-        ), f"Expected most prominent trough at index 52, got {events[0]}"
+        assert event is not None, "Expected an event (most prominent), got None"
+        assert event == 52, f"Expected most prominent trough at index 52, got {event}"
 
     def test_create_segments_from_ic_peaks(self):
         """Test creating segments from IC peaks."""
