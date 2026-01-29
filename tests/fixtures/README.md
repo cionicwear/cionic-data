@@ -6,7 +6,7 @@ This directory contains pre-processed test data for testing.
 
 To minimize data size in the repository while testing on real data:
 
-1. **Pre-processed Data**: Extract only the necessary columns and time range (9-70 seconds) from collection 1274
+1. **Pre-processed Data**: Extract only the necessary columns and time range (9-70 seconds) from collection 1274 (demo-develop, on the dev server - a dev token will be needed to re-generate the data)
 2. **Compressed Format**: Save as `.npz` (numpy compressed) format for minimal file size
 3. **Fixture Loading**: Use pytest fixtures to load data automatically
 4. **Integration Tests**: Test all 4 segmentation algorithms on this real-world data
@@ -34,7 +34,7 @@ This script:
 
 ## Data Source
 
-- Collection: 1274 (demo-develop)
+- Collection: 1274 (demo-develop, on dev server - a dev token will be needed to re-generate the data)
 - Position: l_foot (left foot)
 - Time Range: 9-70 seconds (as used in validation notebook)
 - Columns: All columns required by segmentation methods:
