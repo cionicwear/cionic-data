@@ -123,7 +123,6 @@ class TestComputePeakTroughDifference:
         # proper detection
         n_samples = 100
         elapsed_s = np.linspace(0, 10, n_samples)
-        degrees = np.zeros(n_samples)
 
         # Peaks at indices 10, 20, 30, 40
         # Troughs at indices 15, 25, 35, 45
@@ -202,7 +201,6 @@ class TestComputePeakTroughDifference:
         # Create a simple signal with exactly 2 peaks and 2 troughs
         n_samples = 200
         elapsed_s = np.linspace(0, 20, n_samples)
-        degrees = np.zeros(n_samples)
 
         # Set specific peak and trough values
         # Peaks at indices 50 and 150
