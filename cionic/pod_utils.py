@@ -26,7 +26,6 @@ def load_imu_from_csv(
     Returns:
         pd.DataFrame: Processed data with available columns:
             - elapsed_s: Time in seconds
-            - euler: List of [roll, pitch, yaw] angles (if quat available)
             - fquat_i/j/k/real: Quaternion components (if quat available)
             - roll/pitch/yaw: Euler angles (optionally unwrapped, if quat available)
             - raw_roll/pitch/yaw: Raw Euler angles pre-unwrapping (if unwrap_euler)
@@ -73,14 +72,13 @@ def load_imu_from_csv(
         return None
 
     # Convert quaternions to euler angles (radians) using scipy
-    eulers = []
+    eulers = None
     if len(quat) > 0:
         try:
             quats = quat[["x", "y", "z", "w"]].values
             eulers = R.from_quat(quats).as_euler('xyz', degrees=False)
-            eulers = eulers.tolist()
         except (KeyError, ValueError):
-            eulers = []
+            eulers = None
 
     # Return early if no data found
     if all(len(x) == 0 for x in [quat, accel, gyro]):
@@ -108,8 +106,10 @@ def load_imu_from_csv(
             df_dict["fquat_j"] = quat["y"].values[:min_length]
             df_dict["fquat_k"] = quat["z"].values[:min_length]
             df_dict["fquat_real"] = quat["w"].values[:min_length]
-            if len(eulers) > 0:
-                df_dict["euler"] = eulers[:min_length]
+            if eulers is not None:
+                df_dict["roll"] = eulers[:min_length, 0]
+                df_dict["pitch"] = eulers[:min_length, 1]
+                df_dict["yaw"] = eulers[:min_length, 2]
         except KeyError:
             pass  # Skip quat if columns don't exist
 
@@ -145,22 +145,18 @@ def load_imu_from_csv(
 
     df = pd.DataFrame(df_dict).reset_index(drop=True)
 
-    # Extract euler angles if available
-    if "euler" in df.columns and len(df) > 0:
+    # Unwrap euler angles if available and requested
+    if unwrap_euler and "roll" in df.columns and len(df) > 0:
         try:
-            df[["roll", "pitch", "yaw"]] = pd.DataFrame(
-                df["euler"].tolist(), index=df.index
-            )
-            if unwrap_euler:
-                # Save raw angles
-                df[["raw_roll", "raw_pitch", "raw_yaw"]] = df[["roll", "pitch", "yaw"]]
+            # Save raw angles
+            df[["raw_roll", "raw_pitch", "raw_yaw"]] = df[["roll", "pitch", "yaw"]]
 
-                # Use numpy.unwrap for each angle (expects radians)
-                for angle in ["roll", "pitch", "yaw"]:
-                    arr = df[angle].values
-                    unwrapped = np.unwrap(arr)
-                    df[angle] = unwrapped - np.mean(unwrapped)  # center around 0
+            # Use numpy.unwrap for each angle (expects radians)
+            for angle in ["roll", "pitch", "yaw"]:
+                arr = df[angle].values
+                unwrapped = np.unwrap(arr)
+                df[angle] = unwrapped - np.mean(unwrapped)  # center around 0
         except (ValueError, KeyError):
-            pass  # Skip euler extraction if it fails
+            pass  # Skip unwrapping if it fails
 
     return df
