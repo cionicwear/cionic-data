@@ -82,6 +82,7 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
+from scipy.signal import find_peaks
 
 from cionic import api, kinematics, npz_utils
 
@@ -526,6 +527,48 @@ def compute_swing_std_value(
     if swing_data.shape[0] == 0:
         return None
     return compute_std_value(swing_data, component)
+
+
+def compute_peak_trough_difference(
+    data: np.recarray, component: str = 'degrees', peak_kwargs: Optional[dict] = None
+) -> Optional[float]:
+    """
+    Compute the difference between average of peaks and average of troughs.
+
+    This metric can be used to quantify sway or variability in any signal,
+    such as trunk sway (coronal plane), or other body part movements.
+
+    Args:
+        data (np.recarray): Signal data, NumPy record array with the specified
+            component field and 'elapsed_s' field.
+        component (str): Component name to analyze. Defaults to 'degrees'.
+        peak_kwargs (dict, optional): Keyword arguments for find_peaks. Defaults to
+            {'height': 0, 'distance': 60}.
+
+    Returns:
+        float: Difference between average peaks and average troughs, or None if
+            data is empty or no peaks/troughs found.
+    """
+    if data.shape[0] == 0:
+        return None
+
+    if peak_kwargs is None:
+        peak_kwargs = {}
+
+    values = data[component]
+
+    # Find peaks (local maxima)
+    peaks, _ = find_peaks(values, **peak_kwargs)
+    # Find troughs (local minima) by inverting the signal
+    troughs, _ = find_peaks(-values, **peak_kwargs)
+
+    if len(peaks) == 0 or len(troughs) == 0:
+        return None
+
+    avg_peaks = np.mean(values[peaks])
+    avg_troughs = np.mean(values[troughs])
+
+    return avg_peaks - avg_troughs
 
 
 class Metric(Enum):
