@@ -173,6 +173,14 @@ kinematics_setup = {
                     {'rename': ('z', 'foot_int_rotation'), 'factor': -1.0},
                 ],
             },
+            'foot_angle_pod': {
+                'segments': ('upright', 'l_foot_pod'),
+                'angles': [
+                    {'rename': ('x', 'foot_floor_angle'), 'factor': 1.0},
+                    {'rename': ('y', 'foot_supination'), 'factor': -1.0},
+                    {'rename': ('z', 'foot_int_rotation'), 'factor': -1.0},
+                ],
+            },
             'shank_angle': {
                 'segments': ('upright', 'l_shank'),
                 'angles': [
@@ -191,6 +199,14 @@ kinematics_setup = {
             },
             'torso_angle': {
                 'segments': ('upright', 'torso'),
+                'angles': [
+                    {'rename': ('x', 'torso_sagittal_angle'), 'factor': 1.0},
+                    {'rename': ('y', 'torso_coronal_angle'), 'factor': -1.0},
+                    {'rename': ('z', 'torso_transverse_angle'), 'factor': -1.0},
+                ],
+            },
+            'torso_angle_pod': {
+                'segments': ('upright', 'torso_pod'),
                 'angles': [
                     {'rename': ('x', 'torso_sagittal_angle'), 'factor': 1.0},
                     {'rename': ('y', 'torso_coronal_angle'), 'factor': -1.0},
@@ -243,6 +259,14 @@ kinematics_setup = {
                     {'rename': ('z', 'foot_int_rotation'), 'factor': 1.0},
                 ],
             },
+            'foot_angle_pod': {
+                'segments': ('upright', 'r_foot_pod'),
+                'angles': [
+                    {'rename': ('x', 'foot_floor_angle'), 'factor': 1.0},
+                    {'rename': ('y', 'foot_supination'), 'factor': 1.0},
+                    {'rename': ('z', 'foot_int_rotation'), 'factor': 1.0},
+                ],
+            },
             'shank_angle': {
                 'segments': ('upright', 'r_shank'),
                 'angles': [
@@ -261,6 +285,14 @@ kinematics_setup = {
             },
             'torso_angle': {
                 'segments': ('upright', 'torso'),
+                'angles': [
+                    {'rename': ('x', 'torso_sagittal_angle'), 'factor': 1.0},
+                    {'rename': ('y', 'torso_coronal_angle'), 'factor': -1.0},
+                    {'rename': ('z', 'torso_transverse_angle'), 'factor': -1.0},
+                ],
+            },
+            'torso_angle_pod': {
+                'segments': ('upright', 'torso_pod'),
                 'angles': [
                     {'rename': ('x', 'torso_sagittal_angle'), 'factor': 1.0},
                     {'rename': ('y', 'torso_coronal_angle'), 'factor': -1.0},
