@@ -1733,6 +1733,10 @@ class Kinematics:
                 f"samples removed (of {data_b.shape[0]} total samples)."
             )
 
+        if position_a == "upright" and "_pod" in position_b:
+            # Adjust upright start time to match pod start time of 0.0 sec.
+            data_a["elapsed_s"] = data_a["elapsed_s"] - data_a["elapsed_s"].min()
+
         # Get rotations for each stream.
         orientations_a = self.orientations_for_single_stream(
             data_a, calibration=calibration_a
