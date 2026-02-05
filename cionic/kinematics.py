@@ -1735,6 +1735,8 @@ class Kinematics:
 
         if position_a == "upright" and "_pod" in position_b:
             # Adjust upright start time to match pod start time of 0.0 sec.
+            # Use a copy to avoid mutating the original data stored in self.groups.
+            data_a = data_a.copy()
             data_a["elapsed_s"] = data_a["elapsed_s"] - data_a["elapsed_s"].min()
 
         # Get rotations for each stream.
