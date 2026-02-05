@@ -688,7 +688,6 @@ def download_npz(
         None
     """
     npz_dict = get_cionic(urlpath)
-    
     if npz_dict is None:
         print(f"ERROR: Failed to fetch NPZ metadata from {urlpath}", file=sys.stderr)
         print(f"       Skipping download of {destpath}", file=sys.stderr)
