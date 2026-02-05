@@ -688,6 +688,11 @@ def download_npz(
         None
     """
     npz_dict = get_cionic(urlpath)
+    
+    if npz_dict is None:
+        print(f"ERROR: Failed to fetch NPZ metadata from {urlpath}", file=sys.stderr)
+        print(f"       Skipping download of {destpath}", file=sys.stderr)
+        return
 
     status = download_file(destpath, npz_dict['streams.npz'], overwrite=overwrite)
     if status is False:
