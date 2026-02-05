@@ -151,11 +151,11 @@ def load_imu_from_csv(
             # Save raw angles
             df[["raw_roll", "raw_pitch", "raw_yaw"]] = df[["roll", "pitch", "yaw"]]
 
-            # Use numpy.unwrap for each angle (expects radians)
+            # Use numpy.unwrap for each angle
             for angle in ["roll", "pitch", "yaw"]:
-                arr = df[angle].values
+                arr = np.radians(df[angle].values)
                 unwrapped = np.unwrap(arr)
-                df[angle] = unwrapped - np.mean(unwrapped)  # center around 0
+                df[angle] = np.degrees(unwrapped - np.mean(unwrapped))  # center on 0
         except (ValueError, KeyError):
             pass  # Skip unwrapping if it fails
 
