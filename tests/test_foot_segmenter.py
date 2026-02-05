@@ -996,7 +996,7 @@ class TestEdgeCases:
         data = pd.DataFrame(
             {
                 'elapsed_s': np.linspace(0, 10, 100),
-                'roll': np.sin(np.linspace(0, 4 * np.pi, 100)),
+                'roll': 100 * np.sin(np.linspace(0, 4 * np.pi, 100)),
             }
         )
 

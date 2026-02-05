@@ -531,7 +531,7 @@ class Kinematics:
             for idx in peak_indices:
                 ts = foot_df.iloc[idx]['elapsed_s']
                 if height_column:
-                    height = np.degrees(float(foot_df.iloc[idx][height_column]))
+                    height = float(foot_df.iloc[idx][height_column])
                 else:
                     height = 1.0
                 splits.append((ts, height))
@@ -1732,6 +1732,12 @@ class Kinematics:
                 f"{position_b} {stream}: {n_b - data_b.shape[0]} nonincreasing "
                 f"samples removed (of {data_b.shape[0]} total samples)."
             )
+
+        if position_a == "upright" and "_pod" in position_b:
+            # Adjust upright start time to match pod start time of 0.0 sec.
+            # Use a copy to avoid mutating the original data stored in self.groups.
+            data_a = data_a.copy()
+            data_a["elapsed_s"] = data_a["elapsed_s"] - data_a["elapsed_s"].min()
 
         # Get rotations for each stream.
         orientations_a = self.orientations_for_single_stream(
