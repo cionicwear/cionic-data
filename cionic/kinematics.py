@@ -531,7 +531,7 @@ class Kinematics:
             for idx in peak_indices:
                 ts = foot_df.iloc[idx]['elapsed_s']
                 if height_column:
-                    height = np.degrees(float(foot_df.iloc[idx][height_column]))
+                    height = float(foot_df.iloc[idx][height_column])
                 else:
                     height = 1.0
                 splits.append((ts, height))

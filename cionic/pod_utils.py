@@ -76,7 +76,7 @@ def load_imu_from_csv(
     if len(quat) > 0:
         try:
             quats = quat[["x", "y", "z", "w"]].values
-            eulers = R.from_quat(quats).as_euler('xyz', degrees=False)
+            eulers = R.from_quat(quats).as_euler('xyz', degrees=True)
         except (KeyError, ValueError):
             eulers = None
 

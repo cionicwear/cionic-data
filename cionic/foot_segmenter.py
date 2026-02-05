@@ -621,9 +621,10 @@ def _plot_seel_detection(
 def segment_by_peaks(
     data: pd.DataFrame,
     signal_column: str = "roll",
-    peak_height: float = 0.1,
+    peak_height: float = 10,
+    prominence: float = 20,
     peak_distance: int = 10,
-    trough_height: float = -0.1,
+    trough_height: float = -10,
     segmentation_range: Tuple[float, float] = (0, np.inf),
     plot_peaks: bool = False,
     verbose: bool = True,
@@ -639,11 +640,13 @@ def segment_by_peaks(
         signal_column (str, optional): Column name to use for peak detection.
             Defaults to 'roll'.
         peak_height (float, optional): Minimum height for peak detection.
-            Defaults to 0.2.
+            Defaults to 10.
+        prominence (float, optional): Minimum prominence for peak detection.
+            Defaults to 20.
         peak_distance (int, optional): Minimum distance between peaks in samples.
             Defaults to 10.
         trough_height (float, optional): Minimum height for trough detection.
-            Defaults to -0.1.
+            Defaults to -10.
         segmentation_range (tuple[float, float], optional): Time range to segment.
             Defaults to (0, np.inf).
         plot_peaks (bool, optional): Whether to plot peaks and troughs.
@@ -661,10 +664,16 @@ def segment_by_peaks(
 
     # 1) Detect peaks + troughs
     peaks, _ = find_peaks(
-        data[signal_column], height=peak_height, distance=peak_distance
+        data[signal_column],
+        height=peak_height,
+        distance=peak_distance,
+        prominence=prominence,
     )
     troughs, _ = find_peaks(
-        -data[signal_column], height=-trough_height, distance=peak_distance
+        -data[signal_column],
+        height=-trough_height,
+        distance=peak_distance,
+        prominence=prominence,
     )
 
     if verbose:
