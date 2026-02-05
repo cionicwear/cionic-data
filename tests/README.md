@@ -69,6 +69,6 @@ Test fixtures are located in the `fixtures/` directory. See [fixtures/README.md]
 
 ## Committing changes with pre-commit hooks
 
-Pushing changes requires passing formatting and linting standards integrated into pre-commit hooks. These will automatically run when you try to commit, and the commit will be blocked if any tests fail. It is convenient to check if changes will pass prior to committing with:
+Pushing changes requires passing formatting and linting standards integrated into pre-commit hooks. These will automatically run when you try to commit, and the commit will be blocked if formatting or linting checks fail. It is convenient to check if changes will pass prior to committing with:
 
 `pre-commit run --all-files`
