@@ -860,3 +860,58 @@ class TestGetFilteredEmgsFieldValidation:
             assert 'device_emg_000_filtered' in filtered_emgs
         finally:
             sys.stderr = old_stderr
+
+
+class TestDownloadNpz404Handling:
+    """Tests for handling 404 responses in download_npz."""
+
+    @patch('cionic.api.get_cionic')
+    def test_download_npz_handles_404(self, mock_get_cionic):
+        """Test that download_npz handles 404 responses gracefully."""
+        import sys
+        from io import StringIO
+
+        # Setup mock to return None (simulating 404)
+        mock_get_cionic.return_value = None
+
+        # Capture stderr to check error message
+        captured_output = StringIO()
+        old_stderr = sys.stderr
+        sys.stderr = captured_output
+
+        try:
+            # This should not raise an exception
+            api.download_npz('test.npz', 'some/url/path')
+
+            # Verify error message was printed
+            output = captured_output.getvalue()
+            assert 'ERROR' in output
+            assert 'Failed to fetch NPZ metadata' in output
+            assert 'Skipping download' in output
+        finally:
+            sys.stderr = old_stderr
+
+    @patch('cionic.api.download_file')
+    @patch('cionic.api.get_cionic')
+    def test_download_npz_succeeds_with_valid_response(
+        self, mock_get_cionic, mock_download_file
+    ):
+        """Test that download_npz works normally with valid response."""
+        # Setup mocks
+        mock_get_cionic.return_value = {'streams.npz': 'http://example.com/file.npz'}
+        mock_download_file.return_value = True
+
+        with patch('cionic.api.include_eulers_to_npz'):
+            with patch('cionic.api.include_filtered_emgs_to_npz'):
+                with patch('cionic.api.include_gait_splits_to_npz'):
+                    with patch('cionic.api.add_side_column_to_segments'):
+                        # This should complete without error
+                        api.download_npz('test.npz', 'some/url/path')
+
+                        # Verify get_cionic was called
+                        mock_get_cionic.assert_called_once_with('some/url/path')
+
+                        # Verify download_file was called with correct URL
+                        mock_download_file.assert_called_once_with(
+                            'test.npz', 'http://example.com/file.npz', overwrite=False
+                        )
