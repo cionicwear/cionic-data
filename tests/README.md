@@ -4,7 +4,7 @@ The tests directory contains unit and integration tests for the cionic data tool
 
 ## Setup
 
-The tests depend on third party python packages including numpy, pandas, scipy, matplotlib, requests, and development tools (black, flake8, isort, pre_commit, pytest).
+The tests depend on third party python packages including numpy, pandas, scipy, matplotlib, requests, and development tools (black, flake8, isort, pre_commit, pytest). If you are not using the Docker dev container, you will need to install them into a virtual environment yourself.
 
 These packages can be installed into your environment with the following commands
 
@@ -18,7 +18,7 @@ Activate the virtual environment:
 
 Install packages:
 
-`pip3 install -r jupyter/requirements.txt`
+`pip3 install -r requirements.txt`
 
 Set up pre-commit hooks:
 
