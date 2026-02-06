@@ -1360,7 +1360,7 @@ class Kinematics:
                     legend.append(mark['label'])
 
             for y in hlines:
-                axs.axhline(y=y, linewidth=1)
+                axs.axhline(y=y, color='black', lw=0.5, zorder=-1)
 
             if presentation.get('legend') != 'off':
                 axs.legend(
@@ -1548,7 +1548,7 @@ class Kinematics:
 
         if hlines is not None:
             for y in hlines:
-                axs.axhline(y, color='black', lw=0.5, zorder=-1)
+                axs.axhline(y=y, color='black', lw=0.5, zorder=-1)
 
         axs.set_xlabel('elapsed')
         # axs.set_ylabel(component)
