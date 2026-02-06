@@ -1299,6 +1299,10 @@ class Kinematics:
         fig, axes = plt.subplots(ncols=ncols, nrows=nrows, constrained_layout=True)
         if sheight is not None:
             height = sheight * nrows
+        for ax in axes.flatten():
+            for y in hlines:
+                ax.axhline(y=y, color='black', lw=0.5, zorder=-1)
+
         fig.set_size_inches(width, height, forward=False)
         ax = tools.AX(axes, nrows, ncols)
 
@@ -1358,9 +1362,6 @@ class Kinematics:
                         )
                     handles.append(line)
                     legend.append(mark['label'])
-
-            for y in hlines:
-                axs.axhline(y=y, color='black', lw=0.5, zorder=-1)
 
             if presentation.get('legend') != 'off':
                 axs.legend(
