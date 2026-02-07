@@ -13,19 +13,11 @@ You will first need to download an authorization token from the web portal.
 
 ## Setup
 
-The scripts depend on the following third party python packages:
-
-```
-numpy==1.23.4
-requests==2.25.1
-pandas==1.5.1
-scipy==1.9.3
-matplotlib==3.3.4
-```
+The scripts depend on third party python packages including numpy, pandas, scipy, matplotlib, requests, and development tools (black, flake8, isort, pre_commit, pytest). If you are not using the Docker dev container, you will need to install them into a virtual environment yourself.
 
 These packages can be installed into your environment with the following commands
 
-Use a Virtual Environment:
+Use a Virtual Environment in the project root:
 
 `python3 -m venv venv`
 
@@ -35,12 +27,7 @@ Activate the virtual environment:
 
 Install packages:
 
-`pip3 install -r scripts/requirements.txt`
-
-Creates a local package from source code:
-
-`python3 -m pip install --upgrade pip`
-`pip install -e .`
+`pip3 install -r requirements.txt`
 
 Set up pre-commit hooks:
 
