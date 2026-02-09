@@ -10,17 +10,19 @@ Python 3.9+ biomechanical data analysis (NumPy, Pandas, SciPy, Matplotlib, pytes
 - **Flake8**: 88-char, ignores E203/W503 (`.flake8`)
 - **nbQA**: Same for notebooks
 
-## Test-Driven Development (TDD)
+## applyTo: "cionic/*.py"
+When working within the src/ directory:
 
-**Write tests BEFORE implementation.** Tests in `tests/test_<module>.py` using class-based structure.
+TDD Requirement: Before writing any implementation code, generate test cases in tests/test_<module>.py.
+Structure: Use a class-based structure for these tests.
+Verification: Ensure the test covers edge cases (null values, empty strings) before providing the final function logic.
 
-```python
-class TestFeature:
-    def test_basic(self, mock_data):
-        assert function(mock_data) == expected
-```
+## applyTo: ["scripts/.py", "jupyter/**/.ipynb"]
+### Utility Rules:
+When working on scripts, helper functions, notebooks:
 
-Run: `pytest tests/test_api.py -v` or `pytest --cov=cionic`
+Conciseness: Prioritize speed and direct implementation.
+Inline Comments: Use brief inline comments for complex logic instead of external documentation.
 
 ## DRY Principle
 
@@ -40,7 +42,25 @@ Run: `pytest tests/test_api.py -v` or `pytest --cov=cionic`
 def process(data: np.ndarray, threshold: Optional[float] = None) -> List[float]:
 ```
 
-**Docstrings**: Required for modules/functions with Args/Returns sections
+**Docstrings**: Required for modules/functions with Args/Returns sections, use Google style
+Example:
+```python
+def calculate_metrics(
+    self,
+    metrics: Optional[list[Metric]] = None,
+    output_path: Optional[str] = None,
+) -> pd.DataFrame:
+    """
+    Calculate selected gait metrics for all strides and save to CSV if needed.
+
+    Args:
+        metrics (list[Metric], optional): Metrics to compute.
+        output_path (str, optional): Output directory path.
+
+    Returns:
+        pd.DataFrame: DataFrame of computed metrics for all strides.
+    """
+```
 
 ## Data Patterns
 
