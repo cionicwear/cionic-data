@@ -1201,10 +1201,13 @@ class Kinematics:
 
         # plot of indivdual cycles
         for step, (time_interp, step_interp) in enumerate(ind):
-            axs.plot(time_interp, step_interp, color=step_c[step])
+            axs.plot(time_interp, step_interp, color=step_c[step], linewidth=0.75)
 
             # create axes
         self.plot_apply_axes(axs, xaxis, yaxis)
+
+        # Make tick labels smaller
+        axs.tick_params(axis='both', which='major', labelsize=8)
 
         # plot step labels
         if len(ind) > 20:
@@ -1222,7 +1225,9 @@ class Kinematics:
                 ty = ty + tys  # advance y-position of next step label
 
         if presentation.get('legend') != 'off':
-            axs.legend(legend, frameon=False, loc=presentation.get('legend', 1))
+            axs.legend(
+                legend, frameon=False, loc=presentation.get('legend', 1), fontsize=8
+            )
         if presentation.get('title') != 'off':
             axs.set_title(title)
         axs.spines['top'].set_visible(False)
@@ -1294,6 +1299,10 @@ class Kinematics:
         fig, axes = plt.subplots(ncols=ncols, nrows=nrows, constrained_layout=True)
         if sheight is not None:
             height = sheight * nrows
+        for ax in axes.flatten():
+            for y in hlines:
+                ax.axhline(y=y, color='black', lw=0.5, zorder=-1)
+
         fig.set_size_inches(width, height, forward=False)
         ax = tools.AX(axes, nrows, ncols)
 
@@ -1354,20 +1363,21 @@ class Kinematics:
                     handles.append(line)
                     legend.append(mark['label'])
 
-            for y in hlines:
-                axs.axhline(y=y, linewidth=1)
-
             if presentation.get('legend') != 'off':
                 axs.legend(
                     handles,
                     legend,
                     frameon=False,
                     loc=presentation.get('legend', 'best'),
+                    fontsize=8,
                 )
             if presentation.get('title') != 'off':
                 axs.set_title(f'{group}')
             axs.spines['top'].set_visible(False)
             axs.spines['right'].set_visible(False)
+
+            # Make tick labels smaller
+            axs.tick_params(axis='both', which='major', labelsize=8)
 
             # plot individual steps (default = TRUE)
             if plot_ind:
@@ -1465,7 +1475,7 @@ class Kinematics:
                 print(f"{splits_len} splits for {group} {component}")
                 x = splits['streams']['elapsed_s']
                 y = splits['streams']['peak']
-                axs.plot(x, y)
+                axs.plot(x, y, linewidth=0.75)
                 legend.append(f"{group}_{component}_splits")
         return True
 
@@ -1475,15 +1485,18 @@ class Kinematics:
         positions=None,
         streams=None,
         components=None,
+        title=None,
         width=plot_width,
         height=plot_height,
         offset=0,
-        hlines=None,
+        hlines=[0],
         plot_time_ranges=True,
     ):
 
         fig, axes = plt.subplots(ncols=1, nrows=1, constrained_layout=True)
         fig.set_size_inches(width, height, forward=False)
+        if title is not None:
+            fig.suptitle(title)
         ax = tools.AX(axes, 1, 1)
         legend = []
         axs = ax.axs(0, 0)
@@ -1522,7 +1535,7 @@ class Kinematics:
                         if component in ndkeys:
                             x = ndarray['elapsed_s']
                             y = ndarray[component] + off
-                            axs.plot(x, y)
+                            axs.plot(x, y, linewidth=1)
                             legend.append(f"{position}_{stream}_{component}")
                         off += offset
 
@@ -1536,7 +1549,7 @@ class Kinematics:
 
         if hlines is not None:
             for y in hlines:
-                axs.axhline(y)
+                axs.axhline(y=y, color='black', lw=0.5, zorder=-1)
 
         axs.set_xlabel('elapsed')
         # axs.set_ylabel(component)
