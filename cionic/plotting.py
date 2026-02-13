@@ -324,9 +324,7 @@ class StreamsPlotter:
         outdir: str = "recordings",
         segmented: bool = True,
         overwrite: bool = False,
-        include_eulers: bool = True,
-        include_filtered_emgs: bool = False,
-        include_gait_splits: bool = True,
+        stream_config: Optional[Dict[str, bool]] = None,
         peak_kwargs: Optional[Dict] = None,
     ) -> None:
         """
@@ -340,6 +338,10 @@ class StreamsPlotter:
             outdir: Directory for caching downloaded NPZ files. Defaults to "recordings"
             segmented: Whether to download segmented data. Defaults to True
             overwrite: Whether to re-download existing NPZ files. Defaults to False
+            stream_config: Optional dictionary to configure which streams to include.
+                Supports 'include_eulers' 'include_filtered_emgs' 'include_gait_splits'
+                Defaults to {'include_eulers': True, 'include_filtered_emgs': True,
+                'include_gait_splits': True}
             peak_kwargs: Optional parameters for stride detection algorithms
 
         Raises:
@@ -352,6 +354,18 @@ class StreamsPlotter:
         self.tokenpath = tokenpath
         self.outdir = outdir
         self.segmented = segmented
+
+        # Default stream configuration
+        default_stream_config = {
+            'include_eulers': True,
+            'include_filtered_emgs': True,
+            'include_gait_splits': True,
+        }
+
+        # Merge with user configuration
+        if stream_config:
+            default_stream_config.update(stream_config)
+
         self.npz = api.download_npz_from_metadata(
             org_shortname=self.org_shortname,
             study_shortname=self.study_shortname,
@@ -360,9 +374,7 @@ class StreamsPlotter:
             outdir=self.outdir,
             segmented=segmented,
             overwrite=overwrite,
-            include_eulers=include_eulers,
-            include_filtered_emgs=include_filtered_emgs,
-            include_gait_splits=include_gait_splits,
+            **default_stream_config,
             peak_kwargs=peak_kwargs,
         )
         self.segs = self.npz['segments']
@@ -582,6 +594,7 @@ class StreamsSplitsPlotter:
         outdir: str = "recordings",
         segmented: bool = True,
         overwrite: bool = False,
+        stream_config: Optional[Dict[str, bool]] = None,
         peak_kwargs: Optional[Dict] = None,
     ) -> None:
         """
@@ -595,6 +608,10 @@ class StreamsSplitsPlotter:
             outdir: Directory for caching downloaded NPZ files. Defaults to "recordings"
             segmented: Whether to download segmented data. Defaults to True
             overwrite: Whether to re-download existing NPZ files. Defaults to False
+            stream_config: Optional dictionary to configure which streams to include.
+                Supports 'include_eulers' 'include_filtered_emgs' 'include_gait_splits'
+                Defaults to {'include_eulers': True, 'include_filtered_emgs': True,
+                'include_gait_splits': True}
             peak_kwargs: Optional parameters for stride detection algorithms
 
         Raises:
@@ -607,6 +624,18 @@ class StreamsSplitsPlotter:
         self.tokenpath = tokenpath
         self.outdir = outdir
         self.segmented = segmented
+
+        # Default stream configuration
+        default_stream_config = {
+            'include_eulers': True,
+            'include_filtered_emgs': True,
+            'include_gait_splits': True,
+        }
+
+        # Merge with user configuration
+        if stream_config:
+            default_stream_config.update(stream_config)
+
         self.npz = api.download_npz_from_metadata(
             org_shortname=self.org_shortname,
             study_shortname=self.study_shortname,
@@ -615,6 +644,7 @@ class StreamsSplitsPlotter:
             outdir=self.outdir,
             segmented=segmented,
             overwrite=overwrite,
+            **default_stream_config,
             peak_kwargs=peak_kwargs,
         )
         self.segs = self.npz['segments']
