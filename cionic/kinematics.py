@@ -18,7 +18,11 @@ from scipy.spatial.distance import cdist
 from scipy.spatial.transform import Rotation, Slerp
 from scipy.stats import ttest_ind
 
-from cionic import tools
+from cionic import pod_utils, tools
+from cionic.foot_segmenter import (
+    get_required_columns,
+    segment_footpod,
+)
 
 PEAK_KWARGS = {'distance': 50, 'prominence': 30}
 
@@ -405,6 +409,23 @@ class Kinematics:
     # split calculations #
     ######################
 
+    def _check_timestamp_in_valid_range(
+        self, timestamp: float, time_ranges: list[tuple[float, float]]
+    ) -> bool:
+        """Check if a timestamp falls within any of the valid time ranges.
+
+        Args:
+            timestamp (float): Timestamp to check.
+            time_ranges (list[tuple[float, float]]): List of (start, end) intervals.
+
+        Returns:
+            bool: True if timestamp is within any valid time range, False otherwise.
+        """
+        for interval_start, interval_stop in time_ranges:
+            if timestamp >= interval_start and timestamp <= interval_stop:
+                return True
+        return False
+
     def calculate_segment_splits(self, group, label, name, streams):
         splits = []
 
@@ -415,11 +436,6 @@ class Kinematics:
         self.splits[group][name] = {'splits': splits, 'skips': []}
 
     def calculate_splits(self, pconf, skip_splits_outside_valid_range=True):
-        def check_if_timestamp_in_valid_range(timestamp, time_ranges):
-            for interval_start, interval_stop in time_ranges:
-                if timestamp >= interval_start and timestamp <= interval_stop:
-                    return True
-            return False
 
         # pconf contains a dictionary of splitters keyed on name
         for name, splitter in pconf.items():
@@ -443,7 +459,7 @@ class Kinematics:
                 if skip_splits_outside_valid_range:
                     for idx, split in enumerate(splits):
                         ts, _ = split
-                        in_valid_range = check_if_timestamp_in_valid_range(
+                        in_valid_range = self._check_timestamp_in_valid_range(
                             ts, self.time_ranges[group]
                         )
                         if not in_valid_range and idx not in skips:
@@ -478,6 +494,162 @@ class Kinematics:
                         dtype={'names': ('elapsed_s', 'peak'), 'formats': ('f8', 'f8')},
                     ),
                 }
+
+    def calculate_footpod_splits(
+        self,
+        collection_dir,
+        segmentation_range=(0, np.inf),
+        method="peak",
+        skip_splits_outside_valid_range=True,
+        **segment_kwargs,
+    ):
+        """Calculate and inject footpod splits using specified segmentation method.
+
+        This method automatically processes both 'left' and 'right' groups if footpod
+        data is available. It extracts foot data from the Kinematics object and loads
+        acceleration data from CSV files if needed.
+
+        Args:
+            collection_dir (str): Path to directory containing CSV files
+                (imu.csv, emg.csv) needed for acceleration data.
+            segmentation_range (tuple[float, float], optional): Time range to segment.
+                Defaults to (0, np.inf).
+            method (str, optional): Segmentation method to use. Options
+                - "peak": Basic peak/trough detection (default)
+                - "jasiewicz": Jasiewicz algorithm using roll and acceleration
+                - "mod-jasiewicz": Modified Jasiewicz (Cionic) algorithm
+                - "seel": Seel algorithm with foot-flat detection
+            skip_splits_outside_valid_range (bool, optional): Whether to skip splits
+                outside valid time ranges. Defaults to True.
+            **segment_kwargs: Additional kwargs passed to segmentation function
+        """
+
+        # Helper functions
+        def create_splits_from_peaks(peak_indices, height_column):
+            """Create splits from peak indices with height values."""
+            splits = []
+            for idx in peak_indices:
+                ts = foot_df.iloc[idx]['elapsed_s']
+                if height_column:
+                    height = float(foot_df.iloc[idx][height_column])
+                else:
+                    height = 1.0
+                splits.append((ts, height))
+            return splits
+
+        def create_visualization_stream(splits, skips, elapsed_values):
+            """Create visualization stream for splits."""
+            stream = []
+            if splits:
+                s = 0
+                (ts, height) = splits[s]
+                for _, t in enumerate(elapsed_values):
+                    if t == ts:
+                        if s in skips:
+                            stream.append((t, -1.0))
+                        else:
+                            stream.append((t, height))
+                        s += 1
+                        if s < len(splits):
+                            (ts, height) = splits[s]
+                    else:
+                        if s in skips:
+                            stream.append((t, -1.0))
+                        else:
+                            stream.append((t, 0))
+            return np.array(
+                stream,
+                dtype={'names': ('elapsed_s', 'peak'), 'formats': ('f8', 'f8')},
+            )
+
+        def process_and_store_splits(
+            peak_indices,
+            split_name,
+            skip_first=True,
+            height_column=None,
+            elapsed_values=None,
+        ):
+            """Create splits, streams, store them, and print summary."""
+            splits = create_splits_from_peaks(peak_indices, height_column)
+
+            skips = [0] if skip_first else []
+            if skip_splits_outside_valid_range:
+                for idx, split in enumerate(splits):
+                    ts, _ = split
+                    if (
+                        not self._check_timestamp_in_valid_range(
+                            ts, self.time_ranges[group]
+                        )
+                        and idx not in skips
+                    ):
+                        skips.append(idx)
+
+            stream = create_visualization_stream(splits, skips, elapsed_values)
+            self.splits[group][split_name] = {
+                'splits': splits,
+                'skips': skips,
+                'streams': stream,
+            }
+
+            valid_count = len(splits) - len(skips)
+            print(
+                f"Calculated {len(splits)} splits ({valid_count} valid) "
+                f"for {group} {split_name}"
+            )
+
+        # Actually process the footpod data
+        for group in ['left', 'right']:
+            foot_position = f'{group[0]}_foot'
+            foot_df = pod_utils.load_imu_from_csv(
+                collection_dir, foot_position, unwrap_euler=False
+            )
+
+            if foot_df is None or foot_df.empty:
+                print(f"No footpod data available for {group} ({foot_position}) in CSV")
+                continue
+
+            required_cols = get_required_columns(method)
+            if not all(col in foot_df.columns for col in required_cols):
+                print(
+                    f"Missing required columns for {group} segmentation using "
+                    f"'{method}' method (need: {required_cols})"
+                )
+                continue
+
+            # Perform segmentation using specified method, extract HS and TO events
+            try:
+                ic_peaks, ec_peaks = segment_footpod(
+                    foot_df, method, segmentation_range, **segment_kwargs
+                )
+            except ValueError as e:
+                print(str(e))
+                continue
+            except Exception as e:
+                print(
+                    f"Error during segmentation for {group} using {method} method: {e}"
+                )
+                continue
+
+            if len(ic_peaks) < 2:
+                print(f"Too few HS events ({len(ic_peaks)}) for {group}")
+                continue
+
+            height_column = 'roll' if 'roll' in foot_df.columns else None
+            elapsed_values = foot_df['elapsed_s'].values
+            process_and_store_splits(
+                ic_peaks,
+                'footpod_heel_strike',
+                skip_first=True,
+                height_column=height_column,
+                elapsed_values=elapsed_values,
+            )
+            process_and_store_splits(
+                ec_peaks,
+                'footpod_toe_off',
+                skip_first=False,
+                height_column=height_column,
+                elapsed_values=elapsed_values,
+            )
 
     def set_contras(self, a, b, splits):
         for split in splits:
@@ -1029,10 +1201,13 @@ class Kinematics:
 
         # plot of indivdual cycles
         for step, (time_interp, step_interp) in enumerate(ind):
-            axs.plot(time_interp, step_interp, color=step_c[step])
+            axs.plot(time_interp, step_interp, color=step_c[step], linewidth=0.75)
 
             # create axes
         self.plot_apply_axes(axs, xaxis, yaxis)
+
+        # Make tick labels smaller
+        axs.tick_params(axis='both', which='major', labelsize=8)
 
         # plot step labels
         if len(ind) > 20:
@@ -1050,7 +1225,9 @@ class Kinematics:
                 ty = ty + tys  # advance y-position of next step label
 
         if presentation.get('legend') != 'off':
-            axs.legend(legend, frameon=False, loc=presentation.get('legend', 1))
+            axs.legend(
+                legend, frameon=False, loc=presentation.get('legend', 1), fontsize=8
+            )
         if presentation.get('title') != 'off':
             axs.set_title(title)
         axs.spines['top'].set_visible(False)
@@ -1122,6 +1299,10 @@ class Kinematics:
         fig, axes = plt.subplots(ncols=ncols, nrows=nrows, constrained_layout=True)
         if sheight is not None:
             height = sheight * nrows
+        for ax in axes.flatten():
+            for y in hlines:
+                ax.axhline(y=y, color='black', lw=0.5, zorder=-1)
+
         fig.set_size_inches(width, height, forward=False)
         ax = tools.AX(axes, nrows, ncols)
 
@@ -1182,20 +1363,21 @@ class Kinematics:
                     handles.append(line)
                     legend.append(mark['label'])
 
-            for y in hlines:
-                axs.axhline(y=y, linewidth=1)
-
             if presentation.get('legend') != 'off':
                 axs.legend(
                     handles,
                     legend,
                     frameon=False,
                     loc=presentation.get('legend', 'best'),
+                    fontsize=8,
                 )
             if presentation.get('title') != 'off':
                 axs.set_title(f'{group}')
             axs.spines['top'].set_visible(False)
             axs.spines['right'].set_visible(False)
+
+            # Make tick labels smaller
+            axs.tick_params(axis='both', which='major', labelsize=8)
 
             # plot individual steps (default = TRUE)
             if plot_ind:
@@ -1293,7 +1475,7 @@ class Kinematics:
                 print(f"{splits_len} splits for {group} {component}")
                 x = splits['streams']['elapsed_s']
                 y = splits['streams']['peak']
-                axs.plot(x, y)
+                axs.plot(x, y, linewidth=0.75)
                 legend.append(f"{group}_{component}_splits")
         return True
 
@@ -1303,15 +1485,18 @@ class Kinematics:
         positions=None,
         streams=None,
         components=None,
+        title=None,
         width=plot_width,
         height=plot_height,
         offset=0,
-        hlines=None,
+        hlines=[0],
         plot_time_ranges=True,
     ):
 
         fig, axes = plt.subplots(ncols=1, nrows=1, constrained_layout=True)
         fig.set_size_inches(width, height, forward=False)
+        if title is not None:
+            fig.suptitle(title)
         ax = tools.AX(axes, 1, 1)
         legend = []
         axs = ax.axs(0, 0)
@@ -1350,7 +1535,7 @@ class Kinematics:
                         if component in ndkeys:
                             x = ndarray['elapsed_s']
                             y = ndarray[component] + off
-                            axs.plot(x, y)
+                            axs.plot(x, y, linewidth=1)
                             legend.append(f"{position}_{stream}_{component}")
                         off += offset
 
@@ -1364,7 +1549,7 @@ class Kinematics:
 
         if hlines is not None:
             for y in hlines:
-                axs.axhline(y)
+                axs.axhline(y=y, color='black', lw=0.5, zorder=-1)
 
         axs.set_xlabel('elapsed')
         # axs.set_ylabel(component)
@@ -1560,6 +1745,12 @@ class Kinematics:
                 f"{position_b} {stream}: {n_b - data_b.shape[0]} nonincreasing "
                 f"samples removed (of {data_b.shape[0]} total samples)."
             )
+
+        if position_a == "upright" and "_pod" in position_b:
+            # Adjust upright start time to match pod start time of 0.0 sec.
+            # Use a copy to avoid mutating the original data stored in self.groups.
+            data_a = data_a.copy()
+            data_a["elapsed_s"] = data_a["elapsed_s"] - data_a["elapsed_s"].min()
 
         # Get rotations for each stream.
         orientations_a = self.orientations_for_single_stream(
