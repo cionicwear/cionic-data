@@ -209,8 +209,8 @@ def lighten(color: str, amount: float = 0.3) -> Tuple[float, float, float]:
     """Lighten a color by blending it with white.
 
     Args:
-        color: Color specification (name, hex, etc.)
-        amount: Amount to lighten (0-1, where 1 is white)
+        color (str): Color specification (name, hex, etc.)
+        amount (float): Amount to lighten (0-1, where 1 is white)
 
     Returns:
         RGB tuple with lightened color values
@@ -223,7 +223,7 @@ def format_axis(ax: Axes) -> None:
     """Format plot axis with standard styling.
 
     Args:
-        ax: Matplotlib axes object to format
+        ax (Axes): Matplotlib axes object to format
     """
     ax.grid(axis="y", alpha=0.7, zorder=0)
     ax.spines["right"].set_visible(False)
@@ -241,12 +241,12 @@ def create_subplots(
     Create a subplot layout with standardized formatting for stream visualization.
 
     Args:
-        nrows: Number of subplot rows
-        ncols: Number of subplot columns
-        figsize: Figure size (width, height) in inches. If None, auto-calculated
-            as (10, 3*nrows) for optimal stream visualization
-        dpi: Figure resolution in dots per inch. Defaults to module DPI constant
-        **kwargs: Additional arguments passed to plt.subplots()
+        nrows (int): Number of subplot rows
+        ncols (int): Number of subplot columns
+        figsize (Tuple[int, int]): Figure size (width, height) in inches. If None,
+            auto-calculated as (10, 3*nrows) for optimal stream visualization
+        dpi (int): Figure resolution in dots per inch. Defaults to module DPI constant
+        **kwargs (dict): Additional arguments passed to plt.subplots()
 
     Returns:
         tuple: (fig, axs) - matplotlib Figure and array of Axes objects
@@ -331,18 +331,22 @@ class StreamsPlotter:
         Initialize StreamsPlotter with data source parameters and download NPZ data.
 
         Args:
-            org_shortname: Organization identifier (e.g., "cionic")
-            study_shortname: Study protocol name (e.g., "Parkinsons")
-            collection_num: Unique collection session identifier
-            tokenpath: Path to authentication token file for API access
-            outdir: Directory for caching downloaded NPZ files. Defaults to "recordings"
-            segmented: Whether to download segmented data. Defaults to True
-            overwrite: Whether to re-download existing NPZ files. Defaults to False
-            stream_config: Optional dictionary to configure which streams to include.
+            org_shortname (str): Organization identifier (e.g., "cionic")
+            study_shortname (str): Study protocol name (e.g., "Parkinsons")
+            collection_num (int): Unique collection session identifier
+            tokenpath (str): Path to authentication token file for API access
+            outdir (str): Directory for caching downloaded NPZ files. Defaults to
+                "recordings"
+            segmented (bool): Whether to download segmented data. Defaults to True
+            overwrite (bool): Whether to re-download existing NPZ files. Defaults to
+                False
+            stream_config (Optional[Dict[str, bool]]): Optional dictionary to configure
+                which streams to include.
                 Supports 'include_eulers' 'include_filtered_emgs' 'include_gait_splits'
                 Defaults to {'include_eulers': True, 'include_filtered_emgs': True,
                 'include_gait_splits': True}
-            peak_kwargs: Optional parameters for stride detection algorithms
+            peak_kwargs (Optional[Dict]): Optional parameters for stride detection
+                algorithms
 
         Raises:
             Exception: If API authentication fails or data cannot be downloaded
@@ -391,12 +395,13 @@ class StreamsPlotter:
         Create a subplot layout with standardized formatting for stream visualization.
 
         Args:
-            nrows: Number of subplot rows
-            ncols: Number of subplot columns
-            figsize: Figure size (width, height) in inches. If None, auto-calculated
-                as (10, 3*nrows) for optimal stream visualization
-            dpi: Figure resolution in dots per inch. Defaults to module DPI constant
-            **kwargs: Additional arguments passed to plt.subplots()
+            nrows (int): Number of subplot rows
+            ncols (int): Number of subplot columns
+            figsize (Tuple[int, int]): Figure size (width, height) in inches. If None,
+                auto-calculated as (10, 3*nrows) for optimal stream visualization
+            dpi (int): Figure resolution in dots per inch. Defaults to module DPI
+                constant
+            **kwargs (dict): Additional arguments passed to plt.subplots()
 
         Returns:
             tuple: (fig, axs) - matplotlib Figure and array of Axes objects
@@ -515,11 +520,11 @@ class StreamsPlotter:
         Clip plot view to exclude non-gait periods based on walking period boundaries.
 
         Args:
-            ax: Matplotlib axes object to modify
-            label: Label(s) to include in analysis. Can be a single string
-                or list of strings for multiple labels
-            position: Anatomical position (e.g., "l_shank")
-            stream_name: Stream containing walking period data."
+            ax (Axes): Matplotlib axes object to modify
+            label (Union[str, List[str]]): Label(s) to include in analysis. Can be a
+                single string or list of strings for multiple labels
+            position (str): Anatomical position (e.g., "l_shank")
+            stream_name (str): Stream containing walking period data."
         """
         # Normalize label to always be a list
         if isinstance(label, str):
@@ -601,18 +606,22 @@ class StreamsSplitsPlotter:
         Initialize StreamsPlotter with data source parameters and download NPZ data.
 
         Args:
-            org_shortname: Organization identifier (e.g., "cionic")
-            study_shortname: Study protocol name (e.g., "Parkinsons")
-            collection_num: Unique collection session identifier
-            tokenpath: Path to authentication token file for API access
-            outdir: Directory for caching downloaded NPZ files. Defaults to "recordings"
-            segmented: Whether to download segmented data. Defaults to True
-            overwrite: Whether to re-download existing NPZ files. Defaults to False
-            stream_config: Optional dictionary to configure which streams to include.
+            org_shortname (str): Organization identifier (e.g., "cionic")
+            study_shortname (str): Study protocol name (e.g., "Parkinsons")
+            collection_num (int): Unique collection session identifier
+            tokenpath (str): Path to authentication token file for API access
+            outdir (str): Directory for caching downloaded NPZ files. Defaults to
+                "recordings"
+            segmented (bool): Whether to download segmented data. Defaults to True
+            overwrite (bool): Whether to re-download existing NPZ files. Defaults to
+                False
+            stream_config (Optional[Dict[str, bool]]): Optional dictionary to configure
+                which streams to include.
                 Supports 'include_eulers' 'include_filtered_emgs' 'include_gait_splits'
                 Defaults to {'include_eulers': True, 'include_filtered_emgs': True,
                 'include_gait_splits': True}
-            peak_kwargs: Optional parameters for stride detection algorithms
+            peak_kwargs (Optional[Dict]): Optional parameters for stride detection
+                algorithms
 
         Raises:
             Exception: If API authentication fails or data cannot be downloaded
@@ -661,12 +670,13 @@ class StreamsSplitsPlotter:
         Create a subplot layout with standardized formatting for stream visualization.
 
         Args:
-            nrows: Number of subplot rows
-            ncols: Number of subplot columns
-            figsize: Figure size (width, height) in inches. If None, auto-calculated
-                as (10, 3*nrows) for optimal stream visualization
-            dpi: Figure resolution in dots per inch. Defaults to module DPI constant
-            **kwargs: Additional arguments passed to plt.subplots()
+            nrows (int): Number of subplot rows
+            ncols (int): Number of subplot columns
+            figsize (Tuple[int, int]): Figure size (width, height) in inches. If None,
+                auto-calculated as (10, 3*nrows) for optimal stream visualization
+            dpi (int): Figure resolution in dots per inch. Defaults to module DPI
+                constant
+            **kwargs (dict): Additional arguments passed to plt.subplots()
 
         Returns:
             tuple: (fig, axs) - matplotlib Figure and array of Axes objects
@@ -774,10 +784,10 @@ def violin_jitter(
     Compute x jitter for scatter points to follow violin shape.
 
     Args:
-        y: Array of data values
-        center_x: X-position of this violin
-        width: Max half-width of violin
-        n_points: Number of points for KDE interpolation
+        y (np.ndarray): Array of data values
+        center_x (float): X-position of this violin
+        width (float): Max half-width of violin
+        n_points (int): Number of points for KDE interpolation
 
     Returns:
         Array of jittered x-coordinates
@@ -866,14 +876,14 @@ class GroupedMetricsPlotter:
         the violin using kernel density-based jittering.
 
         Args:
-            metric_specification (dict): Dictionary specifying the metric to plot.
+            metric_specification (Dict[str, str]): Dictionary specifying the metric.
                 Must contain keys:
                 - title (str): Plot title
                 - y_label (str): Y-axis label with units
                 - metric_column (str): Column name in metrics DataFrame
                 - position (str): Anatomical position to filter by
                 - component (str): Component to filter by
-            figsize (tuple, optional): Figure size (width, height) in inches.
+            figsize (Tuple[int, int], optional): Figure size (width, height) in inches.
                 Defaults to FIGSIZE constant.
             dpi (int, optional): Figure resolution in dots per inch.
                 Defaults to DPI constant.
@@ -957,7 +967,7 @@ class GroupedMetricsPlotter:
         confidence intervals.
 
         Args:
-            metric_specification (dict): Dictionary specifying the metric to plot.
+            metric_specification (Dict[str, str]): Dictionary specifying the metric.
                 Must contain keys:
                 - title (str): Base plot title (statistic will be appended)
                 - y_label (str): Y-axis label with units
@@ -967,7 +977,7 @@ class GroupedMetricsPlotter:
             statistic (str, optional): Statistical summary to compute and display.
                 Options: 'mean', 'std', 'cv' (coefficient of variation).
                 Defaults to 'mean'.
-            figsize (tuple, optional): Figure size (width, height) in inches.
+            figsize (Tuple[int, int], optional): Figure size (width, height) in inches.
                 Defaults to FIGSIZE constant.
             dpi (int, optional): Figure resolution in dots per inch.
                 Defaults to DPI constant.
