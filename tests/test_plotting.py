@@ -269,7 +269,6 @@ class TestStreamConfigBackwardCompatibility:
             'cionic.plotting.api.download_npz_from_metadata', return_value=mock_npz
         )
 
-        # This is how users would have used it before
         plotter = plotting.StreamsPlotter(
             org_shortname="cionic",
             study_shortname="reference_colls",
@@ -288,7 +287,6 @@ class TestStreamConfigBackwardCompatibility:
             'cionic.plotting.api.download_npz_from_metadata', return_value=mock_npz
         )
 
-        # This is how users would have used it before
         plotter = plotting.StreamsSplitsPlotter(
             org_shortname="cionic",
             study_shortname="reference_colls",
