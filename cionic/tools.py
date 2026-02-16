@@ -1715,6 +1715,32 @@ def unit_normalize_array(array):
     return (array - np.min(array)) / (np.max(array) - np.min(array))
 
 
+def percentile_normalize_array(
+    array: np.ndarray, percentile: float = 5.0
+) -> np.ndarray:
+    """Normalize array by nth percentile range (robust to outliers).
+
+    Maps values at the lower percentile to 0 and upper percentile to 1.
+    Less sensitive to extreme outliers than min-max normalization.
+
+    Args:
+        array (np.ndarray): Input numpy array of shape (n, ).
+        percentile (float): Percentile level (0-50). Default 5 uses
+            5th-95th percentile range for normalization.
+
+    Returns:
+        np.ndarray: Percentile-normalized array scaled to [0, 1] range.
+    """
+    lower_percentile = np.percentile(array, percentile)
+    upper_percentile = np.percentile(array, 100 - percentile)
+    percentile_range = upper_percentile - lower_percentile
+
+    if percentile_range < 1e-10:
+        return np.zeros_like(array, dtype=float)
+
+    return (array - lower_percentile) / percentile_range
+
+
 def calc_impedance(
     raw_data: np.array,
     window_size: int,
