@@ -1715,6 +1715,31 @@ def unit_normalize_array(array):
     return (array - np.min(array)) / (np.max(array) - np.min(array))
 
 
+def min_max_normalize_array(
+    array: np.ndarray, min_val: float = 0.0, max_val: float = 1.0
+) -> np.ndarray:
+    """Normalize an array to a specified range [min_val, max_val].
+
+    Args:
+        array: numpy array of shape (n, )
+        min_val: target minimum value for normalization
+        max_val: target maximum value for normalization
+
+    Returns:
+        array: Normalized numpy array of shape (n, ) scaled to [min_val, max_val]
+    """
+    array_min = np.min(array)
+    array_max = np.max(array)
+
+    if array_max - array_min < 1e-10:
+        # Handle constant array case
+        return np.full_like(array, (min_val + max_val) / 2, dtype=float)
+
+    # Scale to [0, 1] first, then to [min_val, max_val]
+    normalized = (array - array_min) / (array_max - array_min)
+    return normalized * (max_val - min_val) + min_val
+
+
 def percentile_normalize_array(
     array: np.ndarray, percentile: float = 5.0
 ) -> np.ndarray:
