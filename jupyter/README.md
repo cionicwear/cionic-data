@@ -30,6 +30,7 @@ You will first need to download an authorization token from the web portal.
    ```bash
    docker compose -f docker-compose.dev.yml up
    ```
+6. (Note) When build dependencies change, add `--build` flag at the end of `docker compose`.
 
 ### Option 1: JupyterLab (Browser-based)
 *Recommended for quick analysis*
