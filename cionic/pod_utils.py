@@ -5,13 +5,20 @@ from various file formats (CSV, NPZ). It includes utilities for:
 - Loading foot IMU data from CSV files using the Cionic API
 """
 
+from pathlib import Path
+from typing import Union
+
 import numpy as np
 import pandas as pd
 from scipy.spatial.transform import Rotation as R
 
 
 def load_imu_from_csv(
-    path: str, position: str, unwrap_euler: bool = True
+    path: str,
+    position: str,
+    unwrap_euler: bool = True,
+    time_align: bool = True,
+    side: str = None,
 ) -> pd.DataFrame:
     """Load and preprocess limb-specific IMU data from CSV files.
 
@@ -62,14 +69,24 @@ def load_imu_from_csv(
     # Determine time source - prefer quat, fallback to accel or gyro
     time = None
     if len(quat) > 0 and "elapsed" in quat.columns:
-        time = (quat["elapsed"] - quat["elapsed"].min()) / 10000.0
+        time = quat["elapsed"] / 10000.0
     elif len(accel) > 0 and "elapsed" in accel.columns:
-        time = (accel["elapsed"] - accel["elapsed"].min()) / 10000.0
+        time = accel["elapsed"] / 10000.0
     elif len(gyro) > 0 and "elapsed" in gyro.columns:
-        time = (gyro["elapsed"] - gyro["elapsed"].min()) / 10000.0
+        time = gyro["elapsed"] / 10000.0
     if time is None or len(time) == 0:
         print(f"No time data found for {position}")
         return None
+
+    # Time align and zero start
+    if time_align and side is not None:
+        # Step 1: Sync clocks (e.g., foot clock -> thigh clock)
+        time = time_align_from_shank(time, path, position, side)
+        # Step 2: Global offset (shank t_0 -> 0.0)
+        time = zero_start_from_shank(time, path, side)
+    else:
+        # Fallback: just make the individual sensor start at 0
+        time = time - time.iloc[0]
 
     # Convert quaternions to euler angles (radians) using scipy
     eulers = None
@@ -157,6 +174,137 @@ def load_imu_from_csv(
                 unwrapped = np.unwrap(arr)
                 df[angle] = np.degrees(unwrapped - np.mean(unwrapped))  # center on 0
         except (ValueError, KeyError):
+            print("Euler unwrapping failed, returning raw angles.")
             pass  # Skip unwrapping if it fails
 
     return df
+
+
+def time_align_from_shank(
+    time: pd.Series, path: Union[str, Path], position: str, side: str
+) -> pd.DataFrame:
+    """Align limb-specific IMU data to a common thigh reference frame.
+
+    Calculates a temporal offset by finding the nearest row-index neighbor
+    between the target position and the thigh anchor in the master imu.csv.
+    This offset is then applied to the input DataFrame's elapsed time.
+
+    DISCLAIMER: This function assumes that the imu.csv is populated in
+    real-time. It relies on the row-proximity of sensor entries as the
+    ground truth for synchronization, rather than the internal timestamps
+    of the individual sensors.
+
+    Args:
+    df (pd.DataFrame): The limb-specific data to be aligned. 'elapsed_s' in seconds.
+    path (Union[str, Path]): Path to directory containing imu.csv. 'elapsed' in hundos.
+    position (str): Position on body, e.g. "r_shank".
+    side (str): The body side to align to ("left" or "right").
+
+    Returns:
+    pd.DataFrame: Data with the 'elapsed' column shifted to the
+    thigh's time frame.
+    """
+
+    if side.lower() == "left":
+        target_limb = "l_shank"
+    elif side.lower() == "right":
+        target_limb = "r_shank"
+    else:
+        print(
+            f"Invalid side: {side}. Must be 'left' or 'right'. Returning original data."
+        )
+        return time
+    try:
+        # Loading without predefined names to handle potential headers;
+        # ensure 'limb' and 'elapsed' are present.
+        imu_df = pd.read_csv(Path(path) / "imu.csv")
+    except (FileNotFoundError, pd.errors.EmptyDataError):
+        print(f"Warning: imu.csv not found at {path}. Returning original data.")
+        return time
+
+    # Check if 'limb' and 'elapsed' columns exist
+    if 'limb' not in imu_df.columns or 'elapsed' not in imu_df.columns:
+        print("Warning: imu.csv missing 'limb' or 'elapsed' columns.")
+        return time
+
+    pos_indices = imu_df[imu_df['limb'] == position].index
+    target_indices = imu_df[imu_df['limb'] == target_limb].index
+
+    if pos_indices.empty or target_indices.empty:
+        print(f"Warning: {position} or {target_limb} not found in imu.csv.")
+        return time
+
+    # 1. Find Start Pair (using whichever starts later to ensure overlap)
+    start_idx_ref = max(pos_indices[0], target_indices[0])
+    first_pos_idx = pos_indices[np.abs(pos_indices - start_idx_ref).argmin()]
+    closest_target_start_idx = target_indices[
+        np.abs(target_indices - first_pos_idx).argmin()
+    ]
+
+    t_pos_start = imu_df.loc[first_pos_idx, 'elapsed']
+    t_target_start = imu_df.loc[closest_target_start_idx, 'elapsed']
+
+    # 2. Find End Pair (using whichever ends earlier to ensure overlap)
+    end_idx_ref = min(pos_indices[-1], target_indices[-1])
+    last_pos_idx = pos_indices[np.abs(pos_indices - end_idx_ref).argmin()]
+    closest_target_end_idx = target_indices[
+        np.abs(target_indices - last_pos_idx).argmin()
+    ]
+
+    t_pos_end = imu_df.loc[last_pos_idx, 'elapsed']
+    t_target_end = imu_df.loc[closest_target_end_idx, 'elapsed']
+
+    # 3. Apply the temporal shift (based on the start pair)
+    offset = (t_target_start - t_pos_start) / 10000.0
+    time_aligned = time.copy() + offset
+
+    # 4. Compute and apply dynamic drift factor
+    pos_duration = t_pos_end - t_pos_start
+    target_duration = t_target_end - t_target_start
+
+    # Calculate drift: ratio of thigh-time to pos-time minus 1
+    computed_drift = (target_duration / pos_duration) - 1 if pos_duration != 0 else 0
+    zero_start_for_warp = time_aligned - time_aligned.iloc[0]
+    time_aligned = time_aligned + zero_start_for_warp * computed_drift
+
+    return time_aligned
+
+
+def zero_start_from_shank(
+    time: pd.Series, path: Union[str, Path], side: str
+) -> pd.Series:
+    """Offsets the aligned time series so the shank's first recording is t=0.
+
+    Args:
+        time (pd.Series): The synchronized elapsed time (in seconds).
+        path (Union[str, Path]): Path to directory containing imu.csv.
+        side (str): The body side to align to ("left" or "right").
+
+    Returns:
+        pd.Series: Time series starting relative to the shank's first entry.
+    """
+    if side.lower() == "left":
+        target_limb = "l_shank"
+    elif side.lower() == "right":
+        target_limb = "r_shank"
+    else:
+        print(
+            f"Invalid side: {side}. Must be 'left' or 'right'. Returning original data."
+        )
+        return time
+
+    try:
+        imu_df = pd.read_csv(Path(path) / "imu.csv")
+        thigh_entries = imu_df[imu_df["limb"] == target_limb]
+
+        if not thigh_entries.empty:
+            # Get the absolute first timestamp of the shank in seconds
+            shank_start_s = thigh_entries["elapsed"].iloc[0] / 10000.0
+            return time - shank_start_s
+
+    except Exception as e:
+        print(f"Zero start failed: {e}")
+
+    # Fallback: if shank not found, just zero the series to its own start
+    print(f"Warning: {target_limb} not found in imu.csv. Zeroing to own start.")
+    return time - time.iloc[0]
