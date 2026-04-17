@@ -101,7 +101,7 @@ def retrieve_stream_generalized(
     mask = np.ones(len(segments), dtype=bool)
     for field, value in field_filters.items():
         if field not in segments.dtype.names:
-            continue
+            raise ValueError(f"Warning: field '{field}' not in segments metadata.")
         if value is not False and value is not None:
             mask &= segments[field] == value
     filtered = segments[mask]
