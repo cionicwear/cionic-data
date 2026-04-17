@@ -1,7 +1,8 @@
 """
 Usage: pytest tests/test_npz_utils.py
 
-Unit tests for the `retrieve_stream_generalized` function in the `npz_utils` module.
+Unit tests for the `retrieve_stream_generalized`, `retrieve_stream`, and
+`retrieve_segment_field` functions in the `npz_utils` module.
 
 These tests verify the correct behavior of stream retrieval from an NPZ data source
 based on specified field filters. The tests cover the following scenarios:
@@ -10,16 +11,31 @@ based on specified field filters. The tests cover the following scenarios:
   the provided filters.
 - Confirming that the correct stream is returned when a single match is found.
 - Ensuring that a `ValueError` is raised when an invalid field is specified.
+- Verifying that `segment_num=None` (the default) skips segment filtering.
+- Verifying that an explicit `segment_num` integer filters to the correct segment.
 
 Fixtures:
     npz: Loads the example NPZ file for use in the tests.
+    segmented_npz: Minimal in-memory NPZ with two segments for testing segment_num
+        filtering in retrieve_stream and retrieve_segment_field.
 
 Test Cases:
     - test_multiple_streams_found: Checks error handling for multiple matching streams.
     - test_stream_found: Validates successful retrieval of a single matching stream.
     - test_bad_field_identified: Ensures that a `ValueError` is raised when an invalid
         field is specified.
+    - test_retrieve_stream_with_segment_num: Filters by segment_num and
+        returns correct data.
+    - test_retrieve_stream_none_raises_when_ambiguous: segment_num=None skips filter.
+    - test_retrieve_stream_default_is_none: Default kwarg behaves like segment_num=None.
+    - test_retrieve_segment_field_with_segment_num: Returns field from matching segment.
+    - test_retrieve_segment_field_none_returns_first_match: None skips segment filter.
+    - test_retrieve_segment_field_default_is_none: Default kwarg behaves like None.
 """
+
+import io
+import json
+import zipfile
 
 import numpy as np
 import pytest
@@ -30,6 +46,69 @@ from cionic import npz_utils
 @pytest.fixture(scope="module")
 def npz():
     return np.load("npz_examples/example.npz")
+
+
+def _npy_bytes(arr):
+    """Serialize a numpy array to .npy-format bytes."""
+    buf = io.BytesIO()
+    np.save(buf, arr)
+    return buf.getvalue()
+
+
+@pytest.fixture(scope="module")
+def segmented_npz(tmp_path_factory):
+    """
+    Minimal NPZ with two fquat segments for l_shank (segment_num 1 and 2).
+
+    Built via zipfile so that segments.jsonl is stored as raw bytes (matching
+    the real NPZ format) and stream data arrays are stored as .npy entries.
+    """
+    tmp = tmp_path_factory.mktemp("npz")
+    path = str(tmp / "segmented.npz")
+
+    data_1 = np.ones(10, dtype=np.float32)
+    data_2 = np.ones(10, dtype=np.float32) * 2
+
+    segments = np.array(
+        [
+            ("l_shank", "fquat", 1, "l_shank_fquat_1"),
+            ("l_shank", "fquat", 2, "l_shank_fquat_2"),
+        ],
+        dtype=[
+            ("position", "<U20"),
+            ("stream", "<U16"),
+            ("segment_num", "<i4"),
+            ("path", "<U32"),
+        ],
+    )
+    jsonl = (
+        json.dumps(
+            {
+                "position": "l_shank",
+                "stream": "fquat",
+                "segment_num": 1,
+                "device": "dev_a",
+            }
+        )
+        + "\n"
+        + json.dumps(
+            {
+                "position": "l_shank",
+                "stream": "fquat",
+                "segment_num": 2,
+                "device": "dev_b",
+            }
+        )
+        + "\n"
+    ).encode()
+
+    with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("segments.npy", _npy_bytes(segments))
+        zf.writestr("l_shank_fquat_1.npy", _npy_bytes(data_1))
+        zf.writestr("l_shank_fquat_2.npy", _npy_bytes(data_2))
+        zf.writestr("segments.jsonl", jsonl)  # raw bytes — no .npy magic prefix
+
+    return np.load(path)
 
 
 def test_multiple_streams_found(npz):
@@ -79,3 +158,71 @@ def test_bad_field_identified(npz):
     field_filters = {"position": "l_shank", "stream": "euler", "invalid_field": "value"}
     with pytest.raises(ValueError):
         npz_utils.retrieve_stream_generalized(npz=npz, field_filters=field_filters)
+
+
+# ---------------------------------------------------------------------------
+# retrieve_stream — segment_num sentinel tests
+# ---------------------------------------------------------------------------
+
+
+def test_retrieve_stream_with_segment_num(segmented_npz):
+    """Passing a specific segment_num returns only that segment's data."""
+    stream = npz_utils.retrieve_stream(
+        npz=segmented_npz, position="l_shank", stream="fquat", segment_num=1
+    )
+    assert stream is not None
+    assert np.all(stream == 1.0)
+
+
+def test_retrieve_stream_none_raises_when_ambiguous(segmented_npz):
+    """segment_num=None skips the filter, so two matching segments → error."""
+    with pytest.raises(npz_utils.MultipleStreamsFoundError):
+        npz_utils.retrieve_stream(
+            npz=segmented_npz, position="l_shank", stream="fquat", segment_num=None
+        )
+
+
+def test_retrieve_stream_default_is_none(segmented_npz):
+    """Omitting segment_num behaves identically to segment_num=None."""
+    with pytest.raises(npz_utils.MultipleStreamsFoundError):
+        npz_utils.retrieve_stream(npz=segmented_npz, position="l_shank", stream="fquat")
+
+
+# ---------------------------------------------------------------------------
+# retrieve_segment_field — segment_num sentinel tests
+# ---------------------------------------------------------------------------
+
+
+def test_retrieve_segment_field_with_segment_num(segmented_npz):
+    """Passing segment_num returns the field value from the matching segment only."""
+    device = npz_utils.retrieve_segment_field(
+        npz=segmented_npz,
+        position="l_shank",
+        stream="fquat",
+        field_name="device",
+        segment_num=1,
+    )
+    assert device == "dev_a"
+
+
+def test_retrieve_segment_field_none_returns_first_match(segmented_npz):
+    """segment_num=None ignores segment filtering and returns the first match."""
+    device = npz_utils.retrieve_segment_field(
+        npz=segmented_npz,
+        position="l_shank",
+        stream="fquat",
+        field_name="device",
+        segment_num=None,
+    )
+    assert device == "dev_a"
+
+
+def test_retrieve_segment_field_default_is_none(segmented_npz):
+    """Omitting segment_num behaves identically to segment_num=None."""
+    device = npz_utils.retrieve_segment_field(
+        npz=segmented_npz,
+        position="l_shank",
+        stream="fquat",
+        field_name="device",
+    )
+    assert device == "dev_a"
