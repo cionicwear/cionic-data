@@ -13,6 +13,7 @@ based on specified field filters. The tests cover the following scenarios:
 - Ensuring that a `ValueError` is raised when an invalid field is specified.
 - Verifying that `segment_num=None` (the default) skips segment filtering.
 - Verifying that an explicit `segment_num` integer filters to the correct segment.
+- Verifying that `segment_num=0` is treated as a valid filter.
 
 Fixtures:
     npz: Loads the example NPZ file for use in the tests.
@@ -31,6 +32,8 @@ Test Cases:
     - test_retrieve_segment_field_with_segment_num: Returns field from matching segment.
     - test_retrieve_segment_field_none_returns_first_match: None skips segment filter.
     - test_retrieve_segment_field_default_is_none: Default kwarg behaves like None.
+    - test_retrieve_stream_segment_num_zero: segment_num=0 filters correctly.
+    - test_retrieve_segment_field_segment_num_zero: segment_num=0 returns correct field.
 """
 
 import io
@@ -58,19 +61,22 @@ def _npy_bytes(arr):
 @pytest.fixture(scope="module")
 def segmented_npz(tmp_path_factory):
     """
-    Minimal NPZ with two fquat segments for l_shank (segment_num 1 and 2).
+    Minimal NPZ with three fquat segments for l_shank (segment_num 0, 1, and 2).
 
-    Built via zipfile so that segments.jsonl is stored as raw bytes (matching
-    the real NPZ format) and stream data arrays are stored as .npy entries.
+    Segment 0 is included to ensure that segment_num=0 is treated as a valid filter.
+    Built via zipfile so that segments.jsonl is stored as raw bytes (matching the real
+    NPZ format) and stream data arrays are stored as .npy entries.
     """
     tmp = tmp_path_factory.mktemp("npz")
     path = str(tmp / "segmented.npz")
 
+    data_0 = np.zeros(10, dtype=np.float32)
     data_1 = np.ones(10, dtype=np.float32)
     data_2 = np.ones(10, dtype=np.float32) * 2
 
     segments = np.array(
         [
+            ("l_shank", "fquat", 0, "l_shank_fquat_0"),
             ("l_shank", "fquat", 1, "l_shank_fquat_1"),
             ("l_shank", "fquat", 2, "l_shank_fquat_2"),
         ],
@@ -83,6 +89,15 @@ def segmented_npz(tmp_path_factory):
     )
     jsonl = (
         json.dumps(
+            {
+                "position": "l_shank",
+                "stream": "fquat",
+                "segment_num": 0,
+                "device": "dev_zero",
+            }
+        )
+        + "\n"
+        + json.dumps(
             {
                 "position": "l_shank",
                 "stream": "fquat",
@@ -104,6 +119,7 @@ def segmented_npz(tmp_path_factory):
 
     with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("segments.npy", _npy_bytes(segments))
+        zf.writestr("l_shank_fquat_0.npy", _npy_bytes(data_0))
         zf.writestr("l_shank_fquat_1.npy", _npy_bytes(data_1))
         zf.writestr("l_shank_fquat_2.npy", _npy_bytes(data_2))
         zf.writestr("segments.jsonl", jsonl)  # raw bytes — no .npy magic prefix
@@ -214,7 +230,7 @@ def test_retrieve_segment_field_none_returns_first_match(segmented_npz):
         field_name="device",
         segment_num=None,
     )
-    assert device == "dev_a"
+    assert device == "dev_zero"
 
 
 def test_retrieve_segment_field_default_is_none(segmented_npz):
@@ -225,4 +241,30 @@ def test_retrieve_segment_field_default_is_none(segmented_npz):
         stream="fquat",
         field_name="device",
     )
-    assert device == "dev_a"
+    assert device == "dev_zero"
+
+
+# ---------------------------------------------------------------------------
+# Regression: segment_num=0 must not be dropped by a falsy check
+# ---------------------------------------------------------------------------
+
+
+def test_retrieve_stream_segment_num_zero(segmented_npz):
+    """segment_num=0 is a valid filter value and must not be treated as falsy."""
+    stream = npz_utils.retrieve_stream(
+        npz=segmented_npz, position="l_shank", stream="fquat", segment_num=0
+    )
+    assert stream is not None
+    assert np.all(stream == 0.0)
+
+
+def test_retrieve_segment_field_segment_num_zero(segmented_npz):
+    """segment_num=0 returns the correct field and must not be treated as falsy."""
+    device = npz_utils.retrieve_segment_field(
+        npz=segmented_npz,
+        position="l_shank",
+        stream="fquat",
+        field_name="device",
+        segment_num=0,
+    )
+    assert device == "dev_zero"
