@@ -427,24 +427,16 @@ def simple_plot(
 
 
 def plot_shades(axs, plots, legend, shades):
-    ylims = axs.get_ylim()
     for shade in shades:
         name = shade['name']
         color = shade['color']
         first = True
         for pattern in shade['patterns']:
             if pattern[0] == pattern[1]:
-                axs.vlines(
-                    pattern[0], ylims[0], ylims[1], color=color, alpha=pattern[2]
-                )
+                axs.axvline(pattern[0], color=color, alpha=pattern[2], lw=0.5)
             else:
-                plot = axs.fill_between(
-                    pattern[0:2],
-                    ylims[0],
-                    ylims[1],
-                    color=color,
-                    alpha=pattern[2],
-                    linewidth=0,
+                plot = axs.axvspan(
+                    pattern[0], pattern[1], color=color, alpha=pattern[2], lw=0
                 )
                 if first:
                     plots.append(plot)
