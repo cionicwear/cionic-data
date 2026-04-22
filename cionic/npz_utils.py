@@ -72,8 +72,6 @@ def retrieve_stream(
     Returns:
         np.recarray or None: The matched data segment if found, otherwise None.
     '''
-    if isinstance(segment_num, bool):
-        segment_num = None
     field_filters = {
         'position': position,
         'stream': stream,
@@ -137,8 +135,6 @@ def retrieve_segment_field(
     Returns:
         str, int, float, or None: The matched field value if found, otherwise None.
     '''
-    if isinstance(segment_num, bool):
-        segment_num = None
     for line in npz['segments.jsonl'].split(b'\n'):
         if line:
             segment = json.loads(line)
