@@ -1,5 +1,5 @@
 import json
-from typing import Union
+from typing import Optional, Union
 
 import numpy as np
 
@@ -57,7 +57,7 @@ def retrieve_stream(
     npz: np.lib.npyio.NpzFile,
     position: str,
     stream: str,
-    segment_num: Union[int, bool] = False,
+    segment_num: Optional[int] = None,
 ) -> Union[np.recarray, None]:
     '''
     Retrieve a specific data stream segment from an NPZ archive.
@@ -66,8 +66,8 @@ def retrieve_stream(
         npz (np.lib.npyio.NpzFile): Loaded NPZ archive.
         position (str): Position on body, e.g. "r_shank".
         stream (str): Stream name, e.g. "fquat".
-        segment_num (int or bool): Segment number to match in the segment metadata,
-            or False to ignore.
+        segment_num (Optional[int]): Segment number to match in the segment metadata,
+            or None to ignore.
 
     Returns:
         np.recarray or None: The matched data segment if found, otherwise None.
@@ -76,7 +76,7 @@ def retrieve_stream(
         'position': position,
         'stream': stream,
     }
-    if segment_num:
+    if segment_num is not None:
         field_filters['segment_num'] = segment_num
     return retrieve_stream_generalized(npz=npz, field_filters=field_filters)
 
@@ -102,7 +102,7 @@ def retrieve_stream_generalized(
     for field, value in field_filters.items():
         if field not in segments.dtype.names:
             raise ValueError(f"Warning: field '{field}' not in segments metadata.")
-        if value is not False and value is not None:
+        if value is not None:
             mask &= segments[field] == value
     filtered = segments[mask]
     if len(filtered) == 0:
@@ -119,7 +119,7 @@ def retrieve_segment_field(
     position: str,
     stream: str,
     field_name: str,
-    segment_num: Union[int, bool] = False,
+    segment_num: Optional[int] = None,
 ) -> Union[str, int, float, None]:
     '''
     Retrieve a specific field from a line in the segments file in an NPZ archive.
@@ -129,8 +129,8 @@ def retrieve_segment_field(
         position (str): Position on body, e.g. "r_shank".
         stream (str): Stream name, e.g. "fquat".
         field_name (str): Name of the field to retrieve from the segment metadata.
-        segment_num (int or bool): Segment number to match in the segment metadata,
-            or False to ignore.
+        segment_num (Optional[int]): Segment number to match in the segment metadata,
+            or None to ignore.
 
     Returns:
         str, int, float, or None: The matched field value if found, otherwise None.
@@ -141,7 +141,7 @@ def retrieve_segment_field(
             if (
                 position == segment.get('position')
                 and stream == segment.get('stream')
-                and (segment_num is False or segment_num == segment.get('segment_num'))
+                and (segment_num is None or segment_num == segment.get('segment_num'))
             ):
                 return segment[field_name]
     return None
