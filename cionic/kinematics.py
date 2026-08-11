@@ -336,7 +336,7 @@ class Kinematics:
         self.pp = None
 
     def load_array(
-        self, group, position, stream, array, regs, hz=None, time_range=None
+        self, group, position, stream, array, regs, hz=None, time_range=None, drift=None
     ):
 
         if hz is not None:
@@ -346,11 +346,25 @@ class Kinematics:
                 a['elapsed_s'] = ts
                 ts += inc
 
+        if drift:
+            if d:= drift.get(position):
+                print(group, position, stream, d)
+                cumm_drift = 0
+                for a in array:
+                    try:
+                        a['elapsed_s'] += cumm_drift
+                        cumm_drift += d
+                    except:
+                        pass
+
         if time_range is not None:
-            array = array[
-                (array['elapsed_s'] >= time_range[0])
-                & (array['elapsed_s'] < time_range[1])
-            ]
+            try:
+                array = array[
+                    (array['elapsed_s'] >= time_range[0])
+                    & (array['elapsed_s'] < time_range[1])
+                ]
+            except:
+                pass
 
         if stream in self.groups[group][position]:
             self.groups[group][position][stream] = np.concatenate(
